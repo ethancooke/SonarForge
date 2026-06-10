@@ -1,26 +1,17 @@
 import Foundation
-import Accelerate
 
-/// A single second-order IIR biquad filter (Direct Form II Transposed).
-/// This is the fundamental building block for the parametric EQ.
+/// A single second-order IIR filter (Direct Form II Transposed) for offline use:
+/// unit tests, analysis, and prototyping. The live render path uses
+/// `RealtimeParametricEQ`, which processes the same `BiquadCoefficients` with
+/// preallocated state suitable for the realtime thread.
 ///
-/// Design goals for real-time use:
-/// - Stable coefficients (use Double for calculation).
-/// - Minimal state (two per channel for stereo).
-/// - Safe for parameter updates via coefficient swap at block boundaries.
-/// - Denormal protection.
+/// Coefficient math lives in `BiquadCoefficients` (RBJ Audio EQ Cookbook with
+/// input clamping); this type just owns per-channel state and the DF2T kernel.
 public struct BiquadFilter {
 
-    // MARK: - Coefficients (b0, b1, b2, a1, a2)
-    // Normalized such that a0 == 1.0
-    public var b0: Double = 1.0
-    public var b1: Double = 0.0
-    public var b2: Double = 0.0
-    public var a1: Double = 0.0
-    public var a2: Double = 0.0
+    public var coefficients: BiquadCoefficients = .identity
 
-    // MARK: - Per-channel state (Direct Form II Transposed)
-    // For stereo we keep separate state. Extend for more channels as needed.
+    // Direct Form II Transposed state, stereo.
     private var z1L: Double = 0.0
     private var z2L: Double = 0.0
     private var z1R: Double = 0.0
@@ -28,31 +19,30 @@ public struct BiquadFilter {
 
     public init() {}
 
-    /// Process a single stereo sample pair (in place or returning new values).
-    /// For hot paths we usually process buffers.
+    // Convenience accessors used by tests and analysis code.
+    public var b0: Double { coefficients.b0 }
+    public var b1: Double { coefficients.b1 }
+    public var b2: Double { coefficients.b2 }
+    public var a1: Double { coefficients.a1 }
+    public var a2: Double { coefficients.a2 }
+
+    /// Process a single stereo sample pair.
     @inline(__always)
     public mutating func process(sampleL: Double, sampleR: Double) -> (Double, Double) {
-        // Direct Form II Transposed
-        let outL = b0 * sampleL + z1L
-        z1L = b1 * sampleL + z2L - a1 * outL
-        z2L = b2 * sampleL - a2 * outL
+        let c = coefficients
 
-        let outR = b0 * sampleR + z1R
-        z1R = b1 * sampleR + z2R - a1 * outR
-        z2R = b2 * sampleR - a2 * outR
+        let outL = c.b0 * sampleL + z1L
+        z1L = c.b1 * sampleL + z2L - c.a1 * outL
+        z2L = c.b2 * sampleL - c.a2 * outL
 
-        // Denormal protection (very cheap)
-        if abs(z1L) < 1e-300 { z1L = 0 }
-        if abs(z2L) < 1e-300 { z2L = 0 }
-        if abs(z1R) < 1e-300 { z1R = 0 }
-        if abs(z2R) < 1e-300 { z2R = 0 }
+        let outR = c.b0 * sampleR + z1R
+        z1R = c.b1 * sampleR + z2R - c.a1 * outR
+        z2R = c.b2 * sampleR - c.a2 * outR
 
         return (outL, outR)
     }
 
-    /// Process an interleaved stereo buffer.
-    /// `buffer` is expected to be non-interleaved or interleaved float/double as convenient.
-    /// For the MVP we provide a simple stereo pair version; vectorized versions can come later.
+    /// Process non-interleaved stereo buffers in place.
     public mutating func processStereoBuffer(left: UnsafeMutablePointer<Double>,
                                              right: UnsafeMutablePointer<Double>,
                                              frameCount: Int) {
@@ -61,6 +51,7 @@ public struct BiquadFilter {
             left[i] = l
             right[i] = r
         }
+        flushDenormals()
     }
 
     /// Reset internal state (call on major discontinuities).
@@ -69,135 +60,38 @@ public struct BiquadFilter {
         z1R = 0; z2R = 0
     }
 
-    // MARK: - Coefficient Calculation (RBJ / Audio EQ Cookbook style)
+    /// Flush subnormal state once per buffer (cheap, avoids denormal slowdowns).
+    @inline(__always)
+    public mutating func flushDenormals() {
+        if abs(z1L) < 1e-15 { z1L = 0 }
+        if abs(z2L) < 1e-15 { z2L = 0 }
+        if abs(z1R) < 1e-15 { z1R = 0 }
+        if abs(z2R) < 1e-15 { z2R = 0 }
+    }
 
-    /// Calculates coefficients for a peaking (bell) filter.
+    // MARK: - Coefficient setters (thin wrappers over BiquadCoefficients)
+
     public mutating func setPeaking(frequency: Double, gainDB: Double, q: Double, sampleRate: Double) {
-        let w0 = 2.0 * .pi * frequency / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let alpha = sinw0 / (2.0 * q)
-
-        let A = pow(10.0, gainDB / 40.0)
-
-        let b0 =  1.0 + alpha * A
-        let b1 = -2.0 * cosw0
-        let b2 =  1.0 - alpha * A
-        let a0 =  1.0 + alpha / A
-        let a1 = -2.0 * cosw0
-        let a2 =  1.0 - alpha / A
-
-        self.b0 = b0 / a0
-        self.b1 = b1 / a0
-        self.b2 = b2 / a0
-        self.a1 = a1 / a0
-        self.a2 = a2 / a0
+        coefficients = .peaking(frequency: frequency, gainDB: gainDB, q: q, sampleRate: sampleRate)
     }
 
-    /// Low shelf (standard RBJ).
     public mutating func setLowShelf(frequency: Double, gainDB: Double, q: Double, sampleRate: Double) {
-        let w0 = 2.0 * .pi * frequency / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let A = pow(10.0, gainDB / 40.0)
-        let alpha = sinw0 / 2.0 * sqrt((A + 1.0 / A) * (1.0 / q - 1.0) + 2.0)
-
-        let b0 =    A * ((A + 1.0) + (A - 1.0) * cosw0 + 2.0 * sqrt(A) * alpha)
-        let b1 = -2.0 * A * ((A - 1.0) + (A + 1.0) * cosw0)
-        let b2 =    A * ((A + 1.0) + (A - 1.0) * cosw0 - 2.0 * sqrt(A) * alpha)
-        let a0 =        (A + 1.0) - (A - 1.0) * cosw0 + 2.0 * sqrt(A) * alpha
-        let a1 =    2.0 * ((A - 1.0) - (A + 1.0) * cosw0)
-        let a2 =        (A + 1.0) - (A - 1.0) * cosw0 - 2.0 * sqrt(A) * alpha
-
-        self.b0 = b0 / a0
-        self.b1 = b1 / a0
-        self.b2 = b2 / a0
-        self.a1 = a1 / a0
-        self.a2 = a2 / a0
+        coefficients = .lowShelf(frequency: frequency, gainDB: gainDB, q: q, sampleRate: sampleRate)
     }
 
-    /// High shelf.
     public mutating func setHighShelf(frequency: Double, gainDB: Double, q: Double, sampleRate: Double) {
-        let w0 = 2.0 * .pi * frequency / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let A = pow(10.0, gainDB / 40.0)
-        let alpha = sinw0 / 2.0 * sqrt((A + 1.0 / A) * (1.0 / q - 1.0) + 2.0)
-
-        let b0 =    A * ((A + 1.0) - (A - 1.0) * cosw0 + 2.0 * sqrt(A) * alpha)
-        let b1 =  2.0 * A * ((A - 1.0) - (A + 1.0) * cosw0)
-        let b2 =    A * ((A + 1.0) - (A - 1.0) * cosw0 - 2.0 * sqrt(A) * alpha)
-        let a0 =        (A + 1.0) + (A - 1.0) * cosw0 + 2.0 * sqrt(A) * alpha
-        let a1 =   -2.0 * ((A - 1.0) + (A + 1.0) * cosw0)
-        let a2 =        (A + 1.0) + (A - 1.0) * cosw0 - 2.0 * sqrt(A) * alpha
-
-        self.b0 = b0 / a0
-        self.b1 = b1 / a0
-        self.b2 = b2 / a0
-        self.a1 = a1 / a0
-        self.a2 = a2 / a0
+        coefficients = .highShelf(frequency: frequency, gainDB: gainDB, q: q, sampleRate: sampleRate)
     }
 
-    /// Simple 2nd-order low-pass (Butterworth-like via RBJ).
     public mutating func setLowPass(frequency: Double, q: Double, sampleRate: Double) {
-        let w0 = 2.0 * .pi * frequency / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let alpha = sinw0 / (2.0 * q)
-
-        let b0 = (1.0 - cosw0) / 2.0
-        let b1 =  1.0 - cosw0
-        let b2 = (1.0 - cosw0) / 2.0
-        let a0 =  1.0 + alpha
-        let a1 = -2.0 * cosw0
-        let a2 =  1.0 - alpha
-
-        self.b0 = b0 / a0
-        self.b1 = b1 / a0
-        self.b2 = b2 / a0
-        self.a1 = a1 / a0
-        self.a2 = a2 / a0
+        coefficients = .lowPass(frequency: frequency, q: q, sampleRate: sampleRate)
     }
 
-    /// Simple 2nd-order high-pass.
     public mutating func setHighPass(frequency: Double, q: Double, sampleRate: Double) {
-        let w0 = 2.0 * .pi * frequency / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let alpha = sinw0 / (2.0 * q)
-
-        let b0 =  (1.0 + cosw0) / 2.0
-        let b1 = -(1.0 + cosw0)
-        let b2 =  (1.0 + cosw0) / 2.0
-        let a0 =   1.0 + alpha
-        let a1 =  -2.0 * cosw0
-        let a2 =   1.0 - alpha
-
-        self.b0 = b0 / a0
-        self.b1 = b1 / a0
-        self.b2 = b2 / a0
-        self.a1 = a1 / a0
-        self.a2 = a2 / a0
+        coefficients = .highPass(frequency: frequency, q: q, sampleRate: sampleRate)
     }
 
-    /// Notch filter.
     public mutating func setNotch(frequency: Double, q: Double, sampleRate: Double) {
-        let w0 = 2.0 * .pi * frequency / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let alpha = sinw0 / (2.0 * q)
-
-        let b0 = 1.0
-        let b1 = -2.0 * cosw0
-        let b2 = 1.0
-        let a0 = 1.0 + alpha
-        let a1 = -2.0 * cosw0
-        let a2 = 1.0 - alpha
-
-        self.b0 = b0 / a0
-        self.b1 = b1 / a0
-        self.b2 = b2 / a0
-        self.a1 = a1 / a0
-        self.a2 = a2 / a0
+        coefficients = .notch(frequency: frequency, q: q, sampleRate: sampleRate)
     }
 }
