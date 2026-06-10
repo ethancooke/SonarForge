@@ -69,6 +69,32 @@ After the copy pass, the render block applies one smoothed gain:
 Profile loads and A/B swaps apply the profile's `preamp` value, so A/B state
 includes gain as required by the Chunk 1.2 deliverables.
 
+## Parametric EQ (Chunks 2.1 / 2.2)
+
+- **Processor**: `RealtimeParametricEQ` — up to 16 cascaded DF2T biquads over
+  the first stereo output buffer, Double state, Float32 samples, per-buffer
+  denormal flush. Coefficients come from `BiquadCoefficients` (RBJ formulas,
+  inputs clamped: freq [10 Hz, 0.49 fs], Q [0.025, 40], gain ±24 dB, shelf
+  radicand floored strictly positive so poles stay inside the unit circle).
+- **Parameter path** (D-010): lock-free SPSC command ring. The control queue
+  computes coefficients and pushes set-coefficients / set-band-count /
+  reset-state commands; the render thread drains them at the top of every IO
+  cycle (even while bypassed, so coefficients are current when bypass lifts).
+- **Render order**: copy pass → EQ (skipped when bypassed; state reset on the
+  bypass→active transition, masked by the gain crossfade) → smoothed combined
+  gain. The EQ is linear, so combined preamp×output gain after it is exactly
+  equivalent to preamp-before/output-after until a nonlinear stage exists.
+- **Restart behavior**: the engine re-applies the current bands at the actual
+  output rate on every start, so device/sample-rate changes recompute
+  coefficients correctly.
+- **Limitations (MVP)**: EQ applies to the first 2-channel output buffer;
+  other stream layouts pass through with gain only.
+- **Measured**: 12 bands at 48 kHz stereo cost **0.29 % of one core**
+  (optimized build, Apple Silicon; ~4.6 % in Debug from bounds checks —
+  the unit-test bound guards regressions, the Release number is the target).
+- **Debug presets**: Flat / Bass Boost / Treble Boost / Mid Cut / Telephone in
+  the debug panel exercise the live path until the Phase 4 profile system.
+
 ## Threading Model
 
 | Concern | Where it runs |

@@ -95,8 +95,19 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         let outputGainBits = ManagedAtomic<UInt32>(Float(1.0).bitPattern)
         var smoothedGain: Float = 0
         var smoothingCoeff: Float = 0.001
+        /// RT-local: tracks bypass transitions so EQ state resets when re-engaging.
+        var wasBypassed: Bool = true
     }
     private let renderContext = RenderContext()
+
+    /// The live EQ (Chunk 2.2). Producer side driven from `controlQueue` only
+    /// (single-producer contract of its command ring); consumer side runs in the
+    /// IO block.
+    private let eq = RealtimeParametricEQ()
+    /// Last loaded profile bands; re-applied after every engine (re)start so
+    /// device/sample-rate changes recompute coefficients at the new rate.
+    private var currentBands: [EQBand] = []
+    private var currentSampleRate: Double = 48000
 
     /// Gain controls are clamped to a sane range; the UI exposes ±12 dB (see D-009).
     private static let gainRangeDB = -24.0...24.0
@@ -140,7 +151,11 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     }
 
     func loadProfile(_ profile: EQProfile) {
-        logger.debug("Profile loaded: \(profile.name) (\(profile.bands.count) bands — EQ arrives in Chunk 2)")
+        controlQueue.async {
+            self.currentBands = profile.bands
+            let applied = self.eq.apply(bands: profile.bands, sampleRate: self.currentSampleRate)
+            self.logger.info("Profile loaded: \(profile.name, privacy: .public) (\(applied) bands @ \(self.currentSampleRate) Hz)")
+        }
     }
 
     func selectOutputDevice(uid: String?) {
@@ -224,9 +239,15 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                 timeConstant: Self.gainSmoothingSeconds, sampleRate: outputRate)
             renderContext.smoothedGain = 0
 
+            // 5b. (Re)apply EQ coefficients at the actual output rate and clear
+            //     filter state — device or rate may have changed since last start.
+            currentSampleRate = outputRate
+            eq.apply(bands: currentBands, sampleRate: outputRate)
+            eq.requestStateReset()
+
             // 6. Install the realtime IO block (nil queue → HAL realtime thread) and start.
             var newProcID: AudioDeviceIOProcID?
-            try check(AudioDeviceCreateIOProcIDWithBlock(&newProcID, newAggregateID, nil, Self.makeIOBlock(context: renderContext)),
+            try check(AudioDeviceCreateIOProcIDWithBlock(&newProcID, newAggregateID, nil, Self.makeIOBlock(context: renderContext, eq: eq)),
                       "AudioDeviceCreateIOProcIDWithBlock")
             ioProcID = newProcID
             try check(AudioDeviceStart(newAggregateID, newProcID), "AudioDeviceStart")
@@ -310,11 +331,12 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     // MARK: - Realtime IO block
 
     /// Builds the realtime IO block. Static factory so the block provably captures only the
-    /// render context (no `self`, no Core Audio object IDs, nothing that could allocate).
+    /// render context and the EQ (no `self`, no Core Audio object IDs, nothing that could
+    /// allocate).
     ///
-    /// Realtime rules: no allocations, no locks, no ObjC messaging. `memset`/`memcpy` and a
-    /// relaxed atomic load are the heaviest operations here.
-    private static func makeIOBlock(context: RenderContext) -> AudioDeviceIOBlock {
+    /// Realtime rules: no allocations, no locks, no ObjC messaging. The EQ drains its
+    /// lock-free command ring here and processes over preallocated state.
+    private static func makeIOBlock(context: RenderContext, eq: RealtimeParametricEQ) -> AudioDeviceIOBlock {
         return { _, inInputData, _, outOutputData, _ in
             let inABL = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inInputData))
             let outABL = UnsafeMutableAudioBufferListPointer(outOutputData)
@@ -355,12 +377,35 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                 }
             }
 
+            // EQ pass (Chunk 2.2). Always drain pending parameter commands, even
+            // when bypassed, so coefficients are current the moment bypass lifts.
+            eq.drainCommands()
+
+            let isBypassed = context.bypassed.load(ordering: .relaxed)
+            if !isBypassed {
+                if context.wasBypassed {
+                    // Re-engaging: clear stale filter history. The gain smoother's
+                    // crossfade masks the transition.
+                    eq.resetState()
+                }
+                // Process the first stereo buffer — the normal single-stream case.
+                // Non-stereo layouts pass through with gain only (documented MVP limit).
+                for i in 0..<outABL.count {
+                    if outABL[i].mNumberChannels == 2, let data = outABL[i].mData {
+                        let frames = Int(outABL[i].mDataByteSize) / (bytesPerSample * 2)
+                        eq.processStereoInterleaved(data.assumingMemoryBound(to: Float32.self), frameCount: frames)
+                        break
+                    }
+                }
+            }
+            context.wasBypassed = isBypassed
+
             // Gain pass (Chunk 1.2): per-sample one-pole smoothing toward the target —
             // unity when bypassed, preamp × output gain when active. The smoother
             // prevents zipper noise on fader moves, gives a click-free bypass
             // crossfade (~15 ms), and doubles as the start fade-in (gain starts at 0).
-            // The EQ will sit between the two gain stages from Chunk 2.2 onward.
-            let isBypassed = context.bypassed.load(ordering: .relaxed)
+            // The EQ is linear, so applying the combined gain after it is exactly
+            // equivalent to preamp-before/output-after until a nonlinear stage exists.
             let preampGain = Float(bitPattern: context.preampGainBits.load(ordering: .relaxed))
             let outputGain = Float(bitPattern: context.outputGainBits.load(ordering: .relaxed))
             let target: Float = isBypassed ? 1.0 : preampGain * outputGain

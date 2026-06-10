@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Phase 1 COMPLETE** (Chunks 1.1 and 1.2 done, listening-validated). Next: Phase 2, Chunk 2.1 (production biquad filter bank).
+**Last Updated**: 2026-06-10 — **Chunks 2.1 + 2.2 implemented**: production biquad bank with lock-free parameter path (D-010), EQ live in the render path, debug presets for audible validation. All 22 unit tests pass; 12 bands cost 0.29% of realtime (optimized). Pending: EQ listening check. Phase 1 complete.
 
 ---
 
@@ -104,15 +104,14 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 2.1 — Biquad filter bank** (Phase 2, DEVELOPMENT_PLAN.md):
-   - Production-quality `BiquadFilter` + `ParametricEQ` (skeletons exist in `Sources/SonarForge/DSP/`): RBJ coefficient edge cases (Nyquist, extreme Q/gain), denormal handling, Float32 processing path matching the render block.
-   - Lock-free/double-buffered parameter update path from UI to the render thread (extend the atomics approach already used for gains).
-   - Unit tests against known-good coefficient values + impulse/step responses.
-   - CPU target: < 1–2 % for 8–12 bands at 48 kHz.
+1. **Phase 2 listening validation** (Chunks 2.1/2.2 implemented 2026-06-10, see `Documentation/AUDIO_PATH.md` § Parametric EQ):
+   - With music playing and the engine running, switch Test Profile between Flat / Bass Boost / Treble Boost / Mid Cut / Telephone — each should be clearly audible, switch cleanly, and Bypass should A/B against the unprocessed signal.
+   - Confirm no artifacts on profile switches and that Flat is indistinguishable from Bypass.
 
-2. Then Chunk 2.2: wire the EQ into the live render path between the preamp and output gain stages; exact bypass semantics; A/B with optional crossfade.
+2. After validation: Phase 3 (Chunk 3.1, vDSP spectrum analysis) or Phase 4 (profiles + AutoEQ importer) — Phase 4 is the higher-value next step since the EQ is now real; spectrum is display-only.
 
-**Chunk 1.2 completed 2026-06-10** (smoothed gain staging, real bypass semantics, D-009 headroom decision, labeled gain UI) — listening-validated: smooth fader response, clean bypass behavior.
+**Chunk 2.1/2.2 summary**: `BiquadCoefficients` (clamped RBJ + analytic magnitude response), `RealtimeParametricEQ` (16-band DF2T cascade, SPSC command ring — D-010), EQ wired between copy and gain passes with state reset on bypass re-engage and coefficient re-application on every engine start. 22 unit tests; 0.29% of realtime for 12 bands (optimized).
+**Chunk 1.2 completed 2026-06-10** — listening-validated.
 
 **Dev note**: if the engine ever hangs in "Starting…" after a rebuild, it is the stale-TCC gotcha — run `tccutil reset All com.sonarforge.SonarForge` and re-grant (details in AUDIO_PATH.md).
 

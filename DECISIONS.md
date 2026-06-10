@@ -171,6 +171,23 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-010: Render-Thread Parameter Path — SPSC Command Ring
+
+**Date**: 2026-06-10 (Chunk 2.1)
+
+**Decision**: All EQ parameter updates travel from the control thread to the render thread through a lock-free single-producer/single-consumer ring buffer of small fixed-size commands (set-coefficients / set-band-count / reset-state). Coefficients are computed off the audio thread; the render thread drains pending commands at the top of each IO cycle.
+
+**Rationale**:
+- Satisfies the audio-thread sanctity rule (no locks, no allocation, no ObjC) with clean acquire/release semantics — no torn doubles, no formally-UB seqlock reads, no ARC traffic from atomic object-reference swaps.
+- The producer is never realtime, so it may sleep briefly if the ring is momentarily full (only plausible when audio is stalled anyway).
+- Generalizes: future per-band UI edits, profile swaps, and A/B all reduce to pushing commands.
+
+**Alternatives considered**: double-buffered snapshot with atomic index (unsafe reuse without consumer acknowledgment), seqlock (reader-side data race is formally undefined behavior in the Swift/C++ memory model), atomic object references (refcount traffic on the render thread).
+
+**Status**: Locked. Implemented in `DSP/RealtimeParametricEQ.swift`.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

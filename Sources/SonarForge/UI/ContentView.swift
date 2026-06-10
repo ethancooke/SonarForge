@@ -180,6 +180,25 @@ struct AudioEngineDebugView: View {
                     .help("Refresh device list")
                 }
 
+                HStack {
+                    Text("Test Profile")
+                    Menu(appModel.currentProfile.name) {
+                        ForEach(EQProfile.debugPresets) { preset in
+                            Button(preset.name) {
+                                appModel.loadProfile(preset)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: 200)
+                    .help("Built-in EQ presets for validating the live render path (Chunk 2.2). The real profile system arrives in Phase 4.")
+                    if let notes = appModel.currentProfile.notes {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
                 if case .failed = appModel.engineState {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("The engine could not start. If this is a permission problem, grant SonarForge access under System Audio Recording and retry.")
