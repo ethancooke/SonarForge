@@ -1,0 +1,84 @@
+# XcodeGen project definition for SonarForge.
+#
+# The committed SonarForge.xcodeproj is generated from this file:
+#   xcodegen generate
+#
+# Platform constraints are locked (see DECISIONS.md D-001 and
+# Documentation/Xcode-Setup.md): macOS 14.2+ deployment target,
+# Apple Silicon (arm64) only — no Intel / x86_64.
+
+name: SonarForge
+
+options:
+  bundleIdPrefix: com.sonarforge
+  deploymentTarget:
+    macOS: "14.2"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "14.2"
+    ARCHS: arm64
+    VALID_ARCHS: arm64
+    SUPPORTED_PLATFORMS: macosx
+    SWIFT_VERSION: "5.0"
+  configs:
+    Debug:
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      ONLY_ACTIVE_ARCH: NO
+
+targets:
+  SonarForge:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/SonarForge
+    entitlements:
+      path: Sources/SonarForge/Resources/Entitlements.entitlements
+    info:
+      path: Sources/SonarForge/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: SonarForge
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSApplicationCategoryType: public.app-category.music
+        NSAudioCaptureUsageDescription: >-
+          SonarForge captures system audio with a Core Audio tap so it can
+          apply your equalizer settings to everything you hear. Audio never
+          leaves this Mac.
+        NSHumanReadableCopyright: "Copyright © 2026 SonarForge contributors. Apache License 2.0."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sonarforge.SonarForge
+        PRODUCT_NAME: SonarForge
+        CODE_SIGN_STYLE: Automatic
+        # Ad-hoc signing for local development; set a real team before distributing.
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+
+  SonarForgeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Sources/SonarForgeTests
+    dependencies:
+      - target: SonarForge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sonarforge.SonarForgeTests
+
+schemes:
+  SonarForge:
+    build:
+      targets:
+        SonarForge: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - SonarForgeTests
+    archive:
+      config: Release

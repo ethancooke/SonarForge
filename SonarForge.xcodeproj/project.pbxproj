@@ -1,0 +1,497 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */; };
+		21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */; };
+		2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EBD07360AEA963D10746CDF /* EQProfile.swift */; };
+		39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C4EC3B766CAA38B91E0159 /* ContentView.swift */; };
+		42D25772DE49DFB241FE30C1 /* ParametricEQ.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0194ACFC3576EA3CD07BDAF3 /* ParametricEQ.swift */; };
+		491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8099D566442C0E0A256CF89 /* PermissionHelper.swift */; };
+		64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */; };
+		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
+		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
+		F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		12DD199D7964D01AB4603E73 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6C92A7B8CF59287B23FB3E4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 60809CC1F879F8CF964F4460;
+			remoteInfo = SonarForge;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0194ACFC3576EA3CD07BDAF3 /* ParametricEQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParametricEQ.swift; sourceTree = "<group>"; };
+		06F086ECF969C4D896823E90 /* SonarForge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SonarForge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarForgeApp.swift; sourceTree = "<group>"; };
+		2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
+		6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
+		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
+		63C4EC3B766CAA38B91E0159 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		664B719906D2750F61DA3568 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6EBD07360AEA963D10746CDF /* EQProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfile.swift; sourceTree = "<group>"; };
+		AF5265D6E8288637A0D1A93A /* Entitlements.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.entitlements; sourceTree = "<group>"; };
+		C08443F9720725E1952FAFE9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		D8099D566442C0E0A256CF89 /* PermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionHelper.swift; sourceTree = "<group>"; };
+		DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonarForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0F9170330FE4B2BCE3CBD1E9 /* DSP */ = {
+			isa = PBXGroup;
+			children = (
+				E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */,
+				0194ACFC3576EA3CD07BDAF3 /* ParametricEQ.swift */,
+			);
+			path = DSP;
+			sourceTree = "<group>";
+		};
+		2F74C76C3DF70E0E4704AEF2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AF5265D6E8288637A0D1A93A /* Entitlements.entitlements */,
+				664B719906D2750F61DA3568 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		38E7082794C3E62B0311D88B /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				98BE215D4413B80B645D6EE1 /* SonarForge */,
+				740D9DE0233B7D352970BFF3 /* SonarForgeTests */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		47EB3339870B6B784D190147 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				D8099D566442C0E0A256CF89 /* PermissionHelper.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		5573C01189BF97B71BE5AD4C = {
+			isa = PBXGroup;
+			children = (
+				38E7082794C3E62B0311D88B /* Sources */,
+				721C2D7D165C8711166C59A6 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		55D90E995281ACE50D3F6D7D /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				63C4EC3B766CAA38B91E0159 /* ContentView.swift */,
+				6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		721C2D7D165C8711166C59A6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				06F086ECF969C4D896823E90 /* SonarForge.app */,
+				DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		740D9DE0233B7D352970BFF3 /* SonarForgeTests */ = {
+			isa = PBXGroup;
+			children = (
+				6387B054AE633CFEAECA2128 /* DSPTests.swift */,
+			);
+			path = SonarForgeTests;
+			sourceTree = "<group>";
+		};
+		98B05585E97DEBCF583A1ECA /* App */ = {
+			isa = PBXGroup;
+			children = (
+				C08443F9720725E1952FAFE9 /* AppModel.swift */,
+				08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		98BE215D4413B80B645D6EE1 /* SonarForge */ = {
+			isa = PBXGroup;
+			children = (
+				98B05585E97DEBCF583A1ECA /* App */,
+				AABC648B6A53E2F9966C079B /* Audio */,
+				0F9170330FE4B2BCE3CBD1E9 /* DSP */,
+				DD29195E0CD830CC88332BFD /* Models */,
+				2F74C76C3DF70E0E4704AEF2 /* Resources */,
+				55D90E995281ACE50D3F6D7D /* UI */,
+				47EB3339870B6B784D190147 /* Utilities */,
+			);
+			path = SonarForge;
+			sourceTree = "<group>";
+		};
+		AABC648B6A53E2F9966C079B /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		DD29195E0CD830CC88332BFD /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6EBD07360AEA963D10746CDF /* EQProfile.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		36105BA33909D9EE16616A04 /* SonarForgeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 62D188F9430C3FB478A6D9A5 /* Build configuration list for PBXNativeTarget "SonarForgeTests" */;
+			buildPhases = (
+				CA3264B6E6ED8A3F11300F34 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5618DC251695D94990F093EF /* PBXTargetDependency */,
+			);
+			name = SonarForgeTests;
+			packageProductDependencies = (
+			);
+			productName = SonarForgeTests;
+			productReference = DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		60809CC1F879F8CF964F4460 /* SonarForge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5678C362509463447B225291 /* Build configuration list for PBXNativeTarget "SonarForge" */;
+			buildPhases = (
+				36E6B53B0608BF5ADD3822B3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SonarForge;
+			packageProductDependencies = (
+			);
+			productName = SonarForge;
+			productReference = 06F086ECF969C4D896823E90 /* SonarForge.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6C92A7B8CF59287B23FB3E4C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					60809CC1F879F8CF964F4460 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 27C3CEF0913EF86B65511F48 /* Build configuration list for PBXProject "SonarForge" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 5573C01189BF97B71BE5AD4C;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 721C2D7D165C8711166C59A6 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				60809CC1F879F8CF964F4460 /* SonarForge */,
+				36105BA33909D9EE16616A04 /* SonarForgeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		36E6B53B0608BF5ADD3822B3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				800332210111BA6688FA66F2 /* AppModel.swift in Sources */,
+				21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */,
+				05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */,
+				39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */,
+				2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */,
+				64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */,
+				42D25772DE49DFB241FE30C1 /* ParametricEQ.swift in Sources */,
+				491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */,
+				F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA3264B6E6ED8A3F11300F34 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5618DC251695D94990F093EF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 60809CC1F879F8CF964F4460 /* SonarForge */;
+			targetProxy = 12DD199D7964D01AB4603E73 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		117D09B5C4E877959B07F537 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sonarforge.SonarForgeTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SonarForge.app/Contents/MacOS/SonarForge";
+			};
+			name = Debug;
+		};
+		1E83F1AAE136FF61F382CA73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/SonarForge/Resources/Entitlements.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/SonarForge/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sonarforge.SonarForge;
+				PRODUCT_NAME = SonarForge;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4252245263A8F19F416B9480 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				VALID_ARCHS = arm64;
+			};
+			name = Debug;
+		};
+		4E24F6CA0D1E82F5975B4655 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALID_ARCHS = arm64;
+			};
+			name = Release;
+		};
+		6A94AA1FCE0CCA35645D344B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/SonarForge/Resources/Entitlements.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/SonarForge/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sonarforge.SonarForge;
+				PRODUCT_NAME = SonarForge;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		753E8C6748E4F7EEE39779B8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sonarforge.SonarForgeTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SonarForge.app/Contents/MacOS/SonarForge";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		27C3CEF0913EF86B65511F48 /* Build configuration list for PBXProject "SonarForge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4252245263A8F19F416B9480 /* Debug */,
+				4E24F6CA0D1E82F5975B4655 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5678C362509463447B225291 /* Build configuration list for PBXNativeTarget "SonarForge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1E83F1AAE136FF61F382CA73 /* Debug */,
+				6A94AA1FCE0CCA35645D344B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		62D188F9430C3FB478A6D9A5 /* Build configuration list for PBXNativeTarget "SonarForgeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				117D09B5C4E877959B07F537 /* Debug */,
+				753E8C6748E4F7EEE39779B8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 6C92A7B8CF59287B23FB3E4C /* Project object */;
+}

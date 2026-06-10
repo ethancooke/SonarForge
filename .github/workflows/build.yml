@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-15   # Apple Silicon runner (arm64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Build SonarForge (Debug)
+        run: |
+          set -o pipefail
+          xcodebuild -project SonarForge.xcodeproj \
+                     -scheme SonarForge \
+                     -configuration Debug \
+                     -destination 'platform=macOS,arch=arm64' \
+                     CODE_SIGNING_ALLOWED=NO \
+                     clean build
+
+      - name: Run Unit Tests
+        run: |
+          set -o pipefail
+          xcodebuild -project SonarForge.xcodeproj \
+                     -scheme SonarForge \
+                     -configuration Debug \
+                     -destination 'platform=macOS,arch=arm64' \
+                     CODE_SIGNING_ALLOWED=NO \
+                     test
+
+      - name: Verify arm64-only binary
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -path '*Debug/SonarForge.app/Contents/MacOS/SonarForge' | head -1)
+          file "$APP"
+          file "$APP" | grep -q 'arm64' || { echo "Binary is not arm64"; exit 1; }
+          if file "$APP" | grep -q 'x86_64'; then echo "Binary contains x86_64 slice"; exit 1; fi
