@@ -43,14 +43,31 @@ private aggregate device + single HAL IOProc**. This is the pattern from Apple's
 4. **Buffer size** — 512 frames requested on the aggregate (~10.7 ms at 48 kHz).
    Non-fatal if the HAL refuses.
 
-## Bypass Semantics (Chunk 1.1)
+## Gain Staging & Bypass Semantics (Chunk 1.2)
 
-The bypass flag is a `ManagedAtomic<Bool>` (swift-atomics) written from the UI
-and read with a relaxed load at the top of each IO cycle. In Chunk 1.1 the
-bypassed and active paths are **the same bit-identical copy** — there is no EQ
-yet — so toggling bypass is guaranteed artifact-free by construction. The EQ
-will occupy the non-bypassed branch in Chunk 2.2; the toggle mechanism
-(atomic flag + branch) is already in place and exercised.
+After the copy pass, the render block applies one smoothed gain:
+
+- **Targets**: preamp and output gain are published from the UI as linear-gain
+  Float bit patterns in `ManagedAtomic<UInt32>` (relaxed loads/stores). The
+  engine clamps to ±24 dB; the UI exposes ±12 dB.
+- **Smoothing**: a per-sample one-pole smoother (`g += k·(target − g)`,
+  τ = 15 ms) eliminates zipper noise on fader moves. Initializing the smoother
+  at 0 on engine start doubles as the start fade-in (~45 ms to 95%), replacing
+  the previous linear ramp.
+- **Bypass** (`ManagedAtomic<Bool>`): bypassed ⇒ target = unity (all gains
+  excluded); active ⇒ target = preamp × output gain. Toggling is therefore a
+  click-free ~15 ms crossfade between processed and untouched levels.
+- **Unity fast path**: when the smoother has settled at 1.0 and the target is
+  1.0 (bypassed, or all gains at 0 dB), the gain pass is skipped entirely —
+  bypass provably does not touch samples.
+- **Headroom**: no always-on limiter (see DECISIONS.md D-009); negative preamp
+  is the headroom mechanism, per AutoEQ convention.
+- The EQ will sit between the preamp and output gain stages from Chunk 2.2;
+  the two targets are kept separate for exactly that reason even though they
+  currently collapse into one multiply.
+
+Profile loads and A/B swaps apply the profile's `preamp` value, so A/B state
+includes gain as required by the Chunk 1.2 deliverables.
 
 ## Threading Model
 
@@ -84,8 +101,14 @@ The system shows the **System Audio Recording** TCC prompt automatically on
 first tap IO (the `NSAudioCaptureUsageDescription` string is in Info.plist).
 There is no public preflight API for this TCC class; if the user denies, the
 tap may deliver silence rather than fail, so the debug UI tells users to check
-Privacy & Security if they hear nothing. Dev note: ad-hoc re-signing on rebuild
-can cause repeated prompts.
+Privacy & Security if they hear nothing.
+
+**Dev gotcha (observed 2026-06-10)**: after a rebuild, the ad-hoc signature can
+stop matching the stored TCC entry. The symptom is the engine hanging forever
+in `.starting` — `AudioDeviceCreateIOProcIDWithBlock` blocks inside coreaudiod
+waiting on consent that never displays. Fix:
+`tccutil reset All com.sonarforge.SonarForge`, relaunch, re-grant. A start
+watchdog that turns a hung start into `.failed` is a known hardening follow-up.
 
 ## Known Limitations (expected, documented)
 

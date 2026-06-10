@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunk 1.1 COMPLETE** (acceptance criteria met; USB DAC/Bluetooth validation deferred to Chunk 6.1 hardening). Next: Chunk 1.2.
+**Last Updated**: 2026-06-10 — **Chunk 1.2 implemented** (smoothed preamp + output gain live in the render path; pending a quick zipper-noise listening check). Chunk 1.1 complete. Next: listening check, then Phase 2 (Chunk 2.1).
 
 ---
 
@@ -104,12 +104,13 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 1.2 — Preamp + output gain staging** (DEVELOPMENT_PLAN.md):
-   - Wire preamp (pre-EQ) and master output gain into the render path with proper smoothing (no zipper noise).
-   - Decide and document the headroom/clipping-prevention strategy.
-   - Connect the existing UI faders live to the engine; include gains in A/B state.
+1. **Chunk 1.2 wrap-up** (implemented 2026-06-10, see `Documentation/AUDIO_PATH.md` § Gain Staging):
+   - Smoothed preamp + output gain are live (one-pole, τ=15 ms, atomic targets, unity fast path); bypass now audibly excludes gains via a click-free crossfade; faders wired; A/B applies profile preamp; headroom strategy recorded as D-009.
+   - Remaining: listening check — drag the faders while music plays (expect smooth level change, no zipper noise) and toggle bypass with non-zero gains (expect clean ~15 ms level crossfade).
 
 2. Then Phase 2 (Chunk 2.1: production biquad bank + parameter update path; Chunk 2.2: live integration + real bypass semantics).
+
+**Dev note**: if the engine ever hangs in "Starting…" after a rebuild, it is the stale-TCC gotcha — run `tccutil reset All com.sonarforge.SonarForge` and re-grant (details in AUDIO_PATH.md).
 
 ---
 

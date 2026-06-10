@@ -154,6 +154,23 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-009: Headroom Strategy — No Always-On Limiter (MVP)
+
+**Date**: 2026-06-10 (Chunk 1.2)
+
+**Decision**: No soft limiter / tanh saturation in the render path for the MVP. Clipping prevention is handled by gain staging discipline:
+- UI gain controls are clamped to ±12 dB (engine accepts ±24 dB).
+- The AutoEQ convention applies: profiles with boosting bands ship a negative preamp; the importer (Chunk 4.2) must preserve it.
+- Output beyond ±1.0 full scale is clipped by the OS/DAC as usual.
+
+**Rationale**: An always-on nonlinearity colors audio, which contradicts the project's critical-listening positioning. A correct lookahead limiter adds latency and complexity that is not justified before the EQ even exists. Documenting "your preamp is your headroom" matches how the AutoEQ ecosystem already works.
+
+**Revisit**: Phase 6 (optional, default-off safety limiter + clipping indicator were already anticipated in DEVELOPMENT_PLAN 6.2).
+
+**Status**: Locked for MVP.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

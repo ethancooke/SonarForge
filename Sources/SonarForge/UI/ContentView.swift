@@ -57,12 +57,24 @@ struct ContentView: View {
 
                         Spacer()
 
-                        Text("Preamp")
-                        Slider(value: $model.preampDB, in: -12...12, step: 0.1)
-                            .frame(width: 180)
-                        Text(String(format: "%+.1f dB", model.preampDB))
-                            .monospacedDigit()
-                            .frame(width: 60, alignment: .trailing)
+                        Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 4) {
+                            GridRow {
+                                Text("Preamp")
+                                Slider(value: $model.preampDB, in: -12...12, step: 0.1)
+                                    .frame(width: 180)
+                                Text(String(format: "%+.1f dB", model.preampDB))
+                                    .monospacedDigit()
+                                    .frame(width: 60, alignment: .trailing)
+                            }
+                            GridRow {
+                                Text("Output")
+                                Slider(value: $model.outputGainDB, in: -12...12, step: 0.1)
+                                    .frame(width: 180)
+                                Text(String(format: "%+.1f dB", model.outputGainDB))
+                                    .monospacedDigit()
+                                    .frame(width: 60, alignment: .trailing)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal)

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */; };
 		21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */; };
+		267C40FBA15525A453A8A228 /* GainMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */; };
 		2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EBD07360AEA963D10746CDF /* EQProfile.swift */; };
 		30EC85B212AFCDC7217D564C /* AudioEngineProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */; };
 		39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C4EC3B766CAA38B91E0159 /* ContentView.swift */; };
@@ -18,6 +19,7 @@
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
 		A2E632393FFF24292D159231 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = ABC755F571079F1637B8CFDA /* Atomics */; };
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
+		BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E3CC9FB2C142B415C61E85D /* GainMath.swift */; };
 		C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */; };
 		F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */; };
 /* End PBXBuildFile section */
@@ -38,12 +40,14 @@
 		08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarForgeApp.swift; sourceTree = "<group>"; };
 		18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineProtocol.swift; sourceTree = "<group>"; };
 		2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
+		2E3CC9FB2C142B415C61E85D /* GainMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMath.swift; sourceTree = "<group>"; };
 		6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
 		63C4EC3B766CAA38B91E0159 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		664B719906D2750F61DA3568 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6EBD07360AEA963D10746CDF /* EQProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfile.swift; sourceTree = "<group>"; };
 		AF5265D6E8288637A0D1A93A /* Entitlements.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.entitlements; sourceTree = "<group>"; };
+		BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMathTests.swift; sourceTree = "<group>"; };
 		C08443F9720725E1952FAFE9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		D8099D566442C0E0A256CF89 /* PermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionHelper.swift; sourceTree = "<group>"; };
 		DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceUtils.swift; sourceTree = "<group>"; };
@@ -67,6 +71,7 @@
 			isa = PBXGroup;
 			children = (
 				E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */,
+				2E3CC9FB2C142B415C61E85D /* GainMath.swift */,
 				0194ACFC3576EA3CD07BDAF3 /* ParametricEQ.swift */,
 			);
 			path = DSP;
@@ -128,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				6387B054AE633CFEAECA2128 /* DSPTests.swift */,
+				BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */,
 			);
 			path = SonarForgeTests;
 			sourceTree = "<group>";
@@ -262,6 +268,7 @@
 				05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */,
 				39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */,
 				2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */,
+				BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */,
 				64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */,
 				42D25772DE49DFB241FE30C1 /* ParametricEQ.swift in Sources */,
 				491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */,
@@ -274,6 +281,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */,
+				267C40FBA15525A453A8A228 /* GainMathTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

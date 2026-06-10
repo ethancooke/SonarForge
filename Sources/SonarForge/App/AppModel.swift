@@ -18,8 +18,20 @@ final class AppModel {
     var bProfile: EQProfile = .flat
     var showingB: Bool = false              // A/B comparison state
 
-    var preampDB: Double = 0.0
-    var outputGainDB: Double = 0.0
+    // Gain staging (Chunk 1.2). didSet wiring means SwiftUI slider bindings reach
+    // the engine directly; the engine smooths the change on the render thread.
+    var preampDB: Double = 0.0 {
+        didSet {
+            guard oldValue != preampDB else { return }
+            audioEngine.setPreamp(preampDB)
+        }
+    }
+    var outputGainDB: Double = 0.0 {
+        didSet {
+            guard oldValue != outputGainDB else { return }
+            audioEngine.setOutputGain(outputGainDB)
+        }
+    }
 
     // MARK: - Output device selection
 
@@ -88,13 +100,11 @@ final class AppModel {
     }
 
     func setPreamp(_ db: Double) {
-        preampDB = db
-        audioEngine.setPreamp(db)
+        preampDB = db   // didSet forwards to the engine
     }
 
     func setOutputGain(_ db: Double) {
-        outputGainDB = db
-        audioEngine.setOutputGain(db)
+        outputGainDB = db   // didSet forwards to the engine
     }
 
     func loadProfile(_ profile: EQProfile) {
@@ -105,6 +115,8 @@ final class AppModel {
         } else {
             bProfile = profile
         }
+        // The profile's preamp is part of A/B state (Chunk 1.2).
+        preampDB = profile.preamp
         audioEngine.loadProfile(profile)
     }
 
@@ -112,6 +124,7 @@ final class AppModel {
         showingB.toggle()
         let active = showingB ? bProfile : aProfile
         currentProfile = active
+        preampDB = active.preamp
         audioEngine.loadProfile(active)
     }
 

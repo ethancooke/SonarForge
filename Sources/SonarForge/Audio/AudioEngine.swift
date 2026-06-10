@@ -16,9 +16,9 @@ import os.log
 /// 2. A private aggregate device contains the user's output device (clock master) and the
 ///    tap (drift-compensated). The HAL keeps capture and render in sync for us.
 /// 3. A single `AudioDeviceIOProcIDWithBlock` on the aggregate copies tap input buffers to
-///    the output device buffers each IO cycle. In Chunk 1.1 both the "processing" and
-///    "bypass" paths are this same bit-identical copy; the EQ slots into the non-bypassed
-///    branch in Chunk 2.2.
+///    the output device buffers each IO cycle, then applies smoothed gain (Chunk 1.2:
+///    preamp × output gain, or unity when bypassed; one-pole smoother, no zipper noise).
+///    The EQ slots between the two gain stages in Chunk 2.2.
 ///
 /// Threading model:
 /// - All engine control (start/stop/reconfigure, Core Audio object lifecycle) happens on
@@ -63,16 +63,23 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
 
     // MARK: - Render-thread shared state
 
-    /// State shared with the realtime IO block. The atomic is written from any thread and
-    /// read with relaxed ordering in the block. The ramp counters are written on
-    /// `controlQueue` strictly before `AudioDeviceStart` and afterwards mutated only by
-    /// the realtime thread.
+    /// State shared with the realtime IO block. Atomics are written from any thread and
+    /// read with relaxed ordering in the block. Gains are published as Float bit patterns
+    /// in UInt32 atomics. `smoothedGain`/`smoothingCoeff` are written on `controlQueue`
+    /// strictly before `AudioDeviceStart` and afterwards touched only by the render thread.
     private final class RenderContext {
         let bypassed = ManagedAtomic<Bool>(false)
-        var rampFramesRemaining: Int = 0
-        var rampTotalFrames: Int = 0
+        let preampGainBits = ManagedAtomic<UInt32>(Float(1.0).bitPattern)
+        let outputGainBits = ManagedAtomic<UInt32>(Float(1.0).bitPattern)
+        var smoothedGain: Float = 0
+        var smoothingCoeff: Float = 0.001
     }
     private let renderContext = RenderContext()
+
+    /// Gain controls are clamped to a sane range; the UI exposes ±12 dB (see D-009).
+    private static let gainRangeDB = -24.0...24.0
+    /// One-pole smoother time constant. Doubles as the start fade-in (gain begins at 0).
+    private static let gainSmoothingSeconds = 0.015
 
     init() {
         logger.info("SonarForgeAudioEngine initialized (macOS 14.2+ / Apple Silicon only)")
@@ -99,12 +106,15 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     }
 
     func setPreamp(_ db: Double) {
-        // Chunk 1.2: applied in the render chain with smoothing.
-        logger.debug("Preamp set to \(db) dB (not yet applied — Chunk 1.2)")
+        let clamped = min(max(db, Self.gainRangeDB.lowerBound), Self.gainRangeDB.upperBound)
+        renderContext.preampGainBits.store(GainMath.linearGain(fromDB: clamped).bitPattern, ordering: .relaxed)
+        logger.debug("Preamp set to \(clamped) dB")
     }
 
     func setOutputGain(_ db: Double) {
-        logger.debug("Output gain set to \(db) dB (not yet applied — Chunk 1.2)")
+        let clamped = min(max(db, Self.gainRangeDB.lowerBound), Self.gainRangeDB.upperBound)
+        renderContext.outputGainBits.store(GainMath.linearGain(fromDB: clamped).bitPattern, ordering: .relaxed)
+        logger.debug("Output gain set to \(clamped) dB")
     }
 
     func loadProfile(_ profile: EQProfile) {
@@ -185,9 +195,11 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             // 4. Moderate IO buffer size (512 frames ≈ 10.7 ms @ 48 kHz). Non-fatal if refused.
             setBufferFrameSize(512, on: newAggregateID)
 
-            // 5. Arm the fade-in ramp (~30 ms) before IO starts to mask the start transition.
-            renderContext.rampTotalFrames = max(Int(outputRate * 0.030), 1)
-            renderContext.rampFramesRemaining = renderContext.rampTotalFrames
+            // 5. Arm the gain smoother before IO starts. Starting from 0 makes the
+            //    one-pole smoother double as the start fade-in (~45 ms to 95%).
+            renderContext.smoothingCoeff = GainMath.smoothingCoefficient(
+                timeConstant: Self.gainSmoothingSeconds, sampleRate: outputRate)
+            renderContext.smoothedGain = 0
 
             // 6. Install the realtime IO block (nil queue → HAL realtime thread) and start.
             var newProcID: AudioDeviceIOProcID?
@@ -259,11 +271,6 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                 }
             }
 
-            // Chunk 1.1: bypassed and active paths are the same bit-identical copy.
-            // The branch exists so the toggle mechanism is exercised now; the EQ will
-            // replace the body of the non-bypassed branch in Chunk 2.2.
-            _ = context.bypassed.load(ordering: .relaxed)
-
             let pairCount = min(inABL.count, outABL.count)
             let bytesPerSample = MemoryLayout<Float32>.size
             for i in 0..<pairCount {
@@ -292,26 +299,39 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                 }
             }
 
-            // Short linear fade-in after start to mask the transition.
-            if context.rampFramesRemaining > 0 {
-                let total = Float32(max(context.rampTotalFrames, 1))
-                let alreadyDone = context.rampTotalFrames - context.rampFramesRemaining
-                var maxFramesThisCycle = 0
+            // Gain pass (Chunk 1.2): per-sample one-pole smoothing toward the target —
+            // unity when bypassed, preamp × output gain when active. The smoother
+            // prevents zipper noise on fader moves, gives a click-free bypass
+            // crossfade (~15 ms), and doubles as the start fade-in (gain starts at 0).
+            // The EQ will sit between the two gain stages from Chunk 2.2 onward.
+            let isBypassed = context.bypassed.load(ordering: .relaxed)
+            let preampGain = Float(bitPattern: context.preampGainBits.load(ordering: .relaxed))
+            let outputGain = Float(bitPattern: context.outputGainBits.load(ordering: .relaxed))
+            let target: Float = isBypassed ? 1.0 : preampGain * outputGain
+
+            let startGain = context.smoothedGain
+            if target == 1.0 && abs(startGain - 1.0) < 1e-6 {
+                // Settled at unity: true zero-cost path (bypass honesty — we are
+                // provably not touching the samples).
+                context.smoothedGain = 1.0
+            } else {
+                let k = context.smoothingCoeff
+                var finalGain = startGain
                 for i in 0..<outABL.count {
                     guard let data = outABL[i].mData else { continue }
                     let channels = max(Int(outABL[i].mNumberChannels), 1)
                     let frames = Int(outABL[i].mDataByteSize) / (bytesPerSample * channels)
-                    maxFramesThisCycle = max(maxFramesThisCycle, frames)
                     let floats = data.assumingMemoryBound(to: Float32.self)
-                    let rampFrames = min(frames, context.rampFramesRemaining)
-                    for frame in 0..<rampFrames {
-                        let gain = Float32(alreadyDone + frame + 1) / total
+                    var gain = startGain
+                    for frame in 0..<frames {
+                        gain += k * (target - gain)
                         for channel in 0..<channels {
                             floats[frame * channels + channel] *= gain
                         }
                     }
+                    finalGain = gain
                 }
-                context.rampFramesRemaining = max(0, context.rampFramesRemaining - maxFramesThisCycle)
+                context.smoothedGain = finalGain
             }
         }
     }
