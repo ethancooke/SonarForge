@@ -107,8 +107,18 @@ Privacy & Security if they hear nothing.
 stop matching the stored TCC entry. The symptom is the engine hanging forever
 in `.starting` — `AudioDeviceCreateIOProcIDWithBlock` blocks inside coreaudiod
 waiting on consent that never displays. Fix:
-`tccutil reset All com.sonarforge.SonarForge`, relaunch, re-grant. A start
-watchdog that turns a hung start into `.failed` is a known hardening follow-up.
+`tccutil reset All com.sonarforge.SonarForge`, relaunch, re-grant.
+
+**Start watchdog (added 2026-06-10)**: if a start attempt has not reached
+`.running` (or `.failed`) within 10 s, a watchdog on a separate queue reports
+`.failed` to the UI via `onStateChange`, with a message naming the System Audio
+Recording permission and the `tccutil reset` workaround. Limitation: the
+blocked Core Audio call cannot be cancelled, so the watchdog only *surfaces*
+the hang — `controlQueue` stays wedged inside coreaudiod, and any queued
+`stop()`/`start()` (e.g. the UI's "Retry") only runs if coreaudiod eventually
+returns. The reliable recovery remains the `tccutil` reset plus a relaunch. If
+a wedged start does later complete, the engine emits `.running` and the UI
+recovers automatically.
 
 ## Known Limitations (expected, documented)
 

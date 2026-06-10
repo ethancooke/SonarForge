@@ -56,6 +56,28 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     private var selectedOutputUID: String?
     private var pendingRestart = false
 
+    // MARK: - Start watchdog
+
+    /// Deliberately not `controlQueue`: the watchdog exists precisely because a start
+    /// attempt can wedge `controlQueue` inside a blocking Core Audio call (see
+    /// `startOnQueue`), so its timer must live somewhere that is still scheduled.
+    private let watchdogQueue = DispatchQueue(label: "com.sonarforge.audio.watchdog", qos: .utility)
+
+    /// Monotonic start-attempt counter. Incremented on `controlQueue` when an attempt is
+    /// armed and again when it completes (either outcome); the fired watchdog compares
+    /// against the value it was armed with to decide whether the attempt is still in flight.
+    private let startGeneration = ManagedAtomic<UInt64>(0)
+
+    /// Pending watchdog work item (touched only on `controlQueue`).
+    private var startWatchdogItem: DispatchWorkItem?
+
+    private static let startWatchdogTimeout: TimeInterval = 10
+
+    private static let startTimeoutMessage =
+        "Engine start timed out. macOS is likely blocking the System Audio Recording " +
+        "permission (a stale entry stops matching the app after a rebuild). Run " +
+        "`tccutil reset All com.sonarforge.SonarForge`, then relaunch and re-grant."
+
     // Property listeners (kept so they can be removed on stop)
     private var defaultOutputListener: AudioObjectPropertyListenerBlock?
     private var deviceAliveListener: AudioObjectPropertyListenerBlock?
@@ -139,6 +161,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         if case .running = state { return }
         if case .starting = state { return }
         state = .starting
+        armStartWatchdog()
 
         do {
             // 1. Resolve the output device (selected UID, falling back to system default).
@@ -210,13 +233,46 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
 
             currentOutputDeviceID = outputID
             installDeviceListeners(outputDeviceID: outputID)
+            disarmStartWatchdog() // before .running so the watchdog can't fire on a completed start
             state = .running
             logger.info("Engine running: system audio → tap → SonarForge → \(outputName, privacy: .public)")
         } catch {
+            disarmStartWatchdog()
             logger.error("Engine start failed: \(error.localizedDescription, privacy: .public)")
             stopOnQueue()
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Arms a timer that surfaces a hung start attempt to the UI.
+    ///
+    /// Why this exists: `AudioDeviceCreateIOProcIDWithBlock` can block forever inside
+    /// coreaudiod when a stale TCC entry no longer matches our ad-hoc signature (see
+    /// Documentation/AUDIO_PATH.md, "Permission"). The blocked call cannot be cancelled
+    /// and `controlQueue` stays wedged behind it — including any queued stop()/start(),
+    /// so "Retry" in the UI only takes effect if coreaudiod eventually returns. The
+    /// watchdog therefore only *reports* the failure; it does not unblock anything.
+    ///
+    /// The fired watchdog must not write `state`: that property is owned by
+    /// `controlQueue`, and the wedged attempt may resume at any moment and assign it
+    /// concurrently. Instead it emits `.failed` straight through `onStateChange`. If the
+    /// blocked call later returns and the start completes, the resulting `.running`
+    /// notification supersedes the synthetic failure in the UI — which is accurate.
+    private func armStartWatchdog() {
+        let generation = startGeneration.wrappingIncrementThenLoad(ordering: .relaxed)
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, self.startGeneration.load(ordering: .relaxed) == generation else { return }
+            self.logger.error("Start watchdog fired: engine still starting after \(Self.startWatchdogTimeout, privacy: .public)s — likely a stale System Audio Recording TCC entry (see AUDIO_PATH.md)")
+            self.onStateChange?(.failed(Self.startTimeoutMessage))
+        }
+        startWatchdogItem = item
+        watchdogQueue.asyncAfter(deadline: .now() + Self.startWatchdogTimeout, execute: item)
+    }
+
+    private func disarmStartWatchdog() {
+        startGeneration.wrappingIncrement(ordering: .relaxed)
+        startWatchdogItem?.cancel()
+        startWatchdogItem = nil
     }
 
     private func stopOnQueue() {

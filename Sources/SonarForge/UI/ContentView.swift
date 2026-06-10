@@ -50,31 +50,48 @@ struct ContentView: View {
                             appModel.toggleBypass()
                         }
                         .tint(appModel.isBypassed ? .orange : .accentColor)
+                        .help("Compare against unprocessed audio. Excludes preamp, output gain, and (later) the EQ.")
 
                         Button("A / B Swap") {
                             appModel.swapAB()
                         }
+                        .help("Switch between the A and B profiles for quick comparison.")
 
                         Spacer()
+                    }
 
-                        Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 4) {
+                    GroupBox("Gain Staging") {
+                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
                             GridRow {
-                                Text("Preamp")
-                                Slider(value: $model.preampDB, in: -12...12, step: 0.1)
-                                    .frame(width: 180)
+                                Text("Preamp (pre-EQ)")
+                                    .gridColumnAlignment(.trailing)
+                                Slider(value: $model.preampDB, in: -12...12, step: 0.1) {
+                                    Text("Preamp")
+                                }
+                                .labelsHidden()
+                                .frame(minWidth: 160, maxWidth: 280)
+                                .help("Gain applied before the EQ. Lower this to create headroom — AutoEQ profiles typically use a negative preamp to offset boosted bands.")
                                 Text(String(format: "%+.1f dB", model.preampDB))
                                     .monospacedDigit()
-                                    .frame(width: 60, alignment: .trailing)
+                                    .frame(width: 64, alignment: .trailing)
+                                    .accessibilityHidden(true)
                             }
                             GridRow {
-                                Text("Output")
-                                Slider(value: $model.outputGainDB, in: -12...12, step: 0.1)
-                                    .frame(width: 180)
+                                Text("Output Gain (master)")
+                                    .gridColumnAlignment(.trailing)
+                                Slider(value: $model.outputGainDB, in: -12...12, step: 0.1) {
+                                    Text("Output Gain")
+                                }
+                                .labelsHidden()
+                                .frame(minWidth: 160, maxWidth: 280)
+                                .help("Master volume trim applied after the EQ, before the output device.")
                                 Text(String(format: "%+.1f dB", model.outputGainDB))
                                     .monospacedDigit()
-                                    .frame(width: 60, alignment: .trailing)
+                                    .frame(width: 64, alignment: .trailing)
+                                    .accessibilityHidden(true)
                             }
                         }
+                        .padding(4)
                     }
                 }
                 .padding(.horizontal)
