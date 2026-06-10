@@ -2,13 +2,18 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-09 — **Chunk 1.1 implemented; awaiting interactive audio validation.**
+**Last Updated**: 2026-06-10 — **Chunk 1.1 COMPLETE** (acceptance criteria met; USB DAC/Bluetooth validation deferred to Chunk 6.1 hardening). Next: Chunk 1.2.
 
 ---
 
 ## High-Level Status
 
-- **Phase**: Phase 1 (Audio Path Validation), Chunk 1.1 — code complete, builds and unit tests pass. **First live validation succeeded (2026-06-09)**: permission flow, passthrough on built-in output, start-while-playing, and clean quit all confirmed by listening; CPU measured at ~0.0% idle / 0.2–0.3% under playback, ~50 MB resident. Remaining checklist items (48 kHz, USB DAC, device switch while running, DRM behavior, 30-min soak, explicit bypass A/B) tracked in `Documentation/AUDIO_PATH.md` § Validation Status.
+- **Phase**: Phase 1 (Audio Path Validation). **Chunk 1.1 complete (2026-06-10)** — full validation record in `Documentation/AUDIO_PATH.md`:
+  - Passthrough, permission flow, bypass toggling, 44.1 + 48 kHz, device switches (in-app picker + system default, ~60–100 ms rebuilds), clean quit: all confirmed by listening.
+  - 35-min soak: no memory growth, ~0% CPU, no audio-code leaks.
+  - **Netflix (browser DRM) is captured and processed cleanly** — major de-risking of the CATap approach. Apple Music/FairPlay untested.
+  - One real bug found by validation and fixed: device switch silently killed the engine (stale `.running` state blocked the rebuild guard); `stopOnQueue()` now resets state to `.idle`.
+  - Deferred: USB DAC / Bluetooth device validation (no hardware at hand; folded into Chunk 6.1).
 - A debug `--autostart-engine` launch argument exists for autonomous testing (`open SonarForge.app --args --autostart-engine`).
 - **Chunk 1.1 implementation** (see `Documentation/AUDIO_PATH.md` for full details):
   - Real audio engine: global stereo-mixdown process tap (own PID excluded, `muteBehavior = .muted`, private) → private aggregate device (output device as clock master, tap drift-compensated) → single HAL IOProc copying tap input to output buffers (D-007).
@@ -99,12 +104,12 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 1.1 validation** (human-in-the-loop):
-   - Launch the app, click "Start Engine" (⌘⇧E) while audio plays, grant the System Audio Recording prompt.
-   - Run the manual checklist in `CHUNK1_IMPLEMENTATION_GUIDE.md` §6 (44.1/48 kHz, bypass A/B, device switches, DRM content, CPU via Activity Monitor/Instruments, 30-min memory check, clean quit).
-   - Record results and measurements in `Documentation/AUDIO_PATH.md`.
+1. **Chunk 1.2 — Preamp + output gain staging** (DEVELOPMENT_PLAN.md):
+   - Wire preamp (pre-EQ) and master output gain into the render path with proper smoothing (no zipper noise).
+   - Decide and document the headroom/clipping-prevention strategy.
+   - Connect the existing UI faders live to the engine; include gains in A/B state.
 
-2. After Chunk 1.1 passes its acceptance criteria, proceed to Chunk 1.2 (gain staging), then Phase 2 (full parametric EQ DSP).
+2. Then Phase 2 (Chunk 2.1: production biquad bank + parameter update path; Chunk 2.2: live integration + real bypass semantics).
 
 ---
 

@@ -90,10 +90,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     }
 
     func stop() {
-        controlQueue.async {
-            self.stopOnQueue()
-            self.state = .idle
-        }
+        controlQueue.async { self.stopOnQueue() }
     }
 
     func setBypass(_ bypassed: Bool) {
@@ -235,6 +232,11 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
 
         currentOutputDeviceID = kAudioObjectUnknown
         logger.info("Engine stopped and Core Audio objects released")
+
+        // Reset state here (not in the public stop()) so internal stop→start sequences
+        // (device switch, scheduled restart) don't leave a stale .running that makes
+        // startOnQueue's reentrancy guard refuse the rebuild.
+        state = .idle
     }
 
     // MARK: - Realtime IO block

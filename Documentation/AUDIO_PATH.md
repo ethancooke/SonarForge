@@ -89,7 +89,9 @@ can cause repeated prompts.
 
 ## Known Limitations (expected, documented)
 
-- DRM-protected content and some exclusive-mode apps may not be captured.
+- Some DRM-protected content and exclusive-mode apps may not be captured.
+  Confirmed working: Netflix in the browser (2026-06-10). Untested: Apple
+  Music / FairPlay-protected playback.
 - AirPlay output behavior is untested.
 - A brief gap (not a glitch) is expected during device switch rebuilds.
 
@@ -121,10 +123,17 @@ NSXPCConnection), none in audio code, and not growing. Raw data:
 | Permission prompt flow (grant → audio flows) | ✅ confirmed |
 | Start while music already playing | ✅ confirmed |
 | Engine on/off toggle | ✅ works; expected millisecond-scale dip at the tap/direct-path handoff |
-| Bypass toggle audibly seamless | ⏳ needs explicit A/B confirmation (should be perfectly gapless — identical code path) |
+| Bypass toggle audibly seamless | ✅ toggled live (2026-06-10), no artifacts reported; re-verify when EQ makes the branch meaningful (Chunk 2.2) |
 | Clean quit returns audio to system path | ✅ confirmed |
-| Clean passthrough at 48 kHz device setting | ⏳ pending |
-| USB DAC / external interface | ⏳ pending |
-| Output device switch while running | ⏳ pending |
-| DRM content behavior documented | ⏳ pending |
+| Clean passthrough at 48 kHz device setting | ✅ External Headphones @ 48 kHz, rate-matched tap, sounded clean (2026-06-10) |
+| Output device switch while running | ✅ in-app picker, system-default change, and rapid back-to-back switches: ~60–100 ms rebuild each, brief gap only, no clicks/garbage (2026-06-10) |
+| DRM content behavior documented | ✅ Netflix (browser DRM) **is captured** and passes through cleanly — the device-switch session ran on Netflix audio (2026-06-10). Apple Music / FairPlay still untested. |
 | No memory growth over 30+ min | ✅ 35-min soak passed (2026-06-10): RSS flat/declining, CPU ~0 %, no audio-code leaks |
+| USB DAC / external interface / Bluetooth | ⏳ deferred until hardware is at hand (low risk: speakers↔headphones already exercises device/rate changes); fold into Chunk 6.1 hardening |
+
+**Bug found & fixed during validation (2026-06-10)**: switching output devices
+while running silently killed the engine — `stopOnQueue()` left `state ==
+.running`, so the rebuild's reentrancy guard refused to start. Audio continued
+via the direct path (tap destroyed → mute lifted), masking the failure while
+the UI claimed "Running". Fix: `stopOnQueue()` now resets state to `.idle`.
+All switch paths re-validated after the fix (five consecutive clean rebuilds).
