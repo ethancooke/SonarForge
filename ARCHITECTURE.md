@@ -73,8 +73,8 @@ This document describes the high-level architecture, key technical decisions, mo
 
 ### Output
 - Route the processed stream to the user-selected output device.
-- Prefer `AVAudioEngine` for device selection, format conversion (when unavoidable), and integration with taps. Fall back to or supplement with manual `AudioUnit` render callbacks for the absolute lowest overhead path if needed in later optimization.
-- On device or sample rate change: tear down/recreate the engine or tap gracefully. Provide a short fade-out/fade-in to mask transition.
+- **Implementation (Chunk 1.1, see D-007 and `Documentation/AUDIO_PATH.md`)**: a private aggregate device (output device as clock master + drift-compensated tap) driven by a single HAL IOProc. `AVAudioEngine` turned out unnecessary for the core path — the aggregate gives the HAL-native equivalent of the "manual render callback" option below.
+- On device or sample rate change: tear down/recreate the engine or tap gracefully. Provide a short fade-out/fade-in to mask transition (fade-in implemented; rebuilds are debounced).
 
 ### Spectrum Analysis
 - Separate lightweight FFT path using `vDSP`.

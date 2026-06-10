@@ -120,6 +120,40 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-007: Capture/Render Topology — Private Aggregate Device + HAL IOProc (not AVAudioEngine)
+
+**Date**: 2026-06-09 (Chunk 1.1 implementation)
+
+**Decision**:
+- The audio path is: process tap → private aggregate device (output device as clock master + drift-compensated tap) → a single `AudioDeviceCreateIOProcIDWithBlock` that copies/processes tap input buffers into the output device buffers.
+- `AVAudioEngine` is **not** used for the core path.
+
+**Rationale**:
+- This is the topology Apple's own Core Audio taps sample uses; the HAL handles capture/render synchronization and tap drift compensation natively.
+- `AVAudioEngine` on macOS cannot cleanly take a tap-fed aggregate as input while rendering to a *different* output device in one engine; working around that reintroduces format negotiation, an extra buffer hop, and latency.
+- A raw IOProc gives the lowest-overhead render path (the ARCHITECTURE.md "Output" section already anticipated falling back to manual render callbacks for exactly this reason).
+- The DSP (Chunk 2) operates on raw Float32 buffers either way.
+
+**Trade-offs acknowledged**:
+- We own buffer/channel-count handling ourselves (implemented with explicit channel mapping).
+- `AVAudioConverter`-style conveniences are unavailable; the aggregate's drift compensation covers the rate-matching need instead.
+
+**Status**: Locked for MVP. See `Documentation/AUDIO_PATH.md` for the full technique and threading model.
+
+---
+
+## D-008: swift-atomics Dependency for Render-Thread Flags
+
+**Date**: 2026-06-09
+
+**Decision**: Add `apple/swift-atomics` (SPM) for lock-free flags/parameters shared with the realtime thread (first use: the bypass flag).
+
+**Rationale**: The project's realtime rules forbid locks on the render thread. Swift's `Synchronization.Atomic` requires macOS 15; we deploy to 14.2. swift-atomics is Apple-maintained, tiny, and the standard pre-15 answer. Raw `UnsafeMutablePointer` reads would be formally undefined behavior under the Swift memory model.
+
+**Status**: Active. The dependency is pinned via the committed `Package.resolved`.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

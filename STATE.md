@@ -2,20 +2,22 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-09 — **Chunk 0.1 complete.** Next: Chunk 1.1.
+**Last Updated**: 2026-06-09 — **Chunk 1.1 implemented; awaiting interactive audio validation.**
 
 ---
 
 ## High-Level Status
 
-- **Phase**: Phase 0 complete; entering Phase 1 (Audio Path Validation), Chunk 1.1.
-- **Done in Chunk 0.1**:
-  - `SonarForge.xcodeproj` generated via XcodeGen from a committed `project.yml` (macOS 14.2 deployment target, `ARCHS = arm64` only, entitlements wired, generated `Info.plist` with `NSAudioCaptureUsageDescription`). Regenerate with `xcodegen generate` after editing `project.yml`.
-  - App + unit test targets and a `SonarForge` scheme (build/run/test/archive).
-  - All app sources fixed to compile cleanly (verified with `swiftc -typecheck` against `arm64-apple-macos14.2`): removed invalid `override init` and duplicate protocol conformance in `AudioEngine.swift`, switched tap creation to the real `CATapDescription(stereoGlobalTapButExcludeProcesses:)` API with proper PID→process-object translation, fixed vDSP gain calls in `ParametricEQ.swift`, made model types `public` to match the DSP layer.
-  - CI workflow no longer swallows failures; verifies the binary is arm64-only. Issue/PR templates added.
-- **Chunk 0.1 verification (2026-06-09, M-series Mac, Xcode 26.2)**: `xcodebuild` Debug build **succeeded**; both DSP unit tests **passed**; binary verified `Mach-O 64-bit executable arm64` with `minos 14.2` (no x86_64 slice); app shell launched, ran without crashing, and quit cleanly.
-- **Next Immediate Work**: Chunk 1.1 — Core Audio Tap capture + reliable passthrough + bypass, per `CHUNK1_IMPLEMENTATION_GUIDE.md`.
+- **Phase**: Phase 1 (Audio Path Validation), Chunk 1.1 — code complete, builds and unit tests pass. The **manual listening validation checklist** (`CHUNK1_IMPLEMENTATION_GUIDE.md` §6) still needs to be run by a human on real hardware before the chunk can be declared done.
+- **Chunk 1.1 implementation** (see `Documentation/AUDIO_PATH.md` for full details):
+  - Real audio engine: global stereo-mixdown process tap (own PID excluded, `muteBehavior = .muted`, private) → private aggregate device (output device as clock master, tap drift-compensated) → single HAL IOProc copying tap input to output buffers (D-007).
+  - Atomic bypass flag (swift-atomics, D-008); in 1.1 both paths are bit-identical passthrough — EQ slots into the active branch in Chunk 2.2.
+  - ~30 ms fade-in on engine start; 512-frame buffer requested.
+  - Output device selection by UID (or follow system default); listeners for default-device change, device removal, and sample-rate change trigger a debounced engine rebuild.
+  - Engine state machine (`idle/starting/running/failed`) surfaced in a debug panel in the main window (start/stop ⌘⇧E, device picker, privacy-settings + retry buttons) and in the menu bar.
+  - New files: `Audio/AudioEngineProtocol.swift`, `Audio/AudioDeviceUtils.swift`; `Audio/AudioEngine.swift` rewritten; `AppModel`/`ContentView`/`MenuBarContent` wired.
+- **Chunk 0.1**: complete (XcodeGen project, 14.2/arm64-only verified, CI, templates).
+- **Next Immediate Work**: Run the manual validation checklist (below), record results + CPU measurements in `Documentation/AUDIO_PATH.md`, fix anything it surfaces. Then Chunk 1.2 (gain staging).
 - **Critical Path**: The audio engine (Chunk 1.1) is the highest priority and riskiest piece. No significant UI investment should happen until a stable, artifact-free passthrough + bypass is demonstrated.
 
 ---
@@ -85,7 +87,7 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## What Has Not Been Done Yet
 
-- Any real audio engine implementation (tap creation works at the API level but no AVAudioEngine wiring, passthrough, or bypass yet).
+- Chunk 1.1 manual validation on real hardware (listening tests, device-switch tests, CPU measurements — requires a human).
 - DSP integration into a live render path.
 - Any spectrum analysis code.
 - Profile persistence or AutoEQ importer.
@@ -96,10 +98,10 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 1.1** (Core Audio Tap + reliable passthrough + bypass):
-   - Follow the detailed guide in `CHUNK1_IMPLEMENTATION_GUIDE.md`.
-   - Focus on permission handling, tap creation (global, muted, exclude own PID), audio flow to output device, and trustworthy bypass.
-   - Use the validation checklist in that guide.
+1. **Chunk 1.1 validation** (human-in-the-loop):
+   - Launch the app, click "Start Engine" (⌘⇧E) while audio plays, grant the System Audio Recording prompt.
+   - Run the manual checklist in `CHUNK1_IMPLEMENTATION_GUIDE.md` §6 (44.1/48 kHz, bypass A/B, device switches, DRM content, CPU via Activity Monitor/Instruments, 30-min memory check, clean quit).
+   - Record results and measurements in `Documentation/AUDIO_PATH.md`.
 
 2. After Chunk 1.1 passes its acceptance criteria, proceed to Chunk 1.2 (gain staging), then Phase 2 (full parametric EQ DSP).
 

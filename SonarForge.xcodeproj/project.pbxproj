@@ -10,12 +10,15 @@
 		05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */; };
 		21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */; };
 		2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EBD07360AEA963D10746CDF /* EQProfile.swift */; };
+		30EC85B212AFCDC7217D564C /* AudioEngineProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */; };
 		39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C4EC3B766CAA38B91E0159 /* ContentView.swift */; };
 		42D25772DE49DFB241FE30C1 /* ParametricEQ.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0194ACFC3576EA3CD07BDAF3 /* ParametricEQ.swift */; };
 		491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8099D566442C0E0A256CF89 /* PermissionHelper.swift */; };
 		64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */; };
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
+		A2E632393FFF24292D159231 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = ABC755F571079F1637B8CFDA /* Atomics */; };
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
+		C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */; };
 		F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +36,7 @@
 		0194ACFC3576EA3CD07BDAF3 /* ParametricEQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParametricEQ.swift; sourceTree = "<group>"; };
 		06F086ECF969C4D896823E90 /* SonarForge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SonarForge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarForgeApp.swift; sourceTree = "<group>"; };
+		18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineProtocol.swift; sourceTree = "<group>"; };
 		2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
 		6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
@@ -42,9 +46,21 @@
 		AF5265D6E8288637A0D1A93A /* Entitlements.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.entitlements; sourceTree = "<group>"; };
 		C08443F9720725E1952FAFE9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		D8099D566442C0E0A256CF89 /* PermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionHelper.swift; sourceTree = "<group>"; };
+		DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceUtils.swift; sourceTree = "<group>"; };
 		DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonarForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7F803B7F8B27339EEEBAEA40 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2E632393FFF24292D159231 /* Atomics in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0F9170330FE4B2BCE3CBD1E9 /* DSP */ = {
@@ -142,7 +158,9 @@
 		AABC648B6A53E2F9966C079B /* Audio */ = {
 			isa = PBXGroup;
 			children = (
+				DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */,
 				2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */,
+				18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -181,6 +199,7 @@
 			buildConfigurationList = 5678C362509463447B225291 /* Build configuration list for PBXNativeTarget "SonarForge" */;
 			buildPhases = (
 				36E6B53B0608BF5ADD3822B3 /* Sources */,
+				7F803B7F8B27339EEEBAEA40 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -188,6 +207,7 @@
 			);
 			name = SonarForge;
 			packageProductDependencies = (
+				ABC755F571079F1637B8CFDA /* Atomics */,
 			);
 			productName = SonarForge;
 			productReference = 06F086ECF969C4D896823E90 /* SonarForge.app */;
@@ -216,6 +236,9 @@
 			);
 			mainGroup = 5573C01189BF97B71BE5AD4C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CA7AEF6A27819C4DB8975050 /* XCRemoteSwiftPackageReference "swift-atomics" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 721C2D7D165C8711166C59A6 /* Products */;
 			projectDirPath = "";
@@ -233,7 +256,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				800332210111BA6688FA66F2 /* AppModel.swift in Sources */,
+				C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */,
 				21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */,
+				30EC85B212AFCDC7217D564C /* AudioEngineProtocol.swift in Sources */,
 				05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */,
 				39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */,
 				2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */,
@@ -494,6 +519,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CA7AEF6A27819C4DB8975050 /* XCRemoteSwiftPackageReference "swift-atomics" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-atomics.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		ABC755F571079F1637B8CFDA /* Atomics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CA7AEF6A27819C4DB8975050 /* XCRemoteSwiftPackageReference "swift-atomics" */;
+			productName = Atomics;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6C92A7B8CF59287B23FB3E4C /* Project object */;
 }

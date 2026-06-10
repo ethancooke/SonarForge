@@ -118,8 +118,8 @@ fastlane/test_output
 timeline.xctimeline
 playground.xcworkspace
 
-# Swift Package Manager - resolved
-Package.resolved
+# Swift Package Manager — keep the Xcode-managed Package.resolved committed
+# (reproducible dependency pins); ignore only SPM build artifacts (.build/ above).
 
 # IDE
 .idea/

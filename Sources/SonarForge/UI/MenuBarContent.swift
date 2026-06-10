@@ -11,18 +11,24 @@ struct MenuBarContent: View {
                 Text("SonarForge")
                     .font(.headline)
                 Spacer()
-                Text(appModel.isBypassed ? "Bypassed" : "Active")
+                Text(statusText)
                     .font(.caption)
-                    .foregroundStyle(appModel.isBypassed ? .orange : .green)
+                    .foregroundStyle(statusColor)
             }
             .padding(.bottom, 4)
 
             Divider()
 
-            Toggle("Enable Processing", isOn: .constant(!appModel.isBypassed))
-                .onChange(of: appModel.isBypassed) { _, _ in
-                    // The toggle above is illustrative; wire to real action
-                }
+            Toggle("Engine Running", isOn: Binding(
+                get: { appModel.isProcessing },
+                set: { _ in appModel.toggleEngine() }
+            ))
+
+            Toggle("Bypass", isOn: Binding(
+                get: { appModel.isBypassed },
+                set: { _ in appModel.toggleBypass() }
+            ))
+            .disabled(!appModel.isProcessing)
 
             Button("Open Main Window") {
                 // Activate the main window / bring to front
@@ -52,5 +58,23 @@ struct MenuBarContent: View {
         }
         .padding(8)
         .frame(width: 240)
+    }
+
+    private var statusText: String {
+        switch appModel.engineState {
+        case .running: appModel.isBypassed ? "Bypassed" : "Active"
+        case .idle:     "Off"
+        case .starting: "Starting…"
+        case .failed:   "Error"
+        }
+    }
+
+    private var statusColor: Color {
+        switch appModel.engineState {
+        case .running: appModel.isBypassed ? .orange : .green
+        case .idle:     .secondary
+        case .starting: .yellow
+        case .failed:   .red
+        }
     }
 }

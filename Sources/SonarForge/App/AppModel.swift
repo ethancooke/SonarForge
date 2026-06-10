@@ -4,13 +4,15 @@ import CoreAudio
 
 /// Central observable application state.
 /// Keeps the audio engine at arm's length from SwiftUI while exposing
-/// the minimal surface the UI needs.
+/// the minimal surface the UI needs (see DECISIONS.md D-004).
 @Observable
 final class AppModel {
     // MARK: - High-level state
 
     var isBypassed: Bool = false
-    var isProcessing: Bool = false          // true when audio engine is running
+    var engineState: AudioEngineState = .idle
+    var isProcessing: Bool { engineState == .running }
+
     var currentProfile: EQProfile = .flat
     var aProfile: EQProfile = .flat
     var bProfile: EQProfile = .flat
@@ -19,45 +21,74 @@ final class AppModel {
     var preampDB: Double = 0.0
     var outputGainDB: Double = 0.0
 
-    var selectedOutputDeviceID: AudioDeviceID?
+    // MARK: - Output device selection
+
+    var outputDevices: [AudioOutputDevice] = []
+    var selectedOutputUID: String? = nil {
+        didSet {
+            guard oldValue != selectedOutputUID else { return }
+            audioEngine.selectOutputDevice(uid: selectedOutputUID)
+        }
+    }
 
     // Spectrum data delivered from the audio engine (updated at UI-friendly rate)
     var preEQLevels: [Float] = []
     var postEQLevels: [Float] = []
 
-    // Permission / error state
-    var hasSystemAudioPermission: Bool = false
-    var audioErrorMessage: String?
-
     // MARK: - Dependencies (injected)
 
-    // The real audio engine will be created and owned here or in a coordinator.
-    // For early chunks we keep a placeholder.
-    private(set) var audioEngine: AudioEngineProtocol?
+    private(set) var audioEngine: AudioEngineProtocol
 
     // MARK: - Initialization
 
-    init() {
-        // TODO (Chunk 1+): Create and configure the concrete AudioEngine
-        // audioEngine = SonarForgeAudioEngine(...)
-        // audioEngine?.delegate = self
+    init(audioEngine: AudioEngineProtocol = SonarForgeAudioEngine()) {
+        self.audioEngine = audioEngine
+        self.audioEngine.onStateChange = { [weak self] newState in
+            // Engine callbacks arrive on a background queue; hop to the main actor.
+            Task { @MainActor in
+                self?.engineState = newState
+            }
+        }
+        refreshOutputDevices()
+    }
+
+    // MARK: - Engine control (UI → Model → Engine)
+
+    func startEngine() {
+        audioEngine.start()
+    }
+
+    func stopEngine() {
+        audioEngine.stop()
+    }
+
+    func toggleEngine() {
+        isProcessing ? stopEngine() : startEngine()
+    }
+
+    func refreshOutputDevices() {
+        outputDevices = AudioDeviceUtils.allOutputDevices()
+    }
+
+    func openPrivacySettings() {
+        PermissionHelper.openScreenRecordingPrivacySettings()
     }
 
     // MARK: - Intentions (UI → Model → Engine)
 
     func toggleBypass() {
         isBypassed.toggle()
-        audioEngine?.setBypass(isBypassed)
+        audioEngine.setBypass(isBypassed)
     }
 
     func setPreamp(_ db: Double) {
         preampDB = db
-        audioEngine?.setPreamp(db)
+        audioEngine.setPreamp(db)
     }
 
     func setOutputGain(_ db: Double) {
         outputGainDB = db
-        audioEngine?.setOutputGain(db)
+        audioEngine.setOutputGain(db)
     }
 
     func loadProfile(_ profile: EQProfile) {
@@ -68,14 +99,14 @@ final class AppModel {
         } else {
             bProfile = profile
         }
-        audioEngine?.loadProfile(profile)
+        audioEngine.loadProfile(profile)
     }
 
     func swapAB() {
         showingB.toggle()
         let active = showingB ? bProfile : aProfile
         currentProfile = active
-        audioEngine?.loadProfile(active)
+        audioEngine.loadProfile(active)
     }
 
     // Called by the audio engine (on a background queue) when spectrum updates arrive
@@ -86,18 +117,4 @@ final class AppModel {
             self.postEQLevels = post
         }
     }
-
-    func requestPermissionsIfNeeded() async {
-        // Implementation lives with the audio engine / permission helper
-        // Update hasSystemAudioPermission and audioErrorMessage accordingly
-    }
-}
-
-// Placeholder protocol so the UI layer can compile before the real engine exists.
-protocol AudioEngineProtocol: AnyObject {
-    func setBypass(_ bypassed: Bool)
-    func setPreamp(_ db: Double)
-    func setOutputGain(_ db: Double)
-    func loadProfile(_ profile: EQProfile)
-    // Later: start/stop, selectOutputDevice, etc.
 }

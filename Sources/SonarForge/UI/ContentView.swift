@@ -9,6 +9,12 @@ struct ContentView: View {
         HSplitView {
             // Left / main editor area
             VStack(spacing: 12) {
+                // Chunk 1.1 debug controls: capture/passthrough lifecycle, device
+                // selection, and error surfacing. Will be folded into proper UI later.
+                AudioEngineDebugView()
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
                 HStack {
                     Text("Frequency Response")
                         .font(.headline)
@@ -101,8 +107,82 @@ struct ContentView: View {
                 }
             }
         }
-        .task {
-            await appModel.requestPermissionsIfNeeded()
+    }
+}
+
+/// Temporary Chunk 1.1 debug panel: engine lifecycle, output device picker, and
+/// permission/error guidance. Replaced by real UI in Phase 5.
+struct AudioEngineDebugView: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        @Bindable var model = appModel
+
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(stateColor)
+                        .frame(width: 10, height: 10)
+                    Text(appModel.engineState.description)
+                        .font(.subheadline)
+                        .lineLimit(2)
+                    Spacer()
+                    Button(appModel.isProcessing ? "Stop Engine" : "Start Engine") {
+                        appModel.toggleEngine()
+                    }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                }
+
+                HStack {
+                    Picker("Output Device", selection: $model.selectedOutputUID) {
+                        Text("System Default").tag(String?.none)
+                        ForEach(appModel.outputDevices) { device in
+                            Text(device.name).tag(Optional(device.uid))
+                        }
+                    }
+                    .frame(maxWidth: 360)
+
+                    Button {
+                        appModel.refreshOutputDevices()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help("Refresh device list")
+                }
+
+                if case .failed = appModel.engineState {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("The engine could not start. If this is a permission problem, grant SonarForge access under System Audio Recording and retry.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        HStack {
+                            Button("Open Privacy Settings") {
+                                appModel.openPrivacySettings()
+                            }
+                            Button("Retry") {
+                                appModel.startEngine()
+                            }
+                        }
+                    }
+                } else if !appModel.isProcessing {
+                    Text("Start the engine while playing audio in another app. macOS will ask for System Audio Recording permission on first start. If you hear silence afterwards, check Privacy & Security and retry.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(4)
+        } label: {
+            Label("Audio Engine (Chunk 1.1 Debug)", systemImage: "waveform.badge.mic")
+        }
+    }
+
+    private var stateColor: Color {
+        switch appModel.engineState {
+        case .idle:     .gray
+        case .starting: .yellow
+        case .running:  .green
+        case .failed:   .red
         }
     }
 }
