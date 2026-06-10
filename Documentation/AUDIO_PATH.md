@@ -103,8 +103,15 @@ rate-matches to the output clock).
 |---|---|---|
 | CPU (idle, engine running, no audio) | ~0.0 % | `ps`/`top` sampling over 10 s |
 | CPU (audio playback) | 0.2–0.3 % | `top -l 5 -s 2` while playing system sounds |
-| Memory (resident) | ~50 MB | shortly after start; 30-min soak still TBD |
+| Memory (resident) | ~50 MB footprint / 105–131 MB RSS (Debug) | see soak below |
 | Threads | 8 | includes HAL IO thread |
+
+**35-minute soak (2026-06-10, Debug build, engine running with continuous quiet
+audio):** process stable for the full duration; RSS *declined* from ~131 MB to
+~105 MB (no growth); CPU ~0.0 % at every per-minute sample; `leaks` reported
+282 leaks / 14 KB total — all AppKit/XPC framework one-timers (NSArray/NSSet/
+NSXPCConnection), none in audio code, and not growing. Raw data:
+`/tmp/sonarforge_soak.csv` methodology in repo history.
 
 ## Validation Status (checklist from CHUNK1_IMPLEMENTATION_GUIDE.md §6)
 
@@ -120,4 +127,4 @@ rate-matches to the output clock).
 | USB DAC / external interface | ⏳ pending |
 | Output device switch while running | ⏳ pending |
 | DRM content behavior documented | ⏳ pending |
-| No memory growth over 30+ min | ⏳ pending |
+| No memory growth over 30+ min | ✅ 35-min soak passed (2026-06-10): RSS flat/declining, CPU ~0 %, no audio-code leaks |
