@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunks 2.1 + 2.2 implemented**: production biquad bank with lock-free parameter path (D-010), EQ live in the render path, debug presets for audible validation. All 22 unit tests pass; 12 bands cost 0.29% of realtime (optimized). Pending: EQ listening check. Phase 1 complete.
+**Last Updated**: 2026-06-10 — **Phase 2 COMPLETE** (Chunks 2.1 + 2.2 listening-validated: debug preset switching works audibly and cleanly). The EQ is live. Next: Phase 4 (profiles + AutoEQ importer) recommended over Phase 3 (spectrum) since the EQ is now real and spectrum is display-only.
 
 ---
 
@@ -104,11 +104,14 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Phase 2 listening validation** (Chunks 2.1/2.2 implemented 2026-06-10, see `Documentation/AUDIO_PATH.md` § Parametric EQ):
-   - With music playing and the engine running, switch Test Profile between Flat / Bass Boost / Treble Boost / Mid Cut / Telephone — each should be clearly audible, switch cleanly, and Bypass should A/B against the unprocessed signal.
-   - Confirm no artifacts on profile switches and that Flat is indistinguishable from Bypass.
+1. **Chunk 4.1 — Profile model, persistence, CRUD** (Phase 4; taken before Phase 3 because the EQ is live and spectrum is display-only):
+   - JSON file storage in Application Support with atomic writes; in-memory manager with `@Observable` surface; create/rename/delete/duplicate/favorite/set-active; last-used remembered across launches; export as profile JSON.
 
-2. After validation: Phase 3 (Chunk 3.1, vDSP spectrum analysis) or Phase 4 (profiles + AutoEQ importer) — Phase 4 is the higher-value next step since the EQ is now real; spectrum is display-only.
+2. **Chunk 4.2 — AutoEQ importer + attribution UX** (parser for parametric + GraphicEQ formats, paste/file import, mandatory attribution).
+
+3. Phase 3 (spectrum analyzer) afterwards, or interleaved if desired.
+
+**Phase 2 validated 2026-06-10**: test-preset switching (Flat / Bass Boost / Treble Boost / Mid Cut / Telephone) audibly correct with clean transitions.
 
 **Chunk 2.1/2.2 summary**: `BiquadCoefficients` (clamped RBJ + analytic magnitude response), `RealtimeParametricEQ` (16-band DF2T cascade, SPSC command ring — D-010), EQ wired between copy and gain passes with state reset on bypass re-engage and coefficient re-application on every engine start. 22 unit tests; 0.29% of realtime for 12 bands (optimized).
 **Chunk 1.2 completed 2026-06-10** — listening-validated.
