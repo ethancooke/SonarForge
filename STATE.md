@@ -2,20 +2,20 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-09 — Chunk 0.1 execution (Xcode project generated, sources compile-clean).
+**Last Updated**: 2026-06-09 — **Chunk 0.1 complete.** Next: Chunk 1.1.
 
 ---
 
 ## High-Level Status
 
-- **Phase**: Phase 0 (Foundations & Scaffolding), Chunk 0.1 — **nearly complete**.
+- **Phase**: Phase 0 complete; entering Phase 1 (Audio Path Validation), Chunk 1.1.
 - **Done in Chunk 0.1**:
   - `SonarForge.xcodeproj` generated via XcodeGen from a committed `project.yml` (macOS 14.2 deployment target, `ARCHS = arm64` only, entitlements wired, generated `Info.plist` with `NSAudioCaptureUsageDescription`). Regenerate with `xcodegen generate` after editing `project.yml`.
   - App + unit test targets and a `SonarForge` scheme (build/run/test/archive).
   - All app sources fixed to compile cleanly (verified with `swiftc -typecheck` against `arm64-apple-macos14.2`): removed invalid `override init` and duplicate protocol conformance in `AudioEngine.swift`, switched tap creation to the real `CATapDescription(stereoGlobalTapButExcludeProcesses:)` API with proper PID→process-object translation, fixed vDSP gain calls in `ParametricEQ.swift`, made model types `public` to match the DSP layer.
   - CI workflow no longer swallows failures; verifies the binary is arm64-only. Issue/PR templates added.
-- **Remaining for Chunk 0.1**: Full `xcodebuild` build + test verification on a machine with the Xcode license accepted (`sudo xcodebuild -license accept`), and confirming the app shell launches.
-- **Next Immediate Work**: Finish the build verification above, then move to Chunk 1.1.
+- **Chunk 0.1 verification (2026-06-09, M-series Mac, Xcode 26.2)**: `xcodebuild` Debug build **succeeded**; both DSP unit tests **passed**; binary verified `Mach-O 64-bit executable arm64` with `minos 14.2` (no x86_64 slice); app shell launched, ran without crashing, and quit cleanly.
+- **Next Immediate Work**: Chunk 1.1 — Core Audio Tap capture + reliable passthrough + bypass, per `CHUNK1_IMPLEMENTATION_GUIDE.md`.
 - **Critical Path**: The audio engine (Chunk 1.1) is the highest priority and riskiest piece. No significant UI investment should happen until a stable, artifact-free passthrough + bypass is demonstrated.
 
 ---
@@ -85,7 +85,6 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## What Has Not Been Done Yet
 
-- Full `xcodebuild` build/test verification + first app launch (blocked locally on Xcode license acceptance; see High-Level Status).
 - Any real audio engine implementation (tap creation works at the API level but no AVAudioEngine wiring, passthrough, or bypass yet).
 - DSP integration into a live render path.
 - Any spectrum analysis code.
@@ -97,17 +96,12 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 0.1 wrap-up**:
-   - Accept the Xcode license (`sudo xcodebuild -license accept`) and ideally `sudo xcode-select -s /Applications/Xcode.app`.
-   - Run `xcodebuild -project SonarForge.xcodeproj -scheme SonarForge -destination 'platform=macOS,arch=arm64' build test`.
-   - Confirm the basic app + menu bar shell launches and the binary is arm64-only (`file` on the executable).
-
-2. Move to **Chunk 1.1** (Core Audio Tap + reliable passthrough + bypass):
+1. **Chunk 1.1** (Core Audio Tap + reliable passthrough + bypass):
    - Follow the detailed guide in `CHUNK1_IMPLEMENTATION_GUIDE.md`.
    - Focus on permission handling, tap creation (global, muted, exclude own PID), audio flow to output device, and trustworthy bypass.
    - Use the validation checklist in that guide.
 
-3. After Chunk 1.1 passes its acceptance criteria, proceed to Chunk 1.2 (gain staging), then Phase 2 (full parametric EQ DSP).
+2. After Chunk 1.1 passes its acceptance criteria, proceed to Chunk 1.2 (gain staging), then Phase 2 (full parametric EQ DSP).
 
 ---
 

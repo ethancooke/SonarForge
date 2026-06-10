@@ -32,7 +32,7 @@ All estimates are rough and assume a single experienced developer with occasiona
 
 **See also**: `Documentation/Xcode-Setup.md` for the precise target settings that **must** be applied in this chunk (macOS 14.2 + arm64 only). Do not proceed to Chunk 1.1 until the project builds cleanly for Apple Silicon 14.2+.
 
-**Current Status (as of 2026-06-09)**: Repository structure, documentation, and source skeletons are in place. `SonarForge.xcodeproj` has been generated via XcodeGen from `project.yml` with the correct 14.2 + arm64 settings, and all sources type-check cleanly. Remaining: full `xcodebuild` build/test verification and first app launch, then Chunk 1.1. See `STATE.md`.
+**Current Status (as of 2026-06-09)**: **Complete.** `SonarForge.xcodeproj` is generated via XcodeGen from `project.yml` with the correct 14.2 + arm64 settings. Build and unit tests pass, the binary is verified arm64-only with minos 14.2, and the app shell launches cleanly. Next: Chunk 1.1. See `STATE.md`.
 
 **Estimated Size**: Very small. 1–2 days.
 

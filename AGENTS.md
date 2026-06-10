@@ -63,10 +63,9 @@ These decisions were confirmed by the project owner in conversation and are now 
 See the dedicated `STATE.md` file for the most up-to-date status. 
 
 As of the latest update (2026-06-09):
-- Strong documentation and skeleton code exist.
-- `SonarForge.xcodeproj` is generated via **XcodeGen** from `project.yml` (the source of truth for build settings — run `xcodegen generate` after editing it). 14.2 + arm64-only settings are applied.
-- All sources compile cleanly (`swiftc -typecheck` verified); a full `xcodebuild` build/test pass is the remaining Chunk 0.1 step.
-- Next: Finish Chunk 0.1 build verification, then execute Chunk 1.1 (the critical audio path validation).
+- **Chunk 0.1 is complete.** `SonarForge.xcodeproj` is generated via **XcodeGen** from `project.yml` (the source of truth for build settings — run `xcodegen generate` after editing it). 14.2 + arm64-only settings are applied and verified (arm64-only binary, minos 14.2).
+- Build + unit tests pass; the app shell launches and quits cleanly.
+- Next: Execute Chunk 1.1 (the critical audio path validation) per `CHUNK1_IMPLEMENTATION_GUIDE.md`.
 
 **Do not start UI-heavy work (graphical EQ editor, spectrum visualization polish, etc.) until Chunk 1.1 acceptance criteria are met.**
 
