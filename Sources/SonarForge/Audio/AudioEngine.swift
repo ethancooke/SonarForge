@@ -41,7 +41,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     private(set) var state: AudioEngineState = .idle {
         didSet {
             guard state != oldValue else { return }
-            logger.info("Engine state: \(self.state.description)")
+            logger.info("Engine state: \(self.state.description, privacy: .public)")
             onStateChange?(state)
         }
     }
@@ -118,7 +118,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         controlQueue.async {
             guard self.selectedOutputUID != uid else { return }
             self.selectedOutputUID = uid
-            self.deviceLogger.info("Output device selection changed to \(uid ?? "system default")")
+            self.deviceLogger.info("Output device selection changed to \(uid ?? "system default", privacy: .public)")
             if case .running = self.state {
                 self.stopOnQueue()
                 self.startOnQueue()
@@ -141,7 +141,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             }
             let outputName = AudioDeviceUtils.deviceName(outputID) ?? "unknown"
             let outputRate = AudioDeviceUtils.nominalSampleRate(outputID) ?? 48000
-            deviceLogger.info("Output device: \(outputName) (uid: \(outputUID), \(outputRate) Hz)")
+            deviceLogger.info("Output device: \(outputName, privacy: .public) (uid: \(outputUID, privacy: .public), \(outputRate) Hz)")
 
             // 2. Create the process tap: global stereo mixdown, our own process excluded,
             //    original audio muted (we are now responsible for rendering it).
@@ -202,9 +202,9 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             currentOutputDeviceID = outputID
             installDeviceListeners(outputDeviceID: outputID)
             state = .running
-            logger.info("Engine running: system audio → tap → SonarForge → \(outputName)")
+            logger.info("Engine running: system audio → tap → SonarForge → \(outputName, privacy: .public)")
         } catch {
-            logger.error("Engine start failed: \(error.localizedDescription)")
+            logger.error("Engine start failed: \(error.localizedDescription, privacy: .public)")
             stopOnQueue()
             state = .failed(error.localizedDescription)
         }
@@ -371,7 +371,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     private func scheduleRestart(reason: String) {
         guard !pendingRestart else { return }
         pendingRestart = true
-        deviceLogger.info("Engine restart scheduled (\(reason))")
+        deviceLogger.info("Engine restart scheduled (\(reason, privacy: .public))")
         controlQueue.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self else { return }
             self.pendingRestart = false
@@ -387,7 +387,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             if let id = AudioDeviceUtils.deviceID(forUID: uid) {
                 return id
             }
-            deviceLogger.warning("Selected output device \(uid) not found; falling back to system default")
+            deviceLogger.warning("Selected output device \(uid, privacy: .public) not found; falling back to system default")
         }
         guard let defaultID = AudioDeviceUtils.defaultOutputDeviceID() else {
             throw AudioEngineError.noOutputDevice

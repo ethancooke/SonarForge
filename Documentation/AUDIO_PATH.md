@@ -95,13 +95,29 @@ can cause repeated prompts.
 
 ## Measured Characteristics
 
-> To be filled in during validation on real hardware (Instruments + Activity
-> Monitor): idle CPU, CPU while playing music, memory over 30+ min, behavior at
-> 44.1/48 kHz, USB DAC + Bluetooth devices. See the checklist in
-> `CHUNK1_IMPLEMENTATION_GUIDE.md` §6.
+Measured 2026-06-09, Apple Silicon, macOS 26.5, Debug build, built-in output
+device at 44.1 kHz (tap reports 48 kHz; the aggregate's drift compensation
+rate-matches to the output clock).
 
 | Metric | Value | Conditions |
 |---|---|---|
-| CPU (idle, engine running, no audio) | _TBD_ | |
-| CPU (music playback) | _TBD_ | |
-| Memory after 30 min | _TBD_ | |
+| CPU (idle, engine running, no audio) | ~0.0 % | `ps`/`top` sampling over 10 s |
+| CPU (audio playback) | 0.2–0.3 % | `top -l 5 -s 2` while playing system sounds |
+| Memory (resident) | ~50 MB | shortly after start; 30-min soak still TBD |
+| Threads | 8 | includes HAL IO thread |
+
+## Validation Status (checklist from CHUNK1_IMPLEMENTATION_GUIDE.md §6)
+
+| Item | Status |
+|---|---|
+| Clean passthrough on built-in output (44.1 kHz device) | ✅ confirmed by listening (2026-06-09) |
+| Permission prompt flow (grant → audio flows) | ✅ confirmed |
+| Start while music already playing | ✅ confirmed |
+| Engine on/off toggle | ✅ works; expected millisecond-scale dip at the tap/direct-path handoff |
+| Bypass toggle audibly seamless | ⏳ needs explicit A/B confirmation (should be perfectly gapless — identical code path) |
+| Clean quit returns audio to system path | ✅ confirmed |
+| Clean passthrough at 48 kHz device setting | ⏳ pending |
+| USB DAC / external interface | ⏳ pending |
+| Output device switch while running | ⏳ pending |
+| DRM content behavior documented | ⏳ pending |
+| No memory growth over 30+ min | ⏳ pending |

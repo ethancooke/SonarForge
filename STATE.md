@@ -8,7 +8,8 @@ This is the living "where are we right now" document. Update it whenever signifi
 
 ## High-Level Status
 
-- **Phase**: Phase 1 (Audio Path Validation), Chunk 1.1 — code complete, builds and unit tests pass. The **manual listening validation checklist** (`CHUNK1_IMPLEMENTATION_GUIDE.md` §6) still needs to be run by a human on real hardware before the chunk can be declared done.
+- **Phase**: Phase 1 (Audio Path Validation), Chunk 1.1 — code complete, builds and unit tests pass. **First live validation succeeded (2026-06-09)**: permission flow, passthrough on built-in output, start-while-playing, and clean quit all confirmed by listening; CPU measured at ~0.0% idle / 0.2–0.3% under playback, ~50 MB resident. Remaining checklist items (48 kHz, USB DAC, device switch while running, DRM behavior, 30-min soak, explicit bypass A/B) tracked in `Documentation/AUDIO_PATH.md` § Validation Status.
+- A debug `--autostart-engine` launch argument exists for autonomous testing (`open SonarForge.app --args --autostart-engine`).
 - **Chunk 1.1 implementation** (see `Documentation/AUDIO_PATH.md` for full details):
   - Real audio engine: global stereo-mixdown process tap (own PID excluded, `muteBehavior = .muted`, private) → private aggregate device (output device as clock master, tap drift-compensated) → single HAL IOProc copying tap input to output buffers (D-007).
   - Atomic bypass flag (swift-atomics, D-008); in 1.1 both paths are bit-identical passthrough — EQ slots into the active branch in Chunk 2.2.

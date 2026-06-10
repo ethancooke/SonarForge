@@ -50,6 +50,12 @@ final class AppModel {
             }
         }
         refreshOutputDevices()
+
+        // Debug/automation hook: `open SonarForge.app --args --autostart-engine`
+        // starts the engine immediately (used for autonomous CPU/stability testing).
+        if CommandLine.arguments.contains("--autostart-engine") {
+            startEngine()
+        }
     }
 
     // MARK: - Engine control (UI → Model → Engine)
