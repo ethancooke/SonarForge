@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunk 1.2 implemented** (smoothed preamp + output gain live in the render path; pending a quick zipper-noise listening check). Chunk 1.1 complete. Next: listening check, then Phase 2 (Chunk 2.1).
+**Last Updated**: 2026-06-10 — **Phase 1 COMPLETE** (Chunks 1.1 and 1.2 done, listening-validated). Next: Phase 2, Chunk 2.1 (production biquad filter bank).
 
 ---
 
@@ -104,11 +104,15 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 1.2 wrap-up** (implemented 2026-06-10, see `Documentation/AUDIO_PATH.md` § Gain Staging):
-   - Smoothed preamp + output gain are live (one-pole, τ=15 ms, atomic targets, unity fast path); bypass now audibly excludes gains via a click-free crossfade; faders wired; A/B applies profile preamp; headroom strategy recorded as D-009.
-   - Remaining: listening check — drag the faders while music plays (expect smooth level change, no zipper noise) and toggle bypass with non-zero gains (expect clean ~15 ms level crossfade).
+1. **Chunk 2.1 — Biquad filter bank** (Phase 2, DEVELOPMENT_PLAN.md):
+   - Production-quality `BiquadFilter` + `ParametricEQ` (skeletons exist in `Sources/SonarForge/DSP/`): RBJ coefficient edge cases (Nyquist, extreme Q/gain), denormal handling, Float32 processing path matching the render block.
+   - Lock-free/double-buffered parameter update path from UI to the render thread (extend the atomics approach already used for gains).
+   - Unit tests against known-good coefficient values + impulse/step responses.
+   - CPU target: < 1–2 % for 8–12 bands at 48 kHz.
 
-2. Then Phase 2 (Chunk 2.1: production biquad bank + parameter update path; Chunk 2.2: live integration + real bypass semantics).
+2. Then Chunk 2.2: wire the EQ into the live render path between the preamp and output gain stages; exact bypass semantics; A/B with optional crossfade.
+
+**Chunk 1.2 completed 2026-06-10** (smoothed gain staging, real bypass semantics, D-009 headroom decision, labeled gain UI) — listening-validated: smooth fader response, clean bypass behavior.
 
 **Dev note**: if the engine ever hangs in "Starting…" after a rebuild, it is the stale-TCC gotcha — run `tccutil reset All com.sonarforge.SonarForge` and re-grant (details in AUDIO_PATH.md).
 
