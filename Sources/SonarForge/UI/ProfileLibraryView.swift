@@ -9,6 +9,7 @@ struct ProfileLibraryView: View {
 
     @State private var renamingID: UUID?
     @State private var renameText = ""
+    @FocusState private var renameFieldFocused: Bool
     @State private var deleteCandidate: EQProfile?
     @State private var errorMessage: String?
     @State private var showingAutoEQImport = false
@@ -214,8 +215,12 @@ struct ProfileLibraryView: View {
             if renamingID == profile.id {
                 TextField("Name", text: $renameText)
                     .textFieldStyle(.roundedBorder)
+                    .focused($renameFieldFocused)
                     .onSubmit { commitRename(profile) }
                     .onExitCommand { renamingID = nil }
+                    // Grab keyboard focus as soon as the field exists so the
+                    // user can type immediately (focus also selects all text).
+                    .onAppear { renameFieldFocused = true }
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {

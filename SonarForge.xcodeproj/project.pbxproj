@@ -35,6 +35,7 @@
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
 		A92148CCB3294E50C0DF4483 /* AutoEQImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1441D6DF5158ACE2A52BED31 /* AutoEQImporterTests.swift */; };
 		AA68CE110F00675C49392FDD /* FrequencyResponseEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80DB05206431EB8490B85801 /* FrequencyResponseEditor.swift */; };
+		AAC2E576C7DAFAD55818F419 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 801B157816D10E75D667333E /* Assets.xcassets */; };
 		AD66B15122B18DA5FC8D1FC9 /* SpectrumProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969C0A32E5FD96D696C0337B /* SpectrumProcessor.swift */; };
 		B51504A1ADA4EB03FFB29467 /* ProfileLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */; };
 		B5F91C39291C870DCB0C37C0 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD188809AD7AF330F6644F14 /* WelcomeView.swift */; };
@@ -81,6 +82,7 @@
 		6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLibraryView.swift; sourceTree = "<group>"; };
 		6EBD07360AEA963D10746CDF /* EQProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfile.swift; sourceTree = "<group>"; };
 		6FC8C17EFA098F61680B6AF5 /* EQResponseCurveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQResponseCurveTests.swift; sourceTree = "<group>"; };
+		801B157816D10E75D667333E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		80DB05206431EB8490B85801 /* FrequencyResponseEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyResponseEditor.swift; sourceTree = "<group>"; };
 		8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadCoefficientsTests.swift; sourceTree = "<group>"; };
 		95AE30DD128476018F5B8CED /* RealtimeParametricEQTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeParametricEQTests.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 		5573C01189BF97B71BE5AD4C = {
 			isa = PBXGroup;
 			children = (
+				D76DA6BB737EF9D92C21DA02 /* Assets */,
 				38E7082794C3E62B0311D88B /* Sources */,
 				721C2D7D165C8711166C59A6 /* Products */,
 			);
@@ -248,6 +251,14 @@
 			path = Audio;
 			sourceTree = "<group>";
 		};
+		D76DA6BB737EF9D92C21DA02 /* Assets */ = {
+			isa = PBXGroup;
+			children = (
+				801B157816D10E75D667333E /* Assets.xcassets */,
+			);
+			path = Assets;
+			sourceTree = "<group>";
+		};
 		DD29195E0CD830CC88332BFD /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -282,6 +293,7 @@
 			buildConfigurationList = 5678C362509463447B225291 /* Build configuration list for PBXNativeTarget "SonarForge" */;
 			buildPhases = (
 				36E6B53B0608BF5ADD3822B3 /* Sources */,
+				050CD9AFB9B5C4FF676031E8 /* Resources */,
 				7F803B7F8B27339EEEBAEA40 /* Frameworks */,
 			);
 			buildRules = (
@@ -332,6 +344,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		050CD9AFB9B5C4FF676031E8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAC2E576C7DAFAD55818F419 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		36E6B53B0608BF5ADD3822B3 /* Sources */ = {
