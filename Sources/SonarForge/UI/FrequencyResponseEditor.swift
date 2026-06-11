@@ -25,11 +25,16 @@ struct FrequencyResponseEditor: View {
     /// Band values at drag start — Q drags are relative to these.
     @State private var dragStartBand: EQBand?
 
+    /// Cached curve ordinates — recomputed only when bands change, not when the
+    /// editor resizes (e.g. bands panel show/hide stealing 300 px of width).
+    @State private var cachedResponseDB: [Double] = []
+
     private static let minFrequency = 20.0
     private static let maxFrequency = 20000.0
     private static let minDB = -15.0
     private static let maxDB = 15.0
     private static let curvePointCount = 160
+    private static let curveFrequencies = EQResponseCurve.logSpacedFrequencies(count: curvePointCount)
     /// Display-only sample rate; curve shape below 20 kHz is visually identical
     /// across the supported device rates.
     private static let displaySampleRate = 48000.0
@@ -42,7 +47,7 @@ struct FrequencyResponseEditor: View {
             ZStack {
                 Canvas { context, size in
                     drawGrid(in: &context, size: size)
-                    drawCurve(for: bands, in: &context, size: size)
+                    drawCurve(response: cachedResponseDB, in: &context, size: size)
                 }
 
                 ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
@@ -63,6 +68,22 @@ struct FrequencyResponseEditor: View {
         .onKeyPress(.upArrow) { nudgeSelected(gainDelta: 0.5) }
         .onKeyPress(.downArrow) { nudgeSelected(gainDelta: -0.5) }
         .accessibilityLabel("Frequency response editor")
+        .onAppear { refreshCachedCurve(bands: appModel.currentProfile.bands) }
+        .onChange(of: appModel.currentProfile.bands) { _, newBands in
+            refreshCachedCurve(bands: newBands)
+        }
+    }
+
+    private func refreshCachedCurve(bands: [EQBand]) {
+        guard !bands.isEmpty else {
+            cachedResponseDB = []
+            return
+        }
+        cachedResponseDB = EQResponseCurve.responseDB(
+            bands: bands,
+            sampleRate: Self.displaySampleRate,
+            frequencies: Self.curveFrequencies
+        )
     }
 
     /// Arrow-key nudging of the selected band (requires the editor focused —
@@ -155,13 +176,11 @@ struct FrequencyResponseEditor: View {
         }
     }
 
-    private func drawCurve(for bands: [EQBand], in context: inout GraphicsContext, size: CGSize) {
-        guard !bands.isEmpty else { return }
-        let frequencies = EQResponseCurve.logSpacedFrequencies(count: Self.curvePointCount)
-        let response = EQResponseCurve.responseDB(bands: bands, sampleRate: Self.displaySampleRate, frequencies: frequencies)
+    private func drawCurve(response: [Double], in context: inout GraphicsContext, size: CGSize) {
+        guard response.count == Self.curveFrequencies.count else { return }
 
         var curve = Path()
-        for (i, frequency) in frequencies.enumerated() {
+        for (i, frequency) in Self.curveFrequencies.enumerated() {
             let point = CGPoint(x: x(forFrequency: frequency, width: size.width),
                                 y: y(forDB: response[i], height: size.height))
             if i == 0 { curve.move(to: point) } else { curve.addLine(to: point) }
