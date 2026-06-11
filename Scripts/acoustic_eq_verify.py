@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Generate a +3 dBFS 1 kHz test tone and EQ profile for live acoustic verification."""
+"""Generate a -3 dBFS 1 kHz test tone and EQ profile for live acoustic verification.
+
+Digital full scale is 0 dBFS, so a literal "+3 dBFS" tone cannot exist in a WAV
+(it would clip into distortion). The physically valid form of the 3+2=5 test is
+relative: tone at -3 dBFS + a +2 dB EQ boost must measure -1 dBFS at the output,
+i.e. the post-pre delta is exactly the +2 dB the EQ claims to apply.
+"""
 
 import json
 import math
@@ -12,7 +18,7 @@ from pathlib import Path
 SAMPLE_RATE = 48000
 DURATION_S = 4
 FREQUENCY = 1000
-INPUT_DBFS = 3.0
+INPUT_DBFS = -3.0
 EQ_BOOST_DB = 2.0
 EXPECTED_OUTPUT_DBFS = INPUT_DBFS + EQ_BOOST_DB
 
@@ -59,7 +65,7 @@ def main() -> int:
     out_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/sonarforge_acoustic_test")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    tone_path = out_dir / "tone_1khz_plus3db.wav"
+    tone_path = out_dir / "tone_1khz_minus3db.wav"
     profile_path = out_dir / "profile_plus2_1khz.json"
 
     write_tone_wav(tone_path)

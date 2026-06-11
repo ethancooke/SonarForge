@@ -152,9 +152,14 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
     }
 
     /// Whether this profile's EQ content differs from the shipped factory default.
+    /// Compares band *parameters*, not band identity: the canonical presets mint
+    /// fresh band UUIDs every process launch, so an id-sensitive comparison would
+    /// flag every loaded factory preset as "modified" after a relaunch.
     public func differsFromFactoryDefault() -> Bool {
         guard isFactory, let canonical = Self.canonicalFactory(id: id) else { return false }
-        return preamp != canonical.preamp || bands != canonical.bands || notes != canonical.notes
+        if preamp != canonical.preamp || notes != canonical.notes { return true }
+        guard bands.count == canonical.bands.count else { return true }
+        return !zip(bands, canonical.bands).allSatisfy { $0.hasSameParameters(as: $1) }
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -218,6 +223,11 @@ public struct EQBand: Codable, Hashable, Sendable {
         self.frequency = frequency
         self.gain = gain
         self.q = q
+    }
+
+    /// Equality of the audible parameters, ignoring the band's identity.
+    public func hasSameParameters(as other: EQBand) -> Bool {
+        type == other.type && frequency == other.frequency && gain == other.gain && q == other.q
     }
 }
 

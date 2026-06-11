@@ -297,6 +297,37 @@ final class ProfileManagerTests: XCTestCase {
         manager.delete(copy.id)
     }
 
+    /// Regression: the canonical factory presets mint fresh band UUIDs each
+    /// process launch. A loaded (on-disk) factory preset therefore has different
+    /// band ids than the in-memory canon — it must still read as unmodified.
+    func testFactoryPresetNotModifiedWhenOnlyBandIdsDiffer() throws {
+        let manager = try makeManager()
+        var bass = try XCTUnwrap(manager.profiles.first(where: { $0.id == FactoryPresetID.bassBoost }))
+        bass.bands = bass.bands.map {
+            EQBand(id: UUID(), type: $0.type, frequency: $0.frequency, gain: $0.gain, q: $0.q)
+        }
+        manager.update(bass)
+        XCTAssertFalse(manager.isFactoryModified(FactoryPresetID.bassBoost),
+                       "band identity must not count as user modification")
+    }
+
+    /// Regression: the name-based legacy cleanup is a one-time migration. After
+    /// it has run, a *user* profile that happens to share a factory preset's
+    /// name must survive subsequent launches.
+    func testUserProfileNamedLikeFactorySurvivesResync() throws {
+        let store = try makeStore()
+        store.syncFactoryPresets(EQProfile.factoryPresets, obsoleteNames: EQProfile.obsoleteFactoryNames)
+
+        var custom = EQProfile.newUserProfile(name: "Rock")
+        custom.bands = [EQBand(type: .peaking, frequency: 500, gain: 3, q: 1)]
+        try store.save(custom)
+
+        // Next launch.
+        store.syncFactoryPresets(EQProfile.factoryPresets, obsoleteNames: EQProfile.obsoleteFactoryNames)
+        XCTAssertTrue(store.loadAll().contains(where: { $0.id == custom.id }),
+                      "post-migration sync must not delete user profiles by name")
+    }
+
     func testSyncRemovesObsoleteMidCutAndLegacyDuplicates() throws {
         let store = try makeStore()
         let legacy = EQProfile.newUserProfile(name: "Mid Cut")

@@ -210,6 +210,15 @@ NSXPCConnection), none in audio code, and not growing. Raw data:
 | No memory growth over 30+ min | ✅ 35-min soak passed (2026-06-10): RSS flat/declining, CPU ~0 %, no audio-code leaks |
 | USB DAC / external interface / Bluetooth | ⏳ deferred until hardware is at hand (low risk: speakers↔headphones already exercises device/rate changes); fold into Chunk 6.1 hardening |
 
+**Acoustic end-to-end EQ verification (2026-06-11)**: −3 dBFS 1 kHz tone played
+through the live path (afplay → tap → aggregate → render block → EQ) with a
++2 dB peaking profile @ 1 kHz, measured by the app's calibrated spectrum
+analyzer (`Scripts/run_acoustic_eq_test.sh`): pre −3.08 dBFS, post −1.08 dBFS,
+**delta exactly +2.00 dB** at display bin 36 (~1 kHz); clean −100 dB floor
+before/after the tone. The EQ applies precisely its stated gain end to end.
+(Note: digital full scale is 0 dBFS, so the "+3 in, +5 out" form of this test
+is run anchored 6 dB lower; the delta is the invariant.)
+
 **Bug found & fixed during validation (2026-06-10)**: switching output devices
 while running silently killed the engine — `stopOnQueue()` left `state ==
 .running`, so the rebuild's reentrancy guard refused to start. Audio continued

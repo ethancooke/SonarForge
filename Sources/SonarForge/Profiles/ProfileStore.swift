@@ -109,29 +109,35 @@ final class ProfileStore {
         return true
     }
 
-    /// Ensures every canonical factory preset exists on disk, removes obsolete
-    /// SonarForge starters, and drops legacy duplicates that share a factory
-    /// name but not its stable UUID. Never overwrites an existing canonical
-    /// factory file — user edits persist until they choose Reset.
+    /// Ensures every canonical factory preset exists on disk, and — **once per
+    /// sync version** — removes obsolete starters and legacy duplicates that
+    /// share a factory name but not its stable UUID. The name-based cleanup is
+    /// a migration, not a steady-state rule: running it every launch would
+    /// delete any *user* profile that happens to be named "Rock" or "Flat".
+    /// Never overwrites an existing canonical factory file — user edits persist
+    /// until they choose Reset.
     func syncFactoryPresets(_ factories: [EQProfile], obsoleteNames: [String]) {
         let canonicalIDs = Set(factories.map(\.id))
         let canonicalNames = Set(factories.map(\.name))
 
-        for profile in loadAll() where obsoleteNames.contains(profile.name) {
-            do {
-                try delete(id: profile.id)
-                logger.info("Removed obsolete starter profile \(profile.name, privacy: .public)")
-            } catch {
-                logger.error("Failed to remove obsolete profile \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        let migrationNeeded = defaults.integer(forKey: Self.factorySyncVersionKey) < Self.currentFactorySyncVersion
+        if migrationNeeded {
+            for profile in loadAll() where obsoleteNames.contains(profile.name) && !canonicalIDs.contains(profile.id) {
+                do {
+                    try delete(id: profile.id)
+                    logger.info("Removed obsolete starter profile \(profile.name, privacy: .public)")
+                } catch {
+                    logger.error("Failed to remove obsolete profile \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
             }
-        }
 
-        for profile in loadAll() where canonicalNames.contains(profile.name) && !canonicalIDs.contains(profile.id) {
-            do {
-                try delete(id: profile.id)
-                logger.info("Removed legacy duplicate of factory preset \(profile.name, privacy: .public)")
-            } catch {
-                logger.error("Failed to remove legacy duplicate \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            for profile in loadAll() where canonicalNames.contains(profile.name) && !canonicalIDs.contains(profile.id) {
+                do {
+                    try delete(id: profile.id)
+                    logger.info("Removed legacy duplicate of factory preset \(profile.name, privacy: .public)")
+                } catch {
+                    logger.error("Failed to remove legacy duplicate \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
             }
         }
 
