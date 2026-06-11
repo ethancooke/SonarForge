@@ -153,6 +153,46 @@ final class ProfileManagerTests: XCTestCase {
         XCTAssertEqual(loaded.bands.count, 1)
     }
 
+    // MARK: - Import / Export
+
+    func testExportImportRoundTripPreservesContentWithNewIdentity() throws {
+        let manager = try makeManager()
+        let bass = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Bass Boost" }))
+
+        let data = try manager.exportData(for: bass.id)
+        let decoded = try ProfileManager.decodeProfile(from: data)
+        let imported = manager.importProfile(decoded)
+
+        XCTAssertNotEqual(imported.id, bass.id, "import must mint a new identity")
+        XCTAssertEqual(imported.name, "Bass Boost 2", "name deduplicated against the original")
+        XCTAssertEqual(imported.bands, bass.bands)
+        XCTAssertEqual(imported.preamp, bass.preamp)
+        XCTAssertEqual(imported.sourceAttribution, bass.sourceAttribution, "attribution preserved verbatim")
+
+        let relaunched = try makeManager()
+        XCTAssertTrue(relaunched.profiles.contains(where: { $0.id == imported.id }), "import persists")
+    }
+
+    func testImportSameDataTwiceCreatesTwoCopies() throws {
+        let manager = try makeManager()
+        let flat = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Flat" }))
+        let data = try manager.exportData(for: flat.id)
+
+        let first = manager.importProfile(try ProfileManager.decodeProfile(from: data))
+        let second = manager.importProfile(try ProfileManager.decodeProfile(from: data))
+        XCTAssertNotEqual(first.id, second.id)
+        XCTAssertNotEqual(first.name, second.name)
+    }
+
+    func testDecodeRejectsGarbage() {
+        XCTAssertThrowsError(try ProfileManager.decodeProfile(from: Data("not json".utf8)))
+    }
+
+    func testExportUnknownProfileThrows() throws {
+        let manager = try makeManager()
+        XCTAssertThrowsError(try manager.exportData(for: UUID()))
+    }
+
     func testProfilesSortedByName() throws {
         let manager = try makeManager()
         manager.create(name: "zzz Last")

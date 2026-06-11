@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunk 4.1.2 complete** (ProfileManager wired into AppModel; profiles persist and the last-used profile is restored and applied to the engine at launch — verified live). Next: 4.1.3 (profile management UI + export/import).
+**Last Updated**: 2026-06-10 — **Chunk 4.1 COMPLETE** (4.1.1 store, 4.1.2 manager — both user-validated; 4.1.3 library UI + export/import implemented, pending a quick click-through). Next: Chunk 4.2 (AutoEQ importer + attribution UX).
 
 ---
 
@@ -104,12 +104,11 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 4.1.3 — Profile UI + export/import round-trip**:
-   - Debug-grade management UI (select/create/rename/duplicate/delete/favorite) over the new `ProfileManager`.
-   - Export active profile via save panel; import native profile JSON.
-   - Menu bar already lists profiles with a checkmark on the active one (done in 4.1.2); favorites ordering + ⌘1–9 shortcuts remain Chunk 4.3.
+1. **Validate 4.1.3** (one short click-through): toolbar → Profiles: create/rename/duplicate/favorite/delete a profile; export one to disk; re-import it (expect a deduplicated copy that becomes active and audible).
 
-2. **Chunk 4.2 — AutoEQ importer + attribution UX**, then Phase 3 (spectrum analyzer).
+2. **Chunk 4.2 — AutoEQ importer + attribution UX** (parser for parametric "Filter X:" blocks + GraphicEQ lines, paste/file import UI, mandatory visible attribution, round-trip tests), then Chunk 4.3 (favorites ordering + ⌘1–9 quick switch) and Phase 3 (spectrum analyzer).
+
+**4.1.3 summary (2026-06-10)**: `ProfileLibraryView` sheet from the toolbar Profiles button — list with favorite stars, active checkmark, Activate buttons, context menu (rename inline, duplicate, export via save panel, delete with confirmation), New + Import… (NSOpenPanel, multi-select; imports mint a new UUID + deduplicated name, then activate). Manager gained `importProfile`/`exportData`/`decodeProfile` with 4 new round-trip tests (48 total).
 
 **4.1.2 summary (2026-06-10)**: `ProfileManager` (@Observable; seeding, never-empty library, active restore, CRUD with name dedup, in-memory fallback if storage unavailable — 12 unit tests) created by AppModel, which restores and applies the active profile at launch and routes UI selection through `selectProfile(id:)`. Debug preset menu and menu bar now list the real persisted library. Verified live: externally created profile JSON files load, and the persisted active profile (Bass Boost) was applied to the engine on launch.
 

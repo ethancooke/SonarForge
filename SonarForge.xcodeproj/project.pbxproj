@@ -24,6 +24,7 @@
 		A2E632393FFF24292D159231 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = ABC755F571079F1637B8CFDA /* Atomics */; };
 		A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456E5263CDB3F894E35017DF /* RealtimeParametricEQ.swift */; };
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
+		B51504A1ADA4EB03FFB29467 /* ProfileLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */; };
 		BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E3CC9FB2C142B415C61E85D /* GainMath.swift */; };
 		C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */; };
 		CCB94F99159B6FC388EBEF1F /* ProfileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D51B2CCA205E107E996D20 /* ProfileStoreTests.swift */; };
@@ -54,6 +55,7 @@
 		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
 		63C4EC3B766CAA38B91E0159 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		664B719906D2750F61DA3568 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLibraryView.swift; sourceTree = "<group>"; };
 		6EBD07360AEA963D10746CDF /* EQProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfile.swift; sourceTree = "<group>"; };
 		8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadCoefficientsTests.swift; sourceTree = "<group>"; };
 		95AE30DD128476018F5B8CED /* RealtimeParametricEQTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeParametricEQTests.swift; sourceTree = "<group>"; };
@@ -131,6 +133,7 @@
 			children = (
 				63C4EC3B766CAA38B91E0159 /* ContentView.swift */,
 				6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */,
+				6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -301,6 +304,7 @@
 				BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */,
 				64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */,
 				491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */,
+				B51504A1ADA4EB03FFB29467 /* ProfileLibraryView.swift in Sources */,
 				CF3BA7E33D9B486ECFD4C9F6 /* ProfileManager.swift in Sources */,
 				518422632FE84996B091CC71 /* ProfileStore.swift in Sources */,
 				A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */,

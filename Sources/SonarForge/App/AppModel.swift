@@ -99,6 +99,21 @@ final class AppModel {
         }
     }
 
+    /// Imports a native profile JSON file, activates it, and applies it.
+    @discardableResult
+    func importProfile(from url: URL) throws -> EQProfile {
+        let data = try Data(contentsOf: url)
+        let decoded = try ProfileManager.decodeProfile(from: data)
+        let imported = profileManager.importProfile(decoded)
+        selectProfile(id: imported.id)
+        return imported
+    }
+
+    func exportProfile(id: UUID, to url: URL) throws {
+        let data = try profileManager.exportData(for: id)
+        try data.write(to: url, options: .atomic)
+    }
+
     // MARK: - Engine control (UI → Model → Engine)
 
     func startEngine() {

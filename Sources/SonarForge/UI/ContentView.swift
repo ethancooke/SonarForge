@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel
+    @State private var showingProfileLibrary = false
 
     var body: some View {
         @Bindable var model = appModel
@@ -130,11 +131,15 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    // Open profile manager or save current
+                    showingProfileLibrary = true
                 } label: {
                     Label("Profiles", systemImage: "list.bullet")
                 }
+                .help("Manage profiles (create, rename, import, export)")
             }
+        }
+        .sheet(isPresented: $showingProfileLibrary) {
+            ProfileLibraryView()
         }
     }
 }

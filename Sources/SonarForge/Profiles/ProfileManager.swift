@@ -139,6 +139,38 @@ final class ProfileManager {
         persist(profile)
     }
 
+    // MARK: - Import / Export (4.1.3)
+
+    /// Adds an externally sourced profile under a fresh identity: new UUID (so
+    /// importing the same file twice duplicates rather than colliding with an
+    /// existing profile) and a deduplicated name. Attribution and content are
+    /// preserved verbatim.
+    @discardableResult
+    func importProfile(_ incoming: EQProfile) -> EQProfile {
+        var profile = incoming
+        profile.id = UUID()
+        profile.name = uniqueName(basedOn: incoming.name)
+        profiles.append(profile)
+        profiles.sort(by: Self.nameOrder)
+        persist(profile)
+        return profile
+    }
+
+    /// Pretty-printed JSON for a profile — the same format the store writes,
+    /// so an exported file can be dropped straight into another library.
+    func exportData(for id: UUID) throws -> Data {
+        guard let profile = profiles.first(where: { $0.id == id }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(profile)
+    }
+
+    static func decodeProfile(from data: Data) throws -> EQProfile {
+        try JSONDecoder().decode(EQProfile.self, from: data)
+    }
+
     // MARK: - Helpers
 
     private static func nameOrder(_ a: EQProfile, _ b: EQProfile) -> Bool {
