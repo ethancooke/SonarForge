@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunk 4.1 COMPLETE** (4.1.1 store, 4.1.2 manager — both user-validated; 4.1.3 library UI + export/import implemented, pending a quick click-through). Next: Chunk 4.2 (AutoEQ importer + attribution UX).
+**Last Updated**: 2026-06-10 — **Chunk 4.2 implemented** (AutoEQ importer: parametric + GraphicEQ parser with 12 tests, import sheet with paste/file/drag-drop and live preview, mandatory attribution stored and displayed). Chunk 4.1 complete. Pending: user click-through of 4.1.3 UI + a real AutoEQ import listening test.
 
 ---
 
@@ -104,9 +104,13 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Validate 4.1.3** (one short click-through): toolbar → Profiles: create/rename/duplicate/favorite/delete a profile; export one to disk; re-import it (expect a deduplicated copy that becomes active and audible).
+1. **Validate 4.1.3 + 4.2** (one combined click-through):
+   - Toolbar → Profiles: create/rename/duplicate/favorite/delete; export a profile; re-import it (expect a deduplicated copy that becomes active).
+   - "Import AutoEQ…" (sidebar or Profiles sheet): paste a real AutoEQ ParametricEQ.txt (autoeq.app → pick headphone → Parametric Eq), confirm live preview + warnings, import, hear it apply; confirm the attribution line appears under "Current Profile".
 
-2. **Chunk 4.2 — AutoEQ importer + attribution UX** (parser for parametric "Filter X:" blocks + GraphicEQ lines, paste/file import UI, mandatory visible attribution, round-trip tests), then Chunk 4.3 (favorites ordering + ⌘1–9 quick switch) and Phase 3 (spectrum analyzer).
+2. **Chunk 4.3 — quick switch, favorites ordering, ⌘1–9 shortcuts**, then Phase 3 (spectrum analyzer).
+
+**4.2 summary (2026-06-10)**: `AutoEQImporter` (pure parser: Filter-line format with PK/LSC/HSC/LS/HS/LP/HP/NO, ON/OFF handling, missing-Q→0.707, missing-preamp→derived headroom, >16-band truncation warnings; GraphicEQ point curves reduced to ≤15 log-spaced peaking bands; parametric text export for round trips — 12 tests, 60 total). `AutoEQImportView` sheet: paste box with file drag-drop, Load File… (name auto-suggested from filename), live parse preview + warnings, name/measured-by fields, constructed non-editable attribution. Imported profiles carry mandatory `sourceAttribution`, are activated immediately, and the attribution is displayed under "Current Profile" in the main window and in the library rows.
 
 **4.1.3 summary (2026-06-10)**: `ProfileLibraryView` sheet from the toolbar Profiles button — list with favorite stars, active checkmark, Activate buttons, context menu (rename inline, duplicate, export via save panel, delete with confirmation), New + Import… (NSOpenPanel, multi-select; imports mint a new UUID + deduplicated name, then activate). Manager gained `importProfile`/`exportData`/`decodeProfile` with 4 new round-trip tests (48 total).
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel
     @State private var showingProfileLibrary = false
+    @State private var showingAutoEQImport = false
 
     var body: some View {
         @Bindable var model = appModel
@@ -45,6 +46,13 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Current Profile: \(appModel.currentProfile.name)")
                         .font(.subheadline)
+                    // Attribution is mandatory and always visible for imported
+                    // profiles (D-006 / AutoEQ licensing courtesy).
+                    if let attribution = appModel.currentProfile.sourceAttribution {
+                        Label(attribution, systemImage: "person.text.rectangle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
                     HStack {
                         Button(appModel.isBypassed ? "Bypass (ON)" : "Bypass") {
@@ -115,8 +123,8 @@ struct ContentView: View {
                 .listStyle(.plain)
 
                 HStack {
-                    Button("+ Add Band") { /* TODO */ }
-                    Button("Import AutoEQ…") { /* TODO in Chunk 4.2 */ }
+                    Button("+ Add Band") { /* TODO: Phase 5 band editor */ }
+                    Button("Import AutoEQ…") { showingAutoEQImport = true }
                     Spacer()
                     Button("Reset to Flat") {
                         appModel.loadProfile(.flat)
@@ -140,6 +148,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingProfileLibrary) {
             ProfileLibraryView()
+        }
+        .sheet(isPresented: $showingAutoEQImport) {
+            AutoEQImportView()
         }
     }
 }

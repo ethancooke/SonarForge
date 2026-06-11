@@ -19,11 +19,14 @@
 		4BD0D72AFC8E682FC02EA0E8 /* BiquadCoefficients.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC0EB11DA5A48559A073BD6 /* BiquadCoefficients.swift */; };
 		518422632FE84996B091CC71 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D366D632708ECC2ADB2DA5DE /* ProfileStore.swift */; };
 		602B6D8CFD5FC44D88FB31E5 /* BiquadCoefficientsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */; };
+		63A90C4D61CE82AE8AE352E5 /* AutoEQImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C30D0B7632518843FE771F /* AutoEQImporter.swift */; };
 		64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */; };
+		6B79F6459E8CB9BFF78EA72D /* AutoEQImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */; };
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
 		A2E632393FFF24292D159231 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = ABC755F571079F1637B8CFDA /* Atomics */; };
 		A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456E5263CDB3F894E35017DF /* RealtimeParametricEQ.swift */; };
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
+		A92148CCB3294E50C0DF4483 /* AutoEQImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1441D6DF5158ACE2A52BED31 /* AutoEQImporterTests.swift */; };
 		B51504A1ADA4EB03FFB29467 /* ProfileLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */; };
 		BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E3CC9FB2C142B415C61E85D /* GainMath.swift */; };
 		C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */; };
@@ -46,6 +49,8 @@
 		04D7E588B5520FAE4EF18FEB /* ProfileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileManager.swift; sourceTree = "<group>"; };
 		06F086ECF969C4D896823E90 /* SonarForge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SonarForge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarForgeApp.swift; sourceTree = "<group>"; };
+		0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoEQImportView.swift; sourceTree = "<group>"; };
+		1441D6DF5158ACE2A52BED31 /* AutoEQImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoEQImporterTests.swift; sourceTree = "<group>"; };
 		18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineProtocol.swift; sourceTree = "<group>"; };
 		2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
 		2E3CC9FB2C142B415C61E85D /* GainMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMath.swift; sourceTree = "<group>"; };
@@ -55,6 +60,7 @@
 		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
 		63C4EC3B766CAA38B91E0159 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		664B719906D2750F61DA3568 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		69C30D0B7632518843FE771F /* AutoEQImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoEQImporter.swift; sourceTree = "<group>"; };
 		6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLibraryView.swift; sourceTree = "<group>"; };
 		6EBD07360AEA963D10746CDF /* EQProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfile.swift; sourceTree = "<group>"; };
 		8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadCoefficientsTests.swift; sourceTree = "<group>"; };
@@ -131,6 +137,7 @@
 		55D90E995281ACE50D3F6D7D /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */,
 				63C4EC3B766CAA38B91E0159 /* ContentView.swift */,
 				6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */,
 				6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */,
@@ -150,6 +157,7 @@
 		740D9DE0233B7D352970BFF3 /* SonarForgeTests */ = {
 			isa = PBXGroup;
 			children = (
+				1441D6DF5158ACE2A52BED31 /* AutoEQImporterTests.swift */,
 				8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */,
 				6387B054AE633CFEAECA2128 /* DSPTests.swift */,
 				BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */,
@@ -187,6 +195,7 @@
 		99720406FAB3E21A86096CE5 /* Profiles */ = {
 			isa = PBXGroup;
 			children = (
+				69C30D0B7632518843FE771F /* AutoEQImporter.swift */,
 				04D7E588B5520FAE4EF18FEB /* ProfileManager.swift */,
 				D366D632708ECC2ADB2DA5DE /* ProfileStore.swift */,
 			);
@@ -297,6 +306,8 @@
 				C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */,
 				21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */,
 				30EC85B212AFCDC7217D564C /* AudioEngineProtocol.swift in Sources */,
+				6B79F6459E8CB9BFF78EA72D /* AutoEQImportView.swift in Sources */,
+				63A90C4D61CE82AE8AE352E5 /* AutoEQImporter.swift in Sources */,
 				4BD0D72AFC8E682FC02EA0E8 /* BiquadCoefficients.swift in Sources */,
 				05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */,
 				39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */,
@@ -316,6 +327,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A92148CCB3294E50C0DF4483 /* AutoEQImporterTests.swift in Sources */,
 				602B6D8CFD5FC44D88FB31E5 /* BiquadCoefficientsTests.swift in Sources */,
 				A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */,
 				267C40FBA15525A453A8A228 /* GainMathTests.swift in Sources */,

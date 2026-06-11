@@ -14,6 +14,7 @@ struct ProfileLibraryView: View {
     @State private var renameText = ""
     @State private var deleteCandidate: EQProfile?
     @State private var errorMessage: String?
+    @State private var showingAutoEQImport = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,6 +26,7 @@ struct ProfileLibraryView: View {
                     let created = appModel.profileManager.create()
                     beginRename(created)
                 }
+                Button("Import AutoEQ…") { showingAutoEQImport = true }
                 Button("Import…") { runImportPanel() }
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
@@ -54,6 +56,9 @@ struct ProfileLibraryView: View {
                 .padding(.bottom, 10)
         }
         .frame(minWidth: 460, minHeight: 360)
+        .sheet(isPresented: $showingAutoEQImport) {
+            AutoEQImportView()
+        }
         .confirmationDialog(
             "Delete “\(deleteCandidate?.name ?? "")”?",
             isPresented: Binding(get: { deleteCandidate != nil },

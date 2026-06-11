@@ -114,6 +114,28 @@ final class AppModel {
         try data.write(to: url, options: .atomic)
     }
 
+    /// Creates a profile from parsed AutoEQ data with mandatory attribution
+    /// (D-006), adds it to the library, activates it, and applies it.
+    @discardableResult
+    func importAutoEQ(_ result: AutoEQImporter.ParseResult, name: String, measuredBy: String) -> EQProfile {
+        let measurer = measuredBy.trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = measurer.isEmpty ? "AutoEQ" : "AutoEQ / \(measurer)"
+        let profile = EQProfile(
+            id: UUID(),
+            name: name,
+            preamp: result.preamp,
+            bands: result.bands,
+            isFavorite: false,
+            sourceAttribution: "\(source) — \(name)",
+            notes: result.format == .graphic
+                ? "Imported from AutoEQ GraphicEQ format (approximated with parametric bands) — autoeq.app"
+                : "Imported from AutoEQ — autoeq.app"
+        )
+        let imported = profileManager.importProfile(profile)
+        selectProfile(id: imported.id)
+        return imported
+    }
+
     // MARK: - Engine control (UI → Model → Engine)
 
     func startEngine() {
