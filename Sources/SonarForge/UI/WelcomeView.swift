@@ -53,15 +53,23 @@ struct WelcomeView: View {
                 }
                 Spacer()
                 Button("Not Now") { dismiss() }
-                Button(appModel.isProcessing ? "Engine Running ✓" : "Start the Engine") {
-                    appModel.startEngine()
+                Button(appModel.isProcessing ? "Continue" : "Start the Engine") {
+                    if appModel.isProcessing {
+                        dismiss()
+                    } else {
+                        appModel.startEngine()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(appModel.isProcessing)
             }
         }
         .padding(24)
         .frame(width: 520)
+        .onChange(of: appModel.isProcessing) { _, isRunning in
+            // Permission already granted? The engine flips to running and we can
+            // get out of the user's way — no need to hunt for "Not Now".
+            if isRunning { dismiss() }
+        }
         .onDisappear {
             appModel.markWelcomeSeen()
         }
