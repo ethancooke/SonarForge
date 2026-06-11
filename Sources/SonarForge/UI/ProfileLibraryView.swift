@@ -2,10 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Debug-grade profile management sheet (Chunk 4.1.3): select, create, rename,
-/// duplicate, delete, favorite, export, import. The polished manager window
-/// arrives in Phase 5 (Chunk 5.5); this exists so the library is fully usable
-/// before then.
+/// Profile library sheet: browse, favorite, import, export, and manage built-ins.
 struct ProfileLibraryView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(\.dismiss) private var dismiss
@@ -15,6 +12,7 @@ struct ProfileLibraryView: View {
     @State private var deleteCandidate: EQProfile?
     @State private var errorMessage: String?
     @State private var showingAutoEQImport = false
+    @State private var showingResetAllConfirmation = false
     @State private var searchText = ""
 
     private var visibleProfiles: [EQProfile] {
@@ -26,37 +24,42 @@ struct ProfileLibraryView: View {
         }
     }
 
+    private var factoryProfiles: [EQProfile] {
+        visibleProfiles.filter(\.isFactory)
+    }
+
+    private var userProfiles: [EQProfile] {
+        visibleProfiles.filter { !$0.isFactory }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Profiles")
-                    .font(.headline)
-                Spacer()
-                Button("New") {
-                    let created = appModel.profileManager.create()
-                    beginRename(created)
-                }
-                Button("Import AutoEQ…") { showingAutoEQImport = true }
-                Button("Import…") { runImportPanel() }
-                Button("Done") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding()
-
+            toolbar
             Divider()
 
-            TextField("Search profiles", text: $searchText)
+            TextField("Search", text: $searchText)
                 .textFieldStyle(.roundedBorder)
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
                 .accessibilityLabel("Search profiles by name or attribution")
 
             List {
-                ForEach(visibleProfiles) { profile in
-                    row(for: profile)
+                if !factoryProfiles.isEmpty {
+                    Section("Built-in") {
+                        ForEach(factoryProfiles) { profile in
+                            row(for: profile)
+                        }
+                    }
+                }
+                if !userProfiles.isEmpty {
+                    Section("Yours") {
+                        ForEach(userProfiles) { profile in
+                            row(for: profile)
+                        }
+                    }
                 }
                 if visibleProfiles.isEmpty {
-                    Text("No profiles match “\(searchText)”")
+                    Text(searchText.isEmpty ? "No profiles" : "No profiles match “\(searchText)”")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }
@@ -67,18 +70,30 @@ struct ProfileLibraryView: View {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundStyle(.red)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 6)
             }
 
-            Text("A profile is a plain JSON file — exported files can be shared or re-imported as copies.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 10)
+            Text("Tap a profile to activate. Built-ins can be reset but not deleted.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
         }
-        .frame(minWidth: 460, minHeight: 360)
+        .frame(minWidth: 520, minHeight: 400)
         .sheet(isPresented: $showingAutoEQImport) {
             AutoEQImportView()
+        }
+        .confirmationDialog(
+            "Reset all built-in presets?",
+            isPresented: $showingResetAllConfirmation
+        ) {
+            Button("Reset All Built-ins", role: .destructive) {
+                appModel.resetAllFactoryPresets()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Restores the 10 factory EQ presets to their shipped defaults. Your custom profiles are not affected.")
         }
         .confirmationDialog(
             "Delete “\(deleteCandidate?.name ?? "")”?",
@@ -97,16 +112,48 @@ struct ProfileLibraryView: View {
         }
     }
 
+    // MARK: - Toolbar
+
+    private var toolbar: some View {
+        HStack(spacing: 12) {
+            Text("Profiles")
+                .font(.headline)
+            Spacer()
+            Button("New") {
+                let created = appModel.profileManager.create()
+                beginRename(created)
+            }
+            Menu {
+                Button("Import Profile…") { runImportPanel() }
+                Button("Import AutoEQ…") { showingAutoEQImport = true }
+                Divider()
+                Button("Reset Built-ins…") { showingResetAllConfirmation = true }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .help("Import profiles or reset built-in presets")
+            Button("Done") { dismiss() }
+                .keyboardShortcut(.defaultAction)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Rows
+
     @ViewBuilder
     private func row(for profile: EQProfile) -> some View {
         let isActive = profile.id == appModel.profileManager.activeProfileID
+        let isModified = profile.isFactory && appModel.profileManager.isFactoryModified(profile.id)
 
-        HStack(spacing: 8) {
+        HStack(alignment: .center, spacing: 10) {
             Button {
                 appModel.profileManager.toggleFavorite(profile.id)
             } label: {
                 Image(systemName: profile.isFavorite ? "star.fill" : "star")
                     .foregroundStyle(profile.isFavorite ? .yellow : .secondary)
+                    .imageScale(.small)
             }
             .buttonStyle(.plain)
             .help(profile.isFavorite ? "Remove from favorites" : "Add to favorites")
@@ -117,36 +164,71 @@ struct ProfileLibraryView: View {
                     .onSubmit { commitRename(profile) }
                     .onExitCommand { renamingID = nil }
             } else {
-                Text(profile.name)
-                    .fontWeight(isActive ? .semibold : .regular)
-                if isActive {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .help("Active profile")
-                }
-                if let attribution = profile.sourceAttribution {
-                    Text(attribution)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(profile.name)
+                            .fontWeight(isActive ? .semibold : .regular)
+                            .lineLimit(1)
+                        statusIcons(for: profile, isActive: isActive, isModified: isModified)
+                    }
+                    if let attribution = profile.sourceAttribution {
+                        Text(attribution)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
 
-            Spacer()
-
-            if !isActive {
-                Button("Activate") { appModel.selectProfile(id: profile.id) }
-            }
+            Spacer(minLength: 0)
         }
+        .padding(.vertical, 3)
         .contentShape(Rectangle())
+        .listRowBackground(isActive ? Color.accentColor.opacity(0.08) : nil)
+        .onTapGesture {
+            guard renamingID == nil, !isActive else { return }
+            appModel.selectProfile(id: profile.id)
+        }
         .contextMenu {
             Button("Activate") { appModel.selectProfile(id: profile.id) }
                 .disabled(isActive)
+            if profile.isFactory {
+                Button("Reset to Default") {
+                    appModel.resetFactoryPreset(id: profile.id)
+                }
+                .disabled(!isModified)
+            }
             Button("Rename") { beginRename(profile) }
+                .disabled(profile.isFactory)
             Button("Duplicate") { _ = appModel.profileManager.duplicate(profile.id) }
             Button("Export…") { runExportPanel(for: profile) }
             Divider()
             Button("Delete", role: .destructive) { deleteCandidate = profile }
+                .disabled(profile.isFactory)
+        }
+    }
+
+    @ViewBuilder
+    private func statusIcons(for profile: EQProfile, isActive: Bool, isModified: Bool) -> some View {
+        HStack(spacing: 4) {
+            if isActive {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .imageScale(.small)
+                    .help("Active")
+            }
+            if profile.isFactory {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.small)
+                    .help("Built-in preset")
+            }
+            if isModified {
+                Image(systemName: "pencil.circle.fill")
+                    .foregroundStyle(.orange)
+                    .imageScale(.small)
+                    .help("Modified from default — reset to restore")
+            }
         }
     }
 

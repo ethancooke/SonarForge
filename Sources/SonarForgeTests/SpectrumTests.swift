@@ -114,4 +114,53 @@ final class SpectrumProcessorTests: XCTestCase {
         XCTAssertNil(SpectrumProcessor(fftSize: 1000, sampleRate: 48000, binCount: 64), "non power of two")
         XCTAssertNil(SpectrumProcessor(fftSize: 4096, sampleRate: 0, binCount: 64))
     }
+
+    /// Verifies the pre/post spectrum overlay for the Bass Boost preset: with
+    /// 0 dB preamp, post should sit above pre in the bass and match elsewhere.
+    func testBassBoostPostTraceRisesInBass() throws {
+        let profile = try XCTUnwrap(EQProfile.canonicalFactory(id: FactoryPresetID.bassBoost))
+        let fs = 48000.0
+        let fftSize = 4096
+
+        let eq = RealtimeParametricEQ()
+        eq.apply(bands: profile.bands, sampleRate: fs)
+        eq.drainCommands()
+        let preampLinear = GainMath.linearGain(fromDB: profile.preamp)
+
+        let toneFrequencies = [50.0, 500.0, 2000.0, 8000.0]
+        let perToneAmplitude = 0.1
+        var buffer = [Float32](repeating: 0, count: fftSize * 2)
+        for frame in 0..<fftSize {
+            var sample = 0.0
+            for frequency in toneFrequencies {
+                sample += perToneAmplitude * sin(2.0 * .pi * frequency * Double(frame) / fs)
+            }
+            let value = Float32(sample / Double(toneFrequencies.count))
+            buffer[frame * 2] = value
+            buffer[frame * 2 + 1] = value
+        }
+
+        let preMono = (0..<fftSize).map { buffer[$0 * 2] }
+        var postBuffer = buffer
+        postBuffer.withUnsafeMutableBufferPointer { ptr in
+            eq.processStereoInterleaved(ptr.baseAddress!, frameCount: fftSize)
+        }
+        for i in 0..<postBuffer.count { postBuffer[i] *= preampLinear }
+
+        let processor = try XCTUnwrap(SpectrumProcessor(fftSize: fftSize, sampleRate: fs, binCount: 64))
+        let preBins = processor.process(preMono)
+        let postBins = processor.process((0..<fftSize).map { postBuffer[$0 * 2] })
+
+        func nearestBin(to frequency: Float) -> Int {
+            processor.binCenterFrequencies.enumerated()
+                .min(by: { abs($0.1 - frequency) < abs($1.1 - frequency) })!.0
+        }
+
+        let bassDelta = postBins[nearestBin(to: 50)] - preBins[nearestBin(to: 50)]
+        let midDelta = postBins[nearestBin(to: 2000)] - preBins[nearestBin(to: 2000)]
+
+        XCTAssertEqual(bassDelta, 6, accuracy: 2.5, "bass bins: post ~6 dB above pre")
+        XCTAssertEqual(midDelta, 0, accuracy: 2.5, "mid bins: post ≈ pre")
+        XCTAssertGreaterThan(bassDelta, midDelta, "post trace rises in the bass vs pre")
+    }
 }

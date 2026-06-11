@@ -40,6 +40,76 @@ final class RealtimeParametricEQTests: XCTestCase {
         XCTAssertEqual(buffer, original, "no active bands must be bit-identical")
     }
 
+    /// End-to-end gain staging: a +3 dBFS 1 kHz tone through a freshly created
+    /// profile with +2 dB peaking @ 1 kHz must read +5 dBFS at the output.
+    func testProfilePlusTwoDBOnThreeDBToneYieldsFiveDB() {
+        let profile = EQProfile(
+            id: UUID(),
+            name: "Test +2 @ 1 kHz",
+            preamp: 0,
+            bands: [EQBand(type: .peaking, frequency: 1000, gain: 2, q: 1.0)],
+            isFavorite: false,
+            sourceAttribution: nil,
+            notes: "Automated EQ application test"
+        )
+
+        let eq = RealtimeParametricEQ()
+        eq.apply(bands: profile.bands, sampleRate: fs)
+        eq.drainCommands()
+
+        let inputDBFS = 3.0
+        let inputPeak = Double(GainMath.linearGain(fromDB: inputDBFS))
+        let frames = 48000
+        var buffer = makeStereoSine(frequency: 1000, frames: frames, amplitude: inputPeak)
+        let inputRMS = rms(buffer, channel: 0, settle: 4800)
+
+        buffer.withUnsafeMutableBufferPointer { ptr in
+            eq.processStereoInterleaved(ptr.baseAddress!, frameCount: frames)
+        }
+
+        let outputRMS = rms(buffer, channel: 0, settle: 4800)
+        // Sine peak ≈ RMS × √2; dBFS is referenced to full-scale peak (1.0).
+        let outputPeakDBFS = 20 * log10(outputRMS * sqrt(2.0))
+        let eqContributionDB = 20 * log10(outputRMS / inputRMS)
+
+        XCTAssertEqual(eqContributionDB, 2.0, accuracy: 0.2, "EQ adds +2 dB at 1 kHz")
+        XCTAssertEqual(outputPeakDBFS, 5.0, accuracy: 0.3,
+                       "+3 dBFS input + +2 dB EQ @ 1 kHz → +5 dBFS output (profile: \(profile.name))")
+    }
+
+    /// Same scenario verified through the spectrum analyzer path (pre/post tap
+    /// equivalent): FFT of the EQ'd tone must peak at ~+5 dBFS near 1 kHz.
+    func testSpectrumConfirmsFiveDBAfterProfileApplied() throws {
+        let profile = EQProfile(
+            id: UUID(),
+            name: "Spectrum Verify +2 @ 1 kHz",
+            preamp: 0,
+            bands: [EQBand(type: .peaking, frequency: 1000, gain: 2, q: 1.0)],
+            isFavorite: false
+        )
+
+        let eq = RealtimeParametricEQ()
+        eq.apply(bands: profile.bands, sampleRate: fs)
+        eq.drainCommands()
+
+        let fftSize = 4096
+        let inputPeak = Double(GainMath.linearGain(fromDB: 3.0))
+        var buffer = makeStereoSine(frequency: 1000, frames: fftSize, amplitude: inputPeak)
+        buffer.withUnsafeMutableBufferPointer { ptr in
+            eq.processStereoInterleaved(ptr.baseAddress!, frameCount: fftSize)
+        }
+
+        let mono = (0..<fftSize).map { buffer[$0 * 2] }
+        let processor = try XCTUnwrap(SpectrumProcessor(fftSize: fftSize, sampleRate: fs, binCount: 64))
+        let bins = processor.process(mono)
+        let peakIndex = try XCTUnwrap(bins.indices.max(by: { bins[$0] < bins[$1] }))
+        let peakFrequency = processor.binCenterFrequencies[peakIndex]
+
+        XCTAssertEqual(Double(peakFrequency), 1000, accuracy: 150, "peak lands near 1 kHz")
+        XCTAssertEqual(bins[peakIndex], 5.0, accuracy: 1.5,
+                       "spectrum reads +5 dBFS after +3 dB tone + +2 dB EQ profile")
+    }
+
     func testSineThroughPeakingMatchesAnalyticGain() {
         let eq = RealtimeParametricEQ()
         let band = EQBand(type: .peaking, frequency: 1000, gain: 6, q: 1.0)

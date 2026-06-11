@@ -29,24 +29,52 @@ struct ContentView: View {
                     Toggle("Post", isOn: $model.showPostSpectrum)
                         .toggleStyle(.checkbox)
                         .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
+                    Toggle("Legend", isOn: $model.showSpectrumLegend)
+                        .toggleStyle(.checkbox)
+                        .help("Show or hide the spectrum and EQ curve legend on the graph.")
                 }
                 .padding(.horizontal)
 
                 // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
                 // Siblings, not nested: the spectrum re-renders at 20 Hz in
                 // isolation, the editor re-renders only on profile edits.
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     SpectrumSection()
                     FrequencyResponseEditor(selectedBandID: $selectedBandID)
                         .padding(6)
+                    if appModel.showSpectrumLegend {
+                        SpectrumLegend(
+                            showPre: appModel.showPreSpectrum,
+                            showPost: appModel.showPostSpectrum,
+                            hasEQCurve: !appModel.currentProfile.bands.isEmpty
+                        )
+                        .padding(12)
+                    }
                 }
                 .frame(minHeight: 260)
                 .padding(.horizontal)
 
                 // Temporary numeric controls until the full editor exists
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Current Profile: \(appModel.currentProfile.name)")
-                        .font(.subheadline)
+                    HStack(spacing: 8) {
+                        Text("Current Profile: \(appModel.currentProfile.name)")
+                            .font(.subheadline)
+                        if appModel.currentProfile.isFactory {
+                            Label("Built-in", systemImage: "lock.fill")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .labelStyle(.titleAndIcon)
+                        }
+                        if appModel.currentProfile.isFactory,
+                           appModel.profileManager.isFactoryModified(appModel.currentProfile.id) {
+                            Button("Reset to Default") {
+                                appModel.resetFactoryPreset(id: appModel.currentProfile.id)
+                            }
+                            .font(.caption)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
                     // Attribution is mandatory and always visible for imported
                     // profiles (D-006 / AutoEQ licensing courtesy).
                     if let attribution = appModel.currentProfile.sourceAttribution {

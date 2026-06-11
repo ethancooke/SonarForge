@@ -32,7 +32,7 @@ final class ProfileManagerTests: XCTestCase {
 
     func testFirstLaunchSeedsPresetsAndActivatesFlat() throws {
         let manager = try makeManager()
-        XCTAssertEqual(manager.profiles.count, EQProfile.debugPresets.count)
+        XCTAssertEqual(manager.profiles.count, EQProfile.factoryPresets.count)
         XCTAssertEqual(manager.activeProfile?.name, "Flat")
         XCTAssertTrue(manager.profiles.contains(where: { $0.name == "Telephone" }))
     }
@@ -56,9 +56,9 @@ final class ProfileManagerTests: XCTestCase {
         }
 
         let second = try makeManager()
-        XCTAssertEqual(second.profiles.count, 1)
-        XCTAssertEqual(second.profiles[0].name, "Flat")
-        XCTAssertEqual(second.activeProfileID, second.profiles[0].id)
+        XCTAssertEqual(second.profiles.count, EQProfile.factoryPresets.count)
+        XCTAssertTrue(second.profiles.contains(where: { $0.id == FactoryPresetID.flat }))
+        XCTAssertEqual(second.activeProfileID, FactoryPresetID.flat)
     }
 
     func testInMemoryFallbackStillWorks() {
@@ -106,28 +106,30 @@ final class ProfileManagerTests: XCTestCase {
         XCTAssertEqual(copy.bands, bass.bands)
         XCTAssertEqual(copy.preamp, bass.preamp)
         XCTAssertFalse(copy.isFavorite)
+        XCTAssertFalse(copy.isFactory)
     }
 
     func testDeleteActiveFallsBackAndPersists() throws {
         let manager = try makeManager()
-        let active = try XCTUnwrap(manager.activeProfile)
-        manager.delete(active.id)
+        let user = manager.create(name: "Disposable")
+        manager.setActive(user.id)
+        manager.delete(user.id)
 
-        XCTAssertFalse(manager.profiles.contains(where: { $0.id == active.id }))
+        XCTAssertFalse(manager.profiles.contains(where: { $0.id == user.id }))
         XCTAssertNotNil(manager.activeProfile, "deleting the active profile must fall back")
 
         let relaunched = try makeManager()
         XCTAssertEqual(relaunched.activeProfileID, manager.activeProfileID)
     }
 
-    func testDeletingEverythingLeavesFlat() throws {
+    func testFactoryPresetsSurviveDeleteAllAttempts() throws {
         let manager = try makeManager()
         for profile in manager.profiles {
             manager.delete(profile.id)
         }
-        XCTAssertEqual(manager.profiles.count, 1)
-        XCTAssertEqual(manager.profiles[0].name, "Flat")
-        XCTAssertEqual(manager.activeProfileID, manager.profiles[0].id)
+        XCTAssertEqual(manager.profiles.count, EQProfile.factoryPresets.count)
+        XCTAssertTrue(manager.profiles.contains(where: { $0.id == FactoryPresetID.flat }))
+        XCTAssertEqual(manager.activeProfileID, FactoryPresetID.flat)
     }
 
     func testToggleFavoritePersists() throws {
@@ -180,18 +182,19 @@ final class ProfileManagerTests: XCTestCase {
         manager.toggleFavorite(telephone.id)   // unfavorite
         XCTAssertEqual(manager.orderedFavorites.map(\.name), ["Bass Boost"])
 
-        manager.delete(bass.id)
-        XCTAssertTrue(manager.orderedFavorites.isEmpty)
-        XCTAssertTrue(try makeStore().favoriteIDs.isEmpty, "persisted order cleaned up")
+        let disposable = manager.create(name: "Disposable Favorite")
+        manager.toggleFavorite(disposable.id)
+        manager.delete(disposable.id)
+        XCTAssertEqual(manager.orderedFavorites.map(\.name), ["Bass Boost"])
     }
 
     func testQuickSwitchListsFavoritesFirstThenRestByName() throws {
         let manager = try makeManager()
-        let midCut = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Mid Cut" }))
-        manager.toggleFavorite(midCut.id)
+        let midScoop = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Mid Scoop" }))
+        manager.toggleFavorite(midScoop.id)
 
         let quick = manager.quickSwitchProfiles
-        XCTAssertEqual(quick.first?.name, "Mid Cut")
+        XCTAssertEqual(quick.first?.name, "Mid Scoop")
         let rest = quick.dropFirst().map(\.name)
         XCTAssertEqual(Array(rest), rest.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
         XCTAssertEqual(quick.count, manager.profiles.count, "every profile appears exactly once")
@@ -243,5 +246,70 @@ final class ProfileManagerTests: XCTestCase {
         manager.create(name: "AAA First")
         let names = manager.profiles.map(\.name)
         XCTAssertEqual(names, names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
+    }
+
+    // MARK: - Factory presets
+
+    func testFactoryCatalogHasTenIndustryPresets() throws {
+        XCTAssertEqual(EQProfile.factoryPresets.count, 10)
+        XCTAssertTrue(EQProfile.factoryPresets.allSatisfy(\.isFactory))
+        XCTAssertTrue(EQProfile.factoryPresets.allSatisfy { $0.preamp == 0 })
+    }
+
+    func testFilterShowcaseDemonstratesAllFilterTypes() throws {
+        let showcase = try XCTUnwrap(EQProfile.canonicalFactory(id: FactoryPresetID.filterShowcase))
+        XCTAssertEqual(showcase.bands.count, 10)
+        let types = Set(showcase.bands.map(\.type))
+        XCTAssertEqual(types, Set(FilterType.allCases))
+    }
+
+    func testFactoryPresetCannotBeDeletedOrRenamed() throws {
+        let manager = try makeManager()
+        let bass = try XCTUnwrap(manager.profiles.first(where: { $0.id == FactoryPresetID.bassBoost }))
+        let countBefore = manager.profiles.count
+
+        manager.delete(bass.id)
+        XCTAssertEqual(manager.profiles.count, countBefore)
+
+        manager.rename(bass.id, to: "Renamed Bass")
+        XCTAssertEqual(manager.profiles.first(where: { $0.id == bass.id })?.name, "Bass Boost")
+    }
+
+    func testResetFactoryPresetRestoresCanonicalBands() throws {
+        let manager = try makeManager()
+        var bass = try XCTUnwrap(manager.profiles.first(where: { $0.id == FactoryPresetID.bassBoost }))
+        bass.bands[0].gain = 12
+        bass.preamp = -3
+        manager.update(bass)
+        XCTAssertTrue(manager.isFactoryModified(FactoryPresetID.bassBoost))
+
+        let restored = try XCTUnwrap(manager.resetFactoryPreset(FactoryPresetID.bassBoost))
+        XCTAssertEqual(restored.bands[0].gain, 5)
+        XCTAssertEqual(restored.preamp, 0)
+        XCTAssertFalse(manager.isFactoryModified(FactoryPresetID.bassBoost))
+    }
+
+    func testDuplicateFactoryCreatesEditableUserCopy() throws {
+        let manager = try makeManager()
+        let copy = try XCTUnwrap(manager.duplicate(FactoryPresetID.rock))
+        XCTAssertFalse(copy.isFactory)
+        XCTAssertTrue(copy.name.contains("Rock"))
+        manager.delete(copy.id)
+    }
+
+    func testSyncRemovesObsoleteMidCutAndLegacyDuplicates() throws {
+        let store = try makeStore()
+        let legacy = EQProfile.newUserProfile(name: "Mid Cut")
+        try store.save(legacy)
+        var oldBass = EQProfile.newUserProfile(name: "Bass Boost")
+        oldBass.bands = [EQBand(type: .lowShelf, frequency: 100, gain: 6, q: 0.707)]
+        try store.save(oldBass)
+
+        store.syncFactoryPresets(EQProfile.factoryPresets, obsoleteNames: EQProfile.obsoleteFactoryNames)
+        let names = Set(store.loadAll().map(\.name))
+
+        XCTAssertFalse(names.contains("Mid Cut"))
+        XCTAssertEqual(store.loadAll().filter { $0.name == "Bass Boost" }.count, 1)
+        XCTAssertTrue(store.loadAll().contains(where: { $0.id == FactoryPresetID.bassBoost }))
     }
 }

@@ -6,7 +6,7 @@ import os.log
 /// the UI, persisting every mutation immediately through `ProfileStore`.
 ///
 /// Responsibilities:
-/// - Seeds starter profiles (the debug presets, including Flat) on first launch.
+/// - Syncs the built-in factory preset catalog on every launch.
 /// - Restores the last-active profile across launches.
 /// - CRUD: create, rename, duplicate, delete, favorite, set-active.
 /// - Guarantees the library is never empty and there is always an active profile.
@@ -62,18 +62,16 @@ final class ProfileManager {
         self.store = store
         guard let store else {
             logger.error("Profile storage unavailable — running in-memory only (changes will not persist)")
-            profiles = EQProfile.debugPresets.sorted(by: Self.nameOrder)
-            activeProfileID = profiles.first(where: { $0.name == "Flat" })?.id ?? profiles.first?.id
+            profiles = EQProfile.factoryPresets.sorted(by: Self.nameOrder)
+            activeProfileID = profiles.first(where: { $0.id == FactoryPresetID.flat })?.id ?? profiles.first?.id
             return
         }
 
-        store.seedIfNeeded(with: EQProfile.debugPresets)
+        store.syncFactoryPresets(EQProfile.factoryPresets, obsoleteNames: EQProfile.obsoleteFactoryNames)
         profiles = store.loadAll().sorted(by: Self.nameOrder)
 
-        // The library is never empty: recreate Flat if the user removed everything
-        // (e.g. deleted files by hand between launches).
-        if profiles.isEmpty {
-            let flat = EQProfile.newUserProfile(name: "Flat")
+        // The library is never empty: restore the factory Flat if everything was removed.
+        if profiles.isEmpty, let flat = EQProfile.canonicalFactory(id: FactoryPresetID.flat) {
             persist(flat)
             profiles = [flat]
         }
@@ -81,7 +79,7 @@ final class ProfileManager {
         if let saved = store.activeProfileID, profiles.contains(where: { $0.id == saved }) {
             activeProfileID = saved
         } else {
-            activeProfileID = profiles.first(where: { $0.name == "Flat" })?.id ?? profiles.first?.id
+            activeProfileID = profiles.first(where: { $0.id == FactoryPresetID.flat })?.id ?? profiles.first?.id
             store.activeProfileID = activeProfileID
         }
 
@@ -113,6 +111,7 @@ final class ProfileManager {
     }
 
     func rename(_ id: UUID, to newName: String) {
+        guard !isFactory(id) else { return }
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = profiles.firstIndex(where: { $0.id == id }) else { return }
         profiles[index].name = trimmed
@@ -128,6 +127,7 @@ final class ProfileManager {
         copy.id = UUID()
         copy.name = uniqueName(basedOn: "\(original.name) Copy")
         copy.isFavorite = false
+        copy.isFactory = false
         profiles.append(copy)
         profiles.sort(by: Self.nameOrder)
         persist(copy)
@@ -135,7 +135,7 @@ final class ProfileManager {
     }
 
     func delete(_ id: UUID) {
-        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+        guard !isFactory(id), let index = profiles.firstIndex(where: { $0.id == id }) else { return }
         profiles.remove(at: index)
         favoriteOrder.removeAll { $0 == id }
         store?.favoriteIDs = favoriteOrder
@@ -145,8 +145,9 @@ final class ProfileManager {
             logger.error("Failed to delete profile file: \(error.localizedDescription, privacy: .public)")
         }
 
-        if profiles.isEmpty {
-            create(name: "Flat")
+        if profiles.isEmpty, let flat = EQProfile.canonicalFactory(id: FactoryPresetID.flat) {
+            persist(flat)
+            profiles = [flat]
         }
         if activeProfileID == id, let fallback = profiles.first {
             setActive(fallback.id)
@@ -185,6 +186,7 @@ final class ProfileManager {
         var profile = incoming
         profile.id = UUID()
         profile.name = uniqueName(basedOn: incoming.name)
+        profile.isFactory = false
         profiles.append(profile)
         profiles.sort(by: Self.nameOrder)
         persist(profile)
@@ -204,6 +206,33 @@ final class ProfileManager {
 
     static func decodeProfile(from data: Data) throws -> EQProfile {
         try JSONDecoder().decode(EQProfile.self, from: data)
+    }
+
+    // MARK: - Factory presets
+
+    func isFactory(_ id: UUID) -> Bool {
+        profiles.first(where: { $0.id == id })?.isFactory ?? false
+    }
+
+    func isFactoryModified(_ id: UUID) -> Bool {
+        profiles.first(where: { $0.id == id })?.differsFromFactoryDefault() ?? false
+    }
+
+    @discardableResult
+    func resetFactoryPreset(_ id: UUID) -> EQProfile? {
+        guard let canonical = EQProfile.canonicalFactory(id: id),
+              let index = profiles.firstIndex(where: { $0.id == id }) else { return nil }
+        var restored = canonical
+        restored.isFavorite = profiles[index].isFavorite
+        profiles[index] = restored
+        persist(restored)
+        return restored
+    }
+
+    func resetAllFactoryPresets() {
+        for factory in EQProfile.factoryPresets {
+            resetFactoryPreset(factory.id)
+        }
     }
 
     // MARK: - Helpers

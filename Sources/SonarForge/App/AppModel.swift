@@ -1,6 +1,7 @@
 import SwiftUI
 import Observation
 import CoreAudio
+import os.log
 
 /// Central observable application state.
 /// Keeps the audio engine at arm's length from SwiftUI while exposing
@@ -57,6 +58,7 @@ final class AppModel {
     var showPostSpectrum: Bool = true {
         didSet { updateSpectrumEnabled() }
     }
+    var showSpectrumLegend: Bool = false
 
     private func updateSpectrumEnabled() {
         let enabled = showPreSpectrum || showPostSpectrum
@@ -85,7 +87,43 @@ final class AppModel {
                 self?.engineState = newState
             }
         }
+        // Debug/automation hook: `--debug-log-spectrum` logs the loudest bin's
+        // pre/post levels ~1 Hz so external tooling can verify the EQ acoustically
+        // (post − pre at a tone's bin == the EQ gain applied there).
+        let probeLogging = CommandLine.arguments.contains("--debug-log-spectrum")
+        let probeFilePath: String? = {
+            guard let i = CommandLine.arguments.firstIndex(of: "--debug-log-spectrum-file"),
+                  CommandLine.arguments.indices.contains(i + 1) else { return nil }
+            return CommandLine.arguments[i + 1]
+        }()
+        let probeLogger = Logger(subsystem: "com.sonarforge.app", category: "SpectrumProbe")
+        var lastProbe = Date.distantPast
+
         self.audioEngine.onSpectrum = { [weak self] pre, post in
+            if (probeLogging || probeFilePath != nil),
+               Date().timeIntervalSince(lastProbe) > 1.0,
+               let peak = pre.indices.max(by: { pre[$0] < pre[$1] }) {
+                lastProbe = Date()
+                let preDB = String(format: "%.2f", pre[peak])
+                let postDB = String(format: "%.2f", post[peak])
+                if probeLogging {
+                    probeLogger.info("probe bin=\(peak) pre=\(preDB, privacy: .public) post=\(postDB, privacy: .public)")
+                }
+                if let path = probeFilePath {
+                    let line = "probe bin=\(peak) pre=\(preDB) post=\(postDB)\n"
+                    if let data = line.data(using: .utf8) {
+                        if FileManager.default.fileExists(atPath: path) {
+                            if let handle = FileHandle(forWritingAtPath: path) {
+                                handle.seekToEndOfFile()
+                                handle.write(data)
+                                try? handle.close()
+                            }
+                        } else {
+                            FileManager.default.createFile(atPath: path, contents: data)
+                        }
+                    }
+                }
+            }
             Task { @MainActor in
                 guard let self else { return }
                 if self.showPreSpectrum { self.preEQLevels = pre }
@@ -100,6 +138,14 @@ final class AppModel {
         // so this is safe before the engine is running.
         if let active = self.profileManager.activeProfile {
             loadProfile(active)
+        }
+
+        // Debug/automation hook: `--import-profile <path>` loads a native profile
+        // JSON before launch (used for acoustic verification scripts).
+        if let importIndex = CommandLine.arguments.firstIndex(of: "--import-profile"),
+           CommandLine.arguments.indices.contains(importIndex + 1) {
+            let path = CommandLine.arguments[importIndex + 1]
+            try? importProfile(from: URL(fileURLWithPath: path))
         }
 
         // Debug/automation hook: `open SonarForge.app --args --autostart-engine`
@@ -140,6 +186,23 @@ final class AppModel {
     func exportProfile(id: UUID, to url: URL) throws {
         let data = try profileManager.exportData(for: id)
         try data.write(to: url, options: .atomic)
+    }
+
+    /// Restores a built-in factory preset to its shipped default.
+    func resetFactoryPreset(id: UUID) {
+        guard let restored = profileManager.resetFactoryPreset(id) else { return }
+        if currentProfile.id == id {
+            loadProfile(restored)
+        }
+    }
+
+    /// Restores every built-in factory preset to its shipped default.
+    func resetAllFactoryPresets() {
+        let activeID = profileManager.activeProfileID
+        profileManager.resetAllFactoryPresets()
+        if let activeID, let restored = profileManager.profiles.first(where: { $0.id == activeID }) {
+            loadProfile(restored)
+        }
     }
 
     // MARK: - Band editing (Chunk 5.2)

@@ -27,6 +27,8 @@ final class ProfileStore {
     private static let activeProfileKey = "activeProfileID"
     private static let favoritesKey = "favoriteProfileIDs"
     private static let seededKey = "profileStoreSeeded"
+    private static let factorySyncVersionKey = "factoryPresetSyncVersion"
+    private static let currentFactorySyncVersion = 1
 
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -90,7 +92,8 @@ final class ProfileStore {
         try FileManager.default.removeItem(at: url)
     }
 
-    /// Seeds starter profiles exactly once (first launch). Returns true if seeding ran.
+    /// Seeds starter profiles exactly once (legacy first launch). Prefer
+    /// `syncFactoryPresets` for the built-in catalog.
     @discardableResult
     func seedIfNeeded(with starters: [EQProfile]) -> Bool {
         guard !defaults.bool(forKey: Self.seededKey) else { return false }
@@ -104,6 +107,50 @@ final class ProfileStore {
         defaults.set(true, forKey: Self.seededKey)
         logger.info("Seeded \(starters.count) starter profiles")
         return true
+    }
+
+    /// Ensures every canonical factory preset exists on disk, removes obsolete
+    /// SonarForge starters, and drops legacy duplicates that share a factory
+    /// name but not its stable UUID. Never overwrites an existing canonical
+    /// factory file — user edits persist until they choose Reset.
+    func syncFactoryPresets(_ factories: [EQProfile], obsoleteNames: [String]) {
+        let canonicalIDs = Set(factories.map(\.id))
+        let canonicalNames = Set(factories.map(\.name))
+
+        for profile in loadAll() where obsoleteNames.contains(profile.name) {
+            do {
+                try delete(id: profile.id)
+                logger.info("Removed obsolete starter profile \(profile.name, privacy: .public)")
+            } catch {
+                logger.error("Failed to remove obsolete profile \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        for profile in loadAll() where canonicalNames.contains(profile.name) && !canonicalIDs.contains(profile.id) {
+            do {
+                try delete(id: profile.id)
+                logger.info("Removed legacy duplicate of factory preset \(profile.name, privacy: .public)")
+            } catch {
+                logger.error("Failed to remove legacy duplicate \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        let existingIDs = Set(loadAll().map(\.id))
+        var added = 0
+        for factory in factories where !existingIDs.contains(factory.id) {
+            do {
+                try save(factory)
+                added += 1
+            } catch {
+                logger.error("Failed to add factory preset \(factory.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        defaults.set(true, forKey: Self.seededKey)
+        defaults.set(Self.currentFactorySyncVersion, forKey: Self.factorySyncVersionKey)
+        if added > 0 {
+            logger.info("Added \(added) factory preset(s) to the library")
+        }
     }
 
     // MARK: - App state (UserDefaults)

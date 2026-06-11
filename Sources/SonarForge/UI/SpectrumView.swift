@@ -56,3 +56,95 @@ struct SpectrumView: View {
         return path
     }
 }
+
+/// Compact overlay legend for the stacked spectrum + EQ editor view.
+struct SpectrumLegend: View {
+    let showPre: Bool
+    let showPost: Bool
+    let hasEQCurve: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if showPre {
+                legendRow(
+                    swatch: .line(color: .secondary.opacity(0.6), width: 1),
+                    title: "Pre",
+                    detail: "system input (dBFS)"
+                )
+            }
+            if showPost {
+                legendRow(
+                    swatch: .line(color: .accentColor, width: 1.5),
+                    title: "Post",
+                    detail: "after EQ + preamp + output (dBFS)"
+                )
+            }
+            if hasEQCurve {
+                legendRow(
+                    swatch: .curve,
+                    title: "EQ curve",
+                    detail: "filter gain only (excludes preamp)"
+                )
+            }
+            if showPre && showPost {
+                Text("Post above pre at a frequency = net boost there")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.caption2)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(legendAccessibilityLabel)
+    }
+
+    private var legendAccessibilityLabel: String {
+        var parts = ["Spectrum legend"]
+        if showPre { parts.append("pre trace shows unprocessed input in dBFS") }
+        if showPost { parts.append("post trace shows output after EQ preamp and master gain in dBFS") }
+        if hasEQCurve { parts.append("EQ curve shows filter gain only not including preamp") }
+        return parts.joined(separator: ". ")
+    }
+
+    private enum Swatch {
+        case line(color: Color, width: CGFloat)
+        case curve
+    }
+
+    @ViewBuilder
+    private func legendRow(swatch: Swatch, title: String, detail: String) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Group {
+                switch swatch {
+                case .line(let color, let width):
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(color)
+                        .frame(width: 18, height: width)
+                case .curve:
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.accentColor.opacity(0.12))
+                            .frame(width: 18, height: 8)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(Color.accentColor)
+                            .frame(width: 18, height: 2)
+                            .offset(y: -1)
+                    }
+                }
+            }
+            .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .fontWeight(.medium)
+                Text(detail)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
