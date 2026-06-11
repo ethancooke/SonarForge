@@ -30,19 +30,30 @@ struct FrequencyResponseEditor: View {
     private static let minDB = -15.0
     private static let maxDB = 15.0
     private static let curvePointCount = 160
+    /// Fixed sample frequencies for the curve — static so resize animation
+    /// frames never recompute them.
+    private static let curveFrequencies = EQResponseCurve.logSpacedFrequencies(count: curvePointCount)
     /// Display-only sample rate; curve shape below 20 kHz is visually identical
     /// across the supported device rates.
     private static let displaySampleRate = 48000.0
 
     var body: some View {
+        // Computed once per body evaluation (band edits) and *captured* by the
+        // Canvas closure: window/panel resizes re-invoke the closure with a new
+        // size but must not redo the 160-point biquad sum per frame. This was
+        // the band-panel toggle lag (the resize animation recomputed the curve
+        // every frame, in a Debug build, while the spectrum also redrew).
+        let bands = appModel.currentProfile.bands
+        let response = bands.isEmpty ? [] : EQResponseCurve.responseDB(
+            bands: bands, sampleRate: Self.displaySampleRate, frequencies: Self.curveFrequencies)
+
         GeometryReader { geometry in
             let size = geometry.size
-            let bands = appModel.currentProfile.bands
 
             ZStack {
                 Canvas { context, size in
                     drawGrid(in: &context, size: size)
-                    drawCurve(for: bands, in: &context, size: size)
+                    drawCurve(response: response, in: &context, size: size)
                 }
 
                 ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
@@ -155,13 +166,11 @@ struct FrequencyResponseEditor: View {
         }
     }
 
-    private func drawCurve(for bands: [EQBand], in context: inout GraphicsContext, size: CGSize) {
-        guard !bands.isEmpty else { return }
-        let frequencies = EQResponseCurve.logSpacedFrequencies(count: Self.curvePointCount)
-        let response = EQResponseCurve.responseDB(bands: bands, sampleRate: Self.displaySampleRate, frequencies: frequencies)
+    private func drawCurve(response: [Double], in context: inout GraphicsContext, size: CGSize) {
+        guard !response.isEmpty else { return }
 
         var curve = Path()
-        for (i, frequency) in frequencies.enumerated() {
+        for (i, frequency) in Self.curveFrequencies.enumerated() {
             let point = CGPoint(x: x(forFrequency: frequency, width: size.width),
                                 y: y(forDB: response[i], height: size.height))
             if i == 0 { curve.move(to: point) } else { curve.addLine(to: point) }

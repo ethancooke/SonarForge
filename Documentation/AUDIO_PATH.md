@@ -111,6 +111,16 @@ includes gain as required by the Chunk 1.2 deliverables.
   observation-isolated: level updates re-evaluate only that view. (Lesson
   learned: routing the arrays through the full ContentView body cost ~34 %
   CPU in Debug; isolation + 20 Hz brought the whole app back to ~0.3 %.)
+- **Layout lesson (2026-06-11 toggle-lag fix)**: `HSplitView` panes are
+  independent AppKit layout worlds — keep the band sidebar in its own pane so
+  left-pane toggles never re-measure the AppKit-backed band-row fields (that
+  cross-measurement was ~150 ms of `sizeThatFits` per click). Also: observe
+  AppModel only in leaf views (`SpectrumToggles`, `LegendOverlay`), keep the
+  band list a `ScrollView`+`LazyVStack` (a `List` re-measures expensively), and
+  compute the EQ response curve in `body`, *captured* by the Canvas closure —
+  never inside it, or resize animations redo the biquad math every frame.
+  Measured (Debug, audio playing): Pre/Legend toggles ~72 ms, panel collapse
+  ~35 ms.
 - **Toggles**: Pre and Post checkboxes; both off disables capture + analysis
   entirely (the IO block's atomic reads false; the timer idles).
 - **Visibility gating (Chunk 6.2)**: analysis also stops when the spectrum view

@@ -6,6 +6,10 @@ struct ContentView: View {
     @State private var showingAutoEQImport = false
     @State private var selectedBandID: UUID?
     @State private var dropErrorMessage: String?
+    /// Band sidebar visibility (persisted). The sidebar stays mounted and
+    /// animates its width — destroying/recreating the AppKit-backed List on
+    /// every toggle is what made earlier collapse attempts feel laggy.
+    @AppStorage("showBandsPanel") private var showBandsPanel = true
 
     var body: some View {
         @Bindable var model = appModel
@@ -19,40 +23,9 @@ struct ContentView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                HStack {
-                    Text("Frequency Response")
-                        .font(.headline)
-                    Spacer()
-                    Toggle("Pre", isOn: $model.showPreSpectrum)
-                        .toggleStyle(.checkbox)
-                        .help("Show the spectrum of the unprocessed system audio")
-                    Toggle("Post", isOn: $model.showPostSpectrum)
-                        .toggleStyle(.checkbox)
-                        .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
-                    Toggle("Legend", isOn: $model.showSpectrumLegend)
-                        .toggleStyle(.checkbox)
-                        .help("Show or hide the spectrum and EQ curve legend on the graph.")
-                }
-                .padding(.horizontal)
-
-                // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
-                // Siblings, not nested: the spectrum re-renders at 20 Hz in
-                // isolation, the editor re-renders only on profile edits.
-                ZStack(alignment: .topTrailing) {
-                    SpectrumSection()
-                    FrequencyResponseEditor(selectedBandID: $selectedBandID)
-                        .padding(6)
-                    if appModel.showSpectrumLegend {
-                        SpectrumLegend(
-                            showPre: appModel.showPreSpectrum,
-                            showPost: appModel.showPostSpectrum,
-                            hasEQCurve: !appModel.currentProfile.bands.isEmpty
-                        )
-                        .padding(12)
-                    }
-                }
-                .frame(minHeight: 260)
-                .padding(.horizontal)
+                // Observation-isolated: Pre/Post/Legend toggles re-render only
+                // this pane, never the band list / sliders / debug panel.
+                FrequencyPane(selectedBandID: $selectedBandID)
 
                 // Temporary numeric controls until the full editor exists
                 VStack(alignment: .leading, spacing: 8) {
@@ -138,11 +111,27 @@ struct ContentView: View {
             }
             .frame(minWidth: 520)
 
-            // Right sidebar — numeric band editor (Chunk 5.2/5.3).
+            // Right sidebar — numeric band editor (Chunk 5.2/5.3). The collapse
+            // lives INSIDE this HSplitView pane: AppKit split panes are
+            // independent layout worlds, so toggling here never re-measures the
+            // left pane, and left-pane toggles never re-measure these rows
+            // (that cross-measurement was the lag — see commit message).
+            if showBandsPanel {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Bands")
-                    .font(.headline)
-                    .padding(.top, 4)
+                HStack {
+                    Text("Bands")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { showBandsPanel = false }
+                    } label: {
+                        Image(systemName: "sidebar.trailing")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Hide the bands panel")
+                    .accessibilityLabel("Hide bands panel")
+                }
+                .padding(.top, 4)
 
                 BandListEditor(selectedBandID: $selectedBandID)
 
@@ -167,11 +156,36 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 8)
             }
-            .frame(minWidth: 300)
             .padding(.horizontal, 8)
+            .frame(minWidth: 300, maxWidth: 360)
+            } else {
+                // Slim reveal strip so the panel is rediscoverable without the toolbar.
+                VStack {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { showBandsPanel = true }
+                    } label: {
+                        Image(systemName: "sidebar.trailing")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show the bands panel")
+                    .accessibilityLabel("Show bands panel")
+                    .padding(.top, 10)
+                    Spacer()
+                }
+                .frame(width: 24)
+            }
         }
         .navigationTitle("SonarForge")
         .toolbar {
+            ToolbarItem {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { showBandsPanel.toggle() }
+                } label: {
+                    Label("Bands", systemImage: "sidebar.trailing")
+                }
+                .help(showBandsPanel ? "Hide the bands panel" : "Show the bands panel")
+                .accessibilityLabel(showBandsPanel ? "Hide bands panel" : "Show bands panel")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingProfileLibrary = true
@@ -232,6 +246,79 @@ struct ContentView: View {
     }
 }
 
+/// Frequency-response header + graph stack, observation-isolated (the same
+/// lesson as SpectrumSection, see AUDIO_PATH.md): Pre/Post/Legend toggles and
+/// 20 Hz spectrum updates re-render only this subtree — never the band list,
+/// gain sliders, or debug panel above it.
+struct FrequencyPane: View {
+    @Binding var selectedBandID: UUID?
+
+    // Deliberately observes nothing: the toggles and the legend each read
+    // AppModel in their own leaf views below, so flipping a checkbox cannot
+    // invalidate layout beyond that leaf. (Profiling showed pane-level
+    // observation forced a whole-window sizeThatFits pass per toggle — the
+    // band rows' AppKit-backed fields made that expensive.)
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Frequency Response")
+                    .font(.headline)
+                Spacer()
+                SpectrumToggles()
+            }
+            .padding(.horizontal)
+
+            // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
+            ZStack(alignment: .topTrailing) {
+                SpectrumSection()
+                FrequencyResponseEditor(selectedBandID: $selectedBandID)
+                    .padding(6)
+                LegendOverlay()
+                    .padding(12)
+            }
+            .frame(minHeight: 260)
+            .padding(.horizontal)
+        }
+    }
+}
+
+/// Leaf view for the Pre/Post/Legend checkboxes — the only view their state
+/// re-renders.
+struct SpectrumToggles: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        @Bindable var model = appModel
+        HStack {
+            Toggle("Pre", isOn: $model.showPreSpectrum)
+                .toggleStyle(.checkbox)
+                .help("Show the spectrum of the unprocessed system audio")
+            Toggle("Post", isOn: $model.showPostSpectrum)
+                .toggleStyle(.checkbox)
+                .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
+            Toggle("Legend", isOn: $model.showSpectrumLegend)
+                .toggleStyle(.checkbox)
+                .help("Show or hide the spectrum and EQ curve legend on the graph.")
+        }
+    }
+}
+
+/// Leaf view for the legend overlay — legend/Pre/Post/band changes re-render
+/// only this corner of the ZStack.
+struct LegendOverlay: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        if appModel.showSpectrumLegend {
+            SpectrumLegend(
+                showPre: appModel.showPreSpectrum,
+                showPost: appModel.showPostSpectrum,
+                hasEQCurve: !appModel.currentProfile.bands.isEmpty
+            )
+        }
+    }
+}
+
 /// Numeric band editor rows (Chunk 5.3 essentials): type, frequency, gain, Q,
 /// delete. Edits flow through AppModel.updateBand → engine + persistence.
 struct BandListEditor: View {
@@ -239,18 +326,30 @@ struct BandListEditor: View {
     @Binding var selectedBandID: UUID?
 
     var body: some View {
-        List(selection: $selectedBandID) {
-            ForEach(Array(appModel.currentProfile.bands.enumerated()), id: \.element.id) { index, band in
-                row(index: index, band: band)
-                    .tag(band.id)
-            }
-            if appModel.currentProfile.bands.isEmpty {
-                Text("No bands — double-click the curve area or use + Add Band")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
+        // ScrollView + LazyVStack, deliberately not List: the AppKit-backed
+        // List re-measures expensively on every window layout pass, which made
+        // unrelated toggles feel laggy (sizeThatFits dominated the profile).
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                ForEach(Array(appModel.currentProfile.bands.enumerated()), id: \.element.id) { index, band in
+                    row(index: index, band: band)
+                        .padding(.vertical, 3)
+                        .padding(.horizontal, 6)
+                        .background(
+                            selectedBandID == band.id ? Color.accentColor.opacity(0.10) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 5)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { selectedBandID = band.id }
+                }
+                if appModel.currentProfile.bands.isEmpty {
+                    Text("No bands — double-click the curve area or use + Add Band")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .padding(.top, 8)
+                }
             }
         }
-        .listStyle(.plain)
     }
 
     @ViewBuilder
