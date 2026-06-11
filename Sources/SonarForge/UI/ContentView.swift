@@ -4,25 +4,171 @@ struct ContentView: View {
     @Environment(AppModel.self) private var appModel
     @State private var showingProfileLibrary = false
     @State private var showingAutoEQImport = false
-    @State private var showingBandsPanel = true
     @State private var selectedBandID: UUID?
     @State private var dropErrorMessage: String?
 
     var body: some View {
+        @Bindable var model = appModel
+
         HSplitView {
-            MainEditorPane(
-                selectedBandID: $selectedBandID,
-                showingAutoEQImport: $showingAutoEQImport
-            )
+            // Left / main editor area
+            VStack(spacing: 12) {
+                // Chunk 1.1 debug controls: capture/passthrough lifecycle, device
+                // selection, and error surfacing. Will be folded into proper UI later.
+                AudioEngineDebugView()
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                HStack {
+                    Text("Frequency Response")
+                        .font(.headline)
+                    Spacer()
+                    Toggle("Pre", isOn: $model.showPreSpectrum)
+                        .toggleStyle(.checkbox)
+                        .help("Show the spectrum of the unprocessed system audio")
+                    Toggle("Post", isOn: $model.showPostSpectrum)
+                        .toggleStyle(.checkbox)
+                        .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
+                    Toggle("Legend", isOn: $model.showSpectrumLegend)
+                        .toggleStyle(.checkbox)
+                        .help("Show or hide the spectrum and EQ curve legend on the graph.")
+                }
+                .padding(.horizontal)
+
+                // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
+                // Siblings, not nested: the spectrum re-renders at 20 Hz in
+                // isolation, the editor re-renders only on profile edits.
+                ZStack(alignment: .topTrailing) {
+                    SpectrumSection()
+                    FrequencyResponseEditor(selectedBandID: $selectedBandID)
+                        .padding(6)
+                    if appModel.showSpectrumLegend {
+                        SpectrumLegend(
+                            showPre: appModel.showPreSpectrum,
+                            showPost: appModel.showPostSpectrum,
+                            hasEQCurve: !appModel.currentProfile.bands.isEmpty
+                        )
+                        .padding(12)
+                    }
+                }
+                .frame(minHeight: 260)
+                .padding(.horizontal)
+
+                // Temporary numeric controls until the full editor exists
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text("Current Profile: \(appModel.currentProfile.name)")
+                            .font(.subheadline)
+                        if appModel.currentProfile.isFactory {
+                            Label("Built-in", systemImage: "lock.fill")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .labelStyle(.titleAndIcon)
+                        }
+                        if appModel.currentProfile.isFactory,
+                           appModel.profileManager.isFactoryModified(appModel.currentProfile.id) {
+                            Button("Reset to Default") {
+                                appModel.resetFactoryPreset(id: appModel.currentProfile.id)
+                            }
+                            .font(.caption)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    // Attribution is mandatory and always visible for imported
+                    // profiles (D-006 / AutoEQ licensing courtesy).
+                    if let attribution = appModel.currentProfile.sourceAttribution {
+                        Label(attribution, systemImage: "person.text.rectangle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Button(appModel.isBypassed ? "Bypass (ON)" : "Bypass") {
+                            appModel.toggleBypass()
+                        }
+                        .tint(appModel.isBypassed ? .orange : .accentColor)
+                        .help("Compare against unprocessed audio. Excludes preamp, output gain, and (later) the EQ.")
+
+                        Button("A / B Swap") {
+                            appModel.swapAB()
+                        }
+                        .help("Switch between the A and B profiles for quick comparison.")
+
+                        Spacer()
+                    }
+
+                    GroupBox("Gain Staging") {
+                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                            GridRow {
+                                Text("Preamp (pre-EQ)")
+                                    .gridColumnAlignment(.trailing)
+                                Slider(value: $model.preampDB, in: -12...12, step: 0.1) {
+                                    Text("Preamp")
+                                }
+                                .labelsHidden()
+                                .frame(minWidth: 160, maxWidth: 280)
+                                .help("Gain applied before the EQ. Lower this to create headroom — AutoEQ profiles typically use a negative preamp to offset boosted bands.")
+                                Text(String(format: "%+.1f dB", model.preampDB))
+                                    .monospacedDigit()
+                                    .frame(width: 64, alignment: .trailing)
+                                    .accessibilityHidden(true)
+                            }
+                            GridRow {
+                                Text("Output Gain (master)")
+                                    .gridColumnAlignment(.trailing)
+                                Slider(value: $model.outputGainDB, in: -12...12, step: 0.1) {
+                                    Text("Output Gain")
+                                }
+                                .labelsHidden()
+                                .frame(minWidth: 160, maxWidth: 280)
+                                .help("Master volume trim applied after the EQ, before the output device.")
+                                Text(String(format: "%+.1f dB", model.outputGainDB))
+                                    .monospacedDigit()
+                                    .frame(width: 64, alignment: .trailing)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .padding(4)
+                    }
+                }
+                .padding(.horizontal)
+
+                Spacer()
+            }
             .frame(minWidth: 520)
 
-            if showingBandsPanel {
-                BandsPanelPane(
-                    selectedBandID: $selectedBandID,
-                    onHide: { showingBandsPanel = false }
-                )
-                .frame(minWidth: 300)
+            // Right sidebar — numeric band editor (Chunk 5.2/5.3).
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Bands")
+                    .font(.headline)
+                    .padding(.top, 4)
+
+                BandListEditor(selectedBandID: $selectedBandID)
+
+                HStack {
+                    Button("+ Add Band") {
+                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                            selectedBandID = added.id
+                        }
+                    }
+                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+
+                    Button("Import AutoEQ…") { showingAutoEQImport = true }
+                    Spacer()
+                    Button("Reset to Flat") {
+                        selectedBandID = nil
+                        if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
+                            appModel.selectProfile(id: flat.id)
+                        } else {
+                            appModel.loadProfile(.flat)
+                        }
+                    }
+                }
+                .padding(.bottom, 8)
             }
+            .frame(minWidth: 300)
+            .padding(.horizontal, 8)
         }
         .navigationTitle("SonarForge")
         .toolbar {
@@ -34,22 +180,24 @@ struct ContentView: View {
                 }
                 .help("Manage profiles (create, rename, import, export)")
             }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showingBandsPanel.toggle()
-                } label: {
-                    Label(
-                        showingBandsPanel ? "Hide Bands" : "Show Bands",
-                        systemImage: showingBandsPanel ? "sidebar.right" : "slider.horizontal.3"
-                    )
-                }
-                .help(showingBandsPanel ? "Hide the band detail panel" : "Show the band detail panel")
-            }
         }
-        .modifier(AppModelSheets(
-            showingProfileLibrary: $showingProfileLibrary,
-            showingAutoEQImport: $showingAutoEQImport
-        ))
+        .sheet(isPresented: $showingProfileLibrary) {
+            ProfileLibraryView()
+        }
+        .sheet(isPresented: $showingAutoEQImport) {
+            AutoEQImportView()
+        }
+        .sheet(isPresented: $model.showingShortcutsHelp) {
+            ShortcutsHelpView()
+        }
+        .sheet(isPresented: $model.showingWelcome) {
+            WelcomeView()
+        }
+        .sheet(isPresented: $model.showingTroubleshooting) {
+            TroubleshootingView()
+        }
+        // Chunk 5.5: drop profile files anywhere on the window. Native profile
+        // JSON imports directly; other text files fall back to the AutoEQ parser.
         .dropDestination(for: URL.self) { urls, _ in
             handleDroppedFiles(urls)
             return true
@@ -67,7 +215,9 @@ struct ContentView: View {
     private func handleDroppedFiles(_ urls: [URL]) {
         var failures: [String] = []
         for url in urls {
+            // 1. Native profile JSON.
             if (try? appModel.importProfile(from: url)) != nil { continue }
+            // 2. AutoEQ text (ParametricEQ.txt / GraphicEQ.txt or pasted-to-file).
             if let text = try? String(contentsOf: url, encoding: .utf8),
                let result = try? AutoEQImporter.parse(text), !result.bands.isEmpty {
                 let name = AutoEQImportView.suggestedName(fromFileName: url.deletingPathExtension().lastPathComponent)
@@ -81,262 +231,6 @@ struct ContentView: View {
         }
     }
 }
-
-// MARK: - Main column (profile + graph + staging)
-
-/// Left column. Split out of `ContentView` so local UI toggles (bands panel,
-/// sheets) do not re-evaluate this entire stack.
-private struct MainEditorPane: View {
-    @Binding var selectedBandID: UUID?
-    @Binding var showingAutoEQImport: Bool
-
-    var body: some View {
-        VStack(spacing: 12) {
-            AudioEngineDebugView()
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-            SpectrumGraphHeader()
-                .padding(.horizontal)
-
-            FrequencyResponseGraphStack(selectedBandID: $selectedBandID)
-                .frame(minHeight: 260)
-                .padding(.horizontal)
-
-            ProfileStagingControls(
-                selectedBandID: $selectedBandID,
-                showingAutoEQImport: $showingAutoEQImport
-            )
-            .padding(.horizontal)
-
-            Spacer()
-        }
-    }
-}
-
-/// Pre/Post/Legend toggles — isolated so flipping them does not rebuild the
-/// band list, gain sliders, or EQ curve editor.
-private struct SpectrumGraphHeader: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        @Bindable var model = appModel
-
-        HStack {
-            Text("Frequency Response")
-                .font(.headline)
-            Spacer()
-            Toggle("Pre", isOn: $model.showPreSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the unprocessed system audio")
-            Toggle("Post", isOn: $model.showPostSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
-            Toggle("Legend", isOn: $model.showSpectrumLegend)
-                .toggleStyle(.checkbox)
-                .help("Show or hide the spectrum and EQ curve legend on the graph.")
-        }
-    }
-}
-
-/// Graph stack: spectrum behind the EQ editor. Neither sibling should pull
-/// observation from the other's dependencies.
-private struct FrequencyResponseGraphStack: View {
-    @Binding var selectedBandID: UUID?
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            SpectrumSection()
-            FrequencyResponseEditor(selectedBandID: $selectedBandID)
-                .padding(6)
-            SpectrumLegendOverlay()
-        }
-    }
-}
-
-private struct SpectrumLegendOverlay: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        if appModel.showSpectrumLegend {
-            SpectrumLegend(
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum,
-                hasEQCurve: !appModel.currentProfile.bands.isEmpty
-            )
-            .padding(12)
-        }
-    }
-}
-
-/// Profile summary, bypass/A-B, gain staging, and profile-level actions.
-private struct ProfileStagingControls: View {
-    @Environment(AppModel.self) private var appModel
-    @Binding var selectedBandID: UUID?
-    @Binding var showingAutoEQImport: Bool
-
-    var body: some View {
-        @Bindable var model = appModel
-
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("Current Profile: \(appModel.currentProfile.name)")
-                    .font(.subheadline)
-                if appModel.currentProfile.isFactory {
-                    Label("Built-in", systemImage: "lock.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .labelStyle(.titleAndIcon)
-                }
-                if appModel.currentProfile.isFactory,
-                   appModel.profileManager.isFactoryModified(appModel.currentProfile.id) {
-                    Button("Reset to Default") {
-                        appModel.resetFactoryPreset(id: appModel.currentProfile.id)
-                    }
-                    .font(.caption)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-            }
-            if let attribution = appModel.currentProfile.sourceAttribution {
-                Label(attribution, systemImage: "person.text.rectangle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Button(appModel.isBypassed ? "Bypass (ON)" : "Bypass") {
-                    appModel.toggleBypass()
-                }
-                .tint(appModel.isBypassed ? .orange : .accentColor)
-                .help("Compare against unprocessed audio. Excludes preamp, output gain, and (later) the EQ.")
-
-                Button("A / B Swap") {
-                    appModel.swapAB()
-                }
-                .help("Switch between the A and B profiles for quick comparison.")
-
-                Spacer()
-            }
-
-            GroupBox("Gain Staging") {
-                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
-                    GridRow {
-                        Text("Preamp (pre-EQ)")
-                            .gridColumnAlignment(.trailing)
-                        Slider(value: $model.preampDB, in: -12...12, step: 0.1) {
-                            Text("Preamp")
-                        }
-                        .labelsHidden()
-                        .frame(minWidth: 160, maxWidth: 280)
-                        .help("Gain applied before the EQ. Lower this to create headroom — AutoEQ profiles typically use a negative preamp to offset boosted bands.")
-                        Text(String(format: "%+.1f dB", model.preampDB))
-                            .monospacedDigit()
-                            .frame(width: 64, alignment: .trailing)
-                            .accessibilityHidden(true)
-                    }
-                    GridRow {
-                        Text("Output Gain (master)")
-                            .gridColumnAlignment(.trailing)
-                        Slider(value: $model.outputGainDB, in: -12...12, step: 0.1) {
-                            Text("Output Gain")
-                        }
-                        .labelsHidden()
-                        .frame(minWidth: 160, maxWidth: 280)
-                        .help("Master volume trim applied after the EQ, before the output device.")
-                        Text(String(format: "%+.1f dB", model.outputGainDB))
-                            .monospacedDigit()
-                            .frame(width: 64, alignment: .trailing)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .padding(4)
-            }
-
-            HStack(spacing: 8) {
-                Button("Import AutoEQ…") { showingAutoEQImport = true }
-
-                Button("Reset to Flat") {
-                    selectedBandID = nil
-                    if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
-                        appModel.selectProfile(id: flat.id)
-                    } else {
-                        appModel.loadProfile(.flat)
-                    }
-                }
-
-                Spacer()
-            }
-        }
-    }
-}
-
-// MARK: - Bands column
-
-private struct BandsPanelPane: View {
-    @Environment(AppModel.self) private var appModel
-    @Binding var selectedBandID: UUID?
-    let onHide: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Bands")
-                    .font(.headline)
-                Spacer()
-                Button(action: onHide) {
-                    Image(systemName: "sidebar.right")
-                }
-                .buttonStyle(.borderless)
-                .help("Hide band details")
-                .accessibilityLabel("Hide band details")
-            }
-            .padding(.top, 4)
-
-            BandListEditor(selectedBandID: $selectedBandID)
-
-            Button("+ Add Band") {
-                if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
-                    selectedBandID = added.id
-                }
-            }
-            .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-            .padding(.bottom, 8)
-        }
-        .padding(.horizontal, 8)
-    }
-}
-
-// MARK: - Sheets (isolated from the editor panes)
-
-private struct AppModelSheets: ViewModifier {
-    @Environment(AppModel.self) private var appModel
-    @Binding var showingProfileLibrary: Bool
-    @Binding var showingAutoEQImport: Bool
-
-    func body(content: Content) -> some View {
-        @Bindable var model = appModel
-
-        content
-            .sheet(isPresented: $showingProfileLibrary) {
-                ProfileLibraryView()
-            }
-            .sheet(isPresented: $showingAutoEQImport) {
-                AutoEQImportView()
-            }
-            .sheet(isPresented: $model.showingShortcutsHelp) {
-                ShortcutsHelpView()
-            }
-            .sheet(isPresented: $model.showingWelcome) {
-                WelcomeView()
-            }
-            .sheet(isPresented: $model.showingTroubleshooting) {
-                TroubleshootingView()
-            }
-    }
-}
-
-// MARK: - Band list
 
 /// Numeric band editor rows (Chunk 5.3 essentials): type, frequency, gain, Q,
 /// delete. Edits flow through AppModel.updateBand → engine + persistence.
@@ -402,6 +296,7 @@ struct BandListEditor: View {
         .font(.callout)
     }
 
+    /// Field binding that routes edits through AppModel (engine + persistence).
     private func binding<T>(_ index: Int, _ keyPath: WritableKeyPath<EQBand, T>) -> Binding<T> {
         Binding(
             get: {
@@ -420,8 +315,6 @@ struct BandListEditor: View {
     }
 }
 
-// MARK: - Spectrum
-
 /// Observation-scoped container for the spectrum traces: only this view
 /// re-evaluates when the ~20 Hz level arrays update.
 struct SpectrumSection: View {
@@ -431,40 +324,22 @@ struct SpectrumSection: View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(nsColor: .controlBackgroundColor))
-            SpectrumTracesPane()
-            SpectrumIdleHint()
+            SpectrumView(
+                preLevels: appModel.preEQLevels,
+                postLevels: appModel.postEQLevels,
+                showPre: appModel.showPreSpectrum,
+                showPost: appModel.showPostSpectrum
+            )
+            .padding(6)
+            if !appModel.isProcessing {
+                Text("Start the engine to see the spectrum")
+                    .foregroundStyle(.secondary)
+            }
         }
         .onAppear { appModel.spectrumViewVisible = true }
         .onDisappear { appModel.spectrumViewVisible = false }
     }
 }
-
-private struct SpectrumTracesPane: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        SpectrumView(
-            preLevels: appModel.preEQLevels,
-            postLevels: appModel.postEQLevels,
-            showPre: appModel.showPreSpectrum,
-            showPost: appModel.showPostSpectrum
-        )
-        .padding(6)
-    }
-}
-
-private struct SpectrumIdleHint: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        if !appModel.isProcessing {
-            Text("Start the engine to see the spectrum")
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-// MARK: - Engine debug panel
 
 /// Temporary Chunk 1.1 debug panel: engine lifecycle, output device picker, and
 /// permission/error guidance. Replaced by real UI in Phase 5.
