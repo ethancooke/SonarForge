@@ -11,6 +11,8 @@ final class AppModel {
 
     var isBypassed: Bool = false
     var engineState: AudioEngineState = .idle
+    /// Toggled by the Help menu command (the command can't present sheets itself).
+    var showingShortcutsHelp: Bool = false
     var isProcessing: Bool { engineState == .running }
 
     var currentProfile: EQProfile = .flat

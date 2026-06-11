@@ -15,6 +15,16 @@ struct ProfileLibraryView: View {
     @State private var deleteCandidate: EQProfile?
     @State private var errorMessage: String?
     @State private var showingAutoEQImport = false
+    @State private var searchText = ""
+
+    private var visibleProfiles: [EQProfile] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return appModel.profileManager.profiles }
+        return appModel.profileManager.profiles.filter {
+            $0.name.localizedCaseInsensitiveContains(query)
+                || ($0.sourceAttribution?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,9 +45,20 @@ struct ProfileLibraryView: View {
 
             Divider()
 
+            TextField("Search profiles", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .accessibilityLabel("Search profiles by name or attribution")
+
             List {
-                ForEach(appModel.profileManager.profiles) { profile in
+                ForEach(visibleProfiles) { profile in
                     row(for: profile)
+                }
+                if visibleProfiles.isEmpty {
+                    Text("No profiles match “\(searchText)”")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
                 }
             }
             .listStyle(.inset)

@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var showingProfileLibrary = false
     @State private var showingAutoEQImport = false
     @State private var selectedBandID: UUID?
+    @State private var dropErrorMessage: String?
 
     var body: some View {
         @Bindable var model = appModel
@@ -158,6 +159,42 @@ struct ContentView: View {
         .sheet(isPresented: $showingAutoEQImport) {
             AutoEQImportView()
         }
+        .sheet(isPresented: $model.showingShortcutsHelp) {
+            ShortcutsHelpView()
+        }
+        // Chunk 5.5: drop profile files anywhere on the window. Native profile
+        // JSON imports directly; other text files fall back to the AutoEQ parser.
+        .dropDestination(for: URL.self) { urls, _ in
+            handleDroppedFiles(urls)
+            return true
+        }
+        .alert("Import Problem", isPresented: Binding(
+            get: { dropErrorMessage != nil },
+            set: { if !$0 { dropErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { dropErrorMessage = nil }
+        } message: {
+            Text(dropErrorMessage ?? "")
+        }
+    }
+
+    private func handleDroppedFiles(_ urls: [URL]) {
+        var failures: [String] = []
+        for url in urls {
+            // 1. Native profile JSON.
+            if (try? appModel.importProfile(from: url)) != nil { continue }
+            // 2. AutoEQ text (ParametricEQ.txt / GraphicEQ.txt or pasted-to-file).
+            if let text = try? String(contentsOf: url, encoding: .utf8),
+               let result = try? AutoEQImporter.parse(text), !result.bands.isEmpty {
+                let name = AutoEQImportView.suggestedName(fromFileName: url.deletingPathExtension().lastPathComponent)
+                appModel.importAutoEQ(result, name: name.isEmpty ? "Imported Profile" : name, measuredBy: "")
+                continue
+            }
+            failures.append(url.lastPathComponent)
+        }
+        if !failures.isEmpty {
+            dropErrorMessage = "Could not import: \(failures.joined(separator: ", ")). Files must be SonarForge profile JSON or AutoEQ text."
+        }
     }
 }
 
@@ -192,18 +229,22 @@ struct BandListEditor: View {
             }
             .labelsHidden()
             .frame(width: 92)
+            .accessibilityLabel("Band \(index + 1) filter type")
 
             TextField("Hz", value: binding(index, \.frequency), format: .number.precision(.fractionLength(0)))
                 .frame(width: 58)
+                .accessibilityLabel("Band \(index + 1) frequency in hertz")
             Text("Hz").font(.caption2).foregroundStyle(.secondary)
 
             TextField("dB", value: binding(index, \.gain), format: .number.precision(.fractionLength(1)))
                 .frame(width: 44)
                 .disabled(band.type == .lowPass || band.type == .highPass || band.type == .notch)
+                .accessibilityLabel("Band \(index + 1) gain in decibels")
             Text("dB").font(.caption2).foregroundStyle(.secondary)
 
             TextField("Q", value: binding(index, \.q), format: .number.precision(.fractionLength(2)))
                 .frame(width: 44)
+                .accessibilityLabel("Band \(index + 1) Q factor")
             Text("Q").font(.caption2).foregroundStyle(.secondary)
 
             Spacer()
@@ -303,6 +344,7 @@ struct AudioEngineDebugView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .help("Refresh device list")
+                    .accessibilityLabel("Refresh output device list")
                 }
 
                 HStack {

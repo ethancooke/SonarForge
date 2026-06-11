@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarContent: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         @Bindable var model = appModel
@@ -31,7 +32,7 @@ struct MenuBarContent: View {
             .disabled(!appModel.isProcessing)
 
             Button("Open Main Window") {
-                // Activate the main window / bring to front
+                openWindow(id: "main")   // reopens if the user closed it
                 NSApp.activate(ignoringOtherApps: true)
             }
 

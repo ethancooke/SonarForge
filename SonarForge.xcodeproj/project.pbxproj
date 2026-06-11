@@ -41,6 +41,7 @@
 		CF3BA7E33D9B486ECFD4C9F6 /* ProfileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D7E588B5520FAE4EF18FEB /* ProfileManager.swift */; };
 		DD051DE86C67560999445641 /* EQResponseCurveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC8C17EFA098F61680B6AF5 /* EQResponseCurveTests.swift */; };
 		F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */; };
+		FD3A77C27B71EB1982C31356 /* ShortcutsHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6D3B15E242E4852446AA86 /* ShortcutsHelpView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +67,7 @@
 		2E3CC9FB2C142B415C61E85D /* GainMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMath.swift; sourceTree = "<group>"; };
 		456E5263CDB3F894E35017DF /* RealtimeParametricEQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeParametricEQ.swift; sourceTree = "<group>"; };
 		49D51B2CCA205E107E996D20 /* ProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStoreTests.swift; sourceTree = "<group>"; };
+		5E6D3B15E242E4852446AA86 /* ShortcutsHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsHelpView.swift; sourceTree = "<group>"; };
 		6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
 		63C4EC3B766CAA38B91E0159 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -161,6 +163,7 @@
 				80DB05206431EB8490B85801 /* FrequencyResponseEditor.swift */,
 				6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */,
 				6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */,
+				5E6D3B15E242E4852446AA86 /* ShortcutsHelpView.swift */,
 				1357741D992348B0FA020780 /* SpectrumView.swift */,
 			);
 			path = UI;
@@ -346,6 +349,7 @@
 				518422632FE84996B091CC71 /* ProfileStore.swift in Sources */,
 				A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */,
 				1B3739ED6941444235BB0046 /* SampleRing.swift in Sources */,
+				FD3A77C27B71EB1982C31356 /* ShortcutsHelpView.swift in Sources */,
 				F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */,
 				56D9E34C510F936DB35D5F89 /* SpectrumAnalyzer.swift in Sources */,
 				AD66B15122B18DA5FC8D1FC9 /* SpectrumProcessor.swift in Sources */,

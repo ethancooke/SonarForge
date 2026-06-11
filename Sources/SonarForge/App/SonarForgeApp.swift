@@ -5,7 +5,7 @@ struct SonarForgeApp: App {
     @State private var appModel = AppModel()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .environment(appModel)
         }
@@ -33,6 +33,13 @@ struct SonarForgeApp: App {
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                 }
+            }
+
+            CommandGroup(after: .help) {
+                Button("Keyboard Shortcuts…") {
+                    appModel.showingShortcutsHelp = true
+                }
+                .keyboardShortcut("/", modifiers: [.command, .shift])
             }
         }
 

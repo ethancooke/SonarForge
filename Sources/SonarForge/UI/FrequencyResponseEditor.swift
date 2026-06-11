@@ -227,6 +227,18 @@ struct FrequencyResponseEditor: View {
                 }
             }
             .help("\(band.type.displayName) — \(Int(band.frequency)) Hz, \(String(format: "%+.1f", band.gain)) dB, Q \(String(format: "%.2f", band.q))")
+            .accessibilityElement()
+            .accessibilityLabel("Band \(index + 1), \(band.type.displayName)")
+            .accessibilityValue("\(Int(band.frequency)) hertz, \(String(format: "%+.1f", band.gain)) decibels, Q \(String(format: "%.2f", band.q))")
+            .accessibilityHint("Adjust to change gain in half-decibel steps")
+            .accessibilityAdjustableAction { direction in
+                selectedBandID = band.id
+                switch direction {
+                case .increment: _ = nudgeSelected(gainDelta: 0.5)
+                case .decrement: _ = nudgeSelected(gainDelta: -0.5)
+                @unknown default: break
+                }
+            }
     }
 
     private func addBand(at location: CGPoint, in size: CGSize) {

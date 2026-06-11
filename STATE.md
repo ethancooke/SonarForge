@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-11 — **Chunk 5.2 complete** (editor core user-validated; polish added: frequency/dB axis labels, ⌥-drag Q, arrow-key nudging). Remaining: 5.4 accessibility, 5.5 drag-and-drop import, Phase 6 hardening/release.
+**Last Updated**: 2026-06-11 — **Phase 5 COMPLETE** (5.4: VoiceOver-adjustable handles, labeled fields, shortcuts cheat sheet ⇧⌘/; 5.5: window-level drag-and-drop import with AutoEQ fallback, library search, menu-bar window reopen). Remaining: Phase 6 hardening/release.
 
 ---
 
@@ -17,7 +17,7 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 | 2 — Parametric EQ DSP (biquad bank, lock-free parameter path, live integration) | ✅ Complete + validated |
 | 3 — Spectrum analyzer (3.1) | ✅ Complete (pre/post taps → 20 Hz FFT → live traces) |
 | 4 — Profiles + AutoEQ (4.1 persistence/CRUD, 4.2 importer + attribution, 4.3 quick switch) | ✅ Complete + validated (real Koss KPH40 AutoEQ profile in daily use) |
-| 5 — UI (5.1 shell, 5.2 graphical editor, 5.3 band list + spectrum overlay) | ✅ Essentials complete; **5.4 accessibility + 5.5 drag-and-drop remain** |
+| 5 — UI (shell, graphical editor, band list, spectrum overlay, accessibility, shortcuts help, drag-and-drop import, library search) | ✅ Complete |
 | 6 — Hardening & release | ⏳ Not started |
 
 **Headline facts**
@@ -42,8 +42,6 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 
 ## Not Done Yet
 
-- **5.4**: VoiceOver/accessibility pass over the editor and band list; keyboard-shortcut discoverability (cheat sheet / Help).
-- **5.5**: drag-and-drop of profile JSON onto the window/app; (AutoEQ import sheet already supports file drop).
 - **Phase 6**: device robustness QA (USB DAC/Bluetooth/AirPlay untested — no hardware at hand), long-run stability test with EQ active, CPU saver options, first-run/permission UX, signing + notarization + release workflow.
 - Deferred extras: global hotkeys while other apps are frontmost (Carbon), curve snapping/zoom, A/B crossfade, optional limiter (D-009), Apple Music/FairPlay capture behavior unverified.
 
@@ -51,9 +49,9 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Quick validation of 5.2 polish**: axis labels readable in both light/dark; ⌥-drag a handle vertically to feel Q; click the editor then arrow-key nudge the selected band.
-2. **5.4 + 5.5** (small): accessibility labels/VoiceOver on editor + band rows, shortcuts cheat sheet, window-level profile drag-and-drop.
-3. **Phase 6.1/6.2**: device-change robustness QA and long-run stability with EQ active, then 6.3/6.4 docs + signing/notarization for a first tagged release.
+1. **Validate Phase 5 completion**: axis labels, ⌥-drag Q, arrow nudging; ⇧⌘/ cheat sheet; drag a profile JSON (or AutoEQ .txt) onto the window; search in the Profiles sheet; close the window and reopen from the menu bar.
+2. **Phase 6.1/6.2**: device-change robustness QA, long-run (multi-hour) stability with EQ active, CPU saver review.
+3. **Phase 6.3/6.4**: first-run/permission UX, README/release notes, signing + notarization, tagged v0.1 release.
 
 ---
 
