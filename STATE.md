@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Phase 4 implemented in full** (4.1 profiles + 4.2 AutoEQ importer user-validated with a real headphone profile; 4.3 quick switch implemented, pending a short check). A real imported AutoEQ profile (Koss KPH40, 5 bands) persists and applies at launch.
+**Last Updated**: 2026-06-11 — **Chunk 3.1 implemented** (vDSP spectrum analyzer: pre/post realtime taps → lock-free rings → 20 Hz FFT → 64 log bins → Canvas traces; ~0.3% CPU after an observation-scoping fix). Phase 4 implemented in full (4.3 pending a short check). Remaining: Phase 5 (graphical EQ editor + UI polish), Phase 6 (hardening/release).
 
 ---
 
@@ -104,9 +104,11 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Validate 4.3** (quick check): favorite a profile or two in the Profiles sheet — the menu bar should list favorites first (stars, ⌘-number hints) and the new in-app "Profiles" menu should switch with ⌘1–9 and toggle bypass with ⌘B. Favorites keep the order they were favorited.
+1. **Validate 3.1 + 4.3** (one look + a few keys): with music playing, watch the spectrum dance in the main window (Post = colored trace; enable Pre to compare against the EQ'd output — load a strong profile like Telephone and watch them diverge). Then favorite a couple of profiles and try the menu bar ordering + ⌘1–9 / ⌘B.
 
-2. **Phase 3 — Chunk 3.1: vDSP spectrum analyzer** (pre/post-EQ taps in the render path, FFT on a background queue, rate-limited delivery to SwiftUI), then Phase 5 UI (graphical EQ editor).
+2. **Phase 5 — Chunk 5.1/5.2: main window shell + graphical frequency-response editor** (draggable band handles, summed response curve — `BiquadCoefficients.magnitudeDB` was built for this), then 5.3–5.5 polish and Phase 6 hardening/release.
+
+**3.1 summary (2026-06-11)**: `SampleRing` (SPSC float ring, stereo→mono mixdown writes from the IO block), `SpectrumProcessor` (Hann + vDSP real DFT, dBFS-calibrated, 64 log bins — 9 unit tests incl. sine calibration), `SpectrumAnalyzer` (20 Hz timer queue, rolling windows, snapshot callback), pre/post taps in the render block behind one atomic, Pre/Post toggles (both off = analysis fully disabled), Canvas trace view. Perf lesson recorded in AUDIO_PATH.md: spectrum view must stay observation-isolated (~34% → ~0.3% CPU).
 
 **4.3 summary (2026-06-10)**: favorites order persisted via `ProfileStore.favoriteIDs` (toggle appends, unfavorite/delete removes, init reconciles stale IDs); `quickSwitchProfiles` = ordered favorites + rest by name, used identically by the menu bar (stars + ⌘n hints) and the new in-app Profiles command menu (⌘1–9, ⌘B bypass). True global hotkeys (other app frontmost) deferred — would need Carbon RegisterEventHotKey.
 

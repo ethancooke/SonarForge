@@ -95,6 +95,26 @@ includes gain as required by the Chunk 1.2 deliverables.
 - **Debug presets**: Flat / Bass Boost / Treble Boost / Mid Cut / Telephone in
   the debug panel exercise the live path until the Phase 4 profile system.
 
+## Spectrum Analysis (Chunk 3.1)
+
+- **Realtime taps**: pre-EQ (raw system mix, post-copy) and post (post-EQ,
+  post-gain — what reaches the hardware). One relaxed atomic read gates all
+  cost; when enabled, the block mixes the stereo buffer to mono into two
+  lock-free SPSC `SampleRing`s (drops when full — analysis is best-effort and
+  never touches playback correctness).
+- **Analysis**: a 20 Hz `DispatchSourceTimer` on a utility queue drains the
+  rings into rolling 4096-sample windows and runs `SpectrumProcessor`
+  (Hann window → vDSP real DFT → power → dBFS calibrated so a full-scale sine
+  reads 0 dB → max-power reduction into 64 log-spaced bins, 20 Hz–20 kHz).
+- **Delivery**: snapshot callback → AppModel hops to the main actor →
+  `SpectrumSection`/`SpectrumView` (Canvas polylines). The spectrum view is
+  observation-isolated: level updates re-evaluate only that view. (Lesson
+  learned: routing the arrays through the full ContentView body cost ~34 %
+  CPU in Debug; isolation + 20 Hz brought the whole app back to ~0.3 %.)
+- **Toggles**: Pre and Post checkboxes; both off disables capture + analysis
+  entirely (the IO block's atomic reads false; the timer idles).
+- Analyzer starts/stops with the engine and is recreated at the device rate.
+
 ## Threading Model
 
 | Concern | Where it runs |

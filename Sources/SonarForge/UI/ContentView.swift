@@ -21,26 +21,22 @@ struct ContentView: View {
                     Text("Frequency Response")
                         .font(.headline)
                     Spacer()
-                    Toggle("Pre", isOn: .constant(true))
+                    Toggle("Pre", isOn: $model.showPreSpectrum)
                         .toggleStyle(.checkbox)
-                    Toggle("Post", isOn: .constant(true))
+                        .help("Show the spectrum of the unprocessed system audio")
+                    Toggle("Post", isOn: $model.showPostSpectrum)
                         .toggleStyle(.checkbox)
+                        .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
                 }
                 .padding(.horizontal)
 
-                // Placeholder for the graphical EQ curve + handles
-                // This will become FrequencyResponseView in Chunk 5.2
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                        .overlay(
-                            Text("Frequency Response Curve\n(Chunk 5.2: Draggable nodes + summed response)")
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(.secondary)
-                        )
-                }
-                .frame(minHeight: 260)
-                .padding(.horizontal)
+                // Spectrum traces (Chunk 3.1). Isolated in a child view so the
+                // ~20 Hz level updates re-evaluate only that view, not this whole
+                // body (profile menus, pickers, …). The graphical EQ curve +
+                // draggable band handles join this view in Chunk 5.2.
+                SpectrumSection()
+                    .frame(minHeight: 260)
+                    .padding(.horizontal)
 
                 // Temporary numeric controls until the full editor exists
                 VStack(alignment: .leading, spacing: 8) {
@@ -151,6 +147,30 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingAutoEQImport) {
             AutoEQImportView()
+        }
+    }
+}
+
+/// Observation-scoped container for the spectrum traces: only this view
+/// re-evaluates when the ~20 Hz level arrays update.
+struct SpectrumSection: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .controlBackgroundColor))
+            SpectrumView(
+                preLevels: appModel.preEQLevels,
+                postLevels: appModel.postEQLevels,
+                showPre: appModel.showPreSpectrum,
+                showPost: appModel.showPostSpectrum
+            )
+            .padding(6)
+            if !appModel.isProcessing {
+                Text("Start the engine to see the spectrum")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

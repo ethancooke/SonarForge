@@ -43,9 +43,27 @@ final class AppModel {
         }
     }
 
-    // Spectrum data delivered from the audio engine (updated at UI-friendly rate)
+    // MARK: - Spectrum (Chunk 3.1)
+
+    // Display bins (dBFS, log-spaced 20 Hz–20 kHz), updated ~30 Hz while enabled.
     var preEQLevels: [Float] = []
     var postEQLevels: [Float] = []
+
+    var showPreSpectrum: Bool = false {
+        didSet { updateSpectrumEnabled() }
+    }
+    var showPostSpectrum: Bool = true {
+        didSet { updateSpectrumEnabled() }
+    }
+
+    private func updateSpectrumEnabled() {
+        let enabled = showPreSpectrum || showPostSpectrum
+        audioEngine.setSpectrumEnabled(enabled)
+        if !enabled {
+            preEQLevels = []
+            postEQLevels = []
+        }
+    }
 
     // MARK: - Dependencies (injected)
 
@@ -65,6 +83,14 @@ final class AppModel {
                 self?.engineState = newState
             }
         }
+        self.audioEngine.onSpectrum = { [weak self] pre, post in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.showPreSpectrum { self.preEQLevels = pre }
+                if self.showPostSpectrum { self.postEQLevels = post }
+            }
+        }
+        updateSpectrumEnabled()
         refreshOutputDevices()
 
         // Restore the last-used profile and apply it to the engine. The engine

@@ -109,6 +109,19 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     private var currentBands: [EQBand] = []
     private var currentSampleRate: Double = 48000
 
+    /// Spectrum analysis (Chunk 3.1): realtime taps feed lock-free rings; FFT
+    /// runs on the analyzer's own queue at 30 Hz while enabled.
+    private let analyzer = SpectrumAnalyzer()
+    var onSpectrum: (([Float], [Float]) -> Void)? {
+        get { analyzer.onSnapshot }
+        set { analyzer.onSnapshot = newValue }
+    }
+
+    func setSpectrumEnabled(_ enabled: Bool) {
+        analyzer.enabled.store(enabled, ordering: .relaxed)
+        logger.info("Spectrum analysis \(enabled ? "enabled" : "disabled", privacy: .public)")
+    }
+
     /// Gain controls are clamped to a sane range; the UI exposes ±12 dB (see D-009).
     private static let gainRangeDB = -24.0...24.0
     /// One-pole smoother time constant. Doubles as the start fade-in (gain begins at 0).
@@ -245,9 +258,13 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             eq.apply(bands: currentBands, sampleRate: outputRate)
             eq.requestStateReset()
 
+            // 5c. Spectrum analysis runs while the engine runs (its CPU cost is
+            //     gated separately by the `enabled` atomic the IO block reads).
+            analyzer.start(sampleRate: outputRate)
+
             // 6. Install the realtime IO block (nil queue → HAL realtime thread) and start.
             var newProcID: AudioDeviceIOProcID?
-            try check(AudioDeviceCreateIOProcIDWithBlock(&newProcID, newAggregateID, nil, Self.makeIOBlock(context: renderContext, eq: eq)),
+            try check(AudioDeviceCreateIOProcIDWithBlock(&newProcID, newAggregateID, nil, Self.makeIOBlock(context: renderContext, eq: eq, analyzer: analyzer)),
                       "AudioDeviceCreateIOProcIDWithBlock")
             ioProcID = newProcID
             try check(AudioDeviceStart(newAggregateID, newProcID), "AudioDeviceStart")
@@ -320,6 +337,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         }
 
         currentOutputDeviceID = kAudioObjectUnknown
+        analyzer.stop()
         logger.info("Engine stopped and Core Audio objects released")
 
         // Reset state here (not in the public stop()) so internal stop→start sequences
@@ -331,12 +349,12 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     // MARK: - Realtime IO block
 
     /// Builds the realtime IO block. Static factory so the block provably captures only the
-    /// render context and the EQ (no `self`, no Core Audio object IDs, nothing that could
-    /// allocate).
+    /// render context, the EQ, and the analyzer (no `self`, no Core Audio object IDs,
+    /// nothing that could allocate).
     ///
     /// Realtime rules: no allocations, no locks, no ObjC messaging. The EQ drains its
-    /// lock-free command ring here and processes over preallocated state.
-    private static func makeIOBlock(context: RenderContext, eq: RealtimeParametricEQ) -> AudioDeviceIOBlock {
+    /// lock-free command ring here; spectrum taps write into lock-free rings.
+    private static func makeIOBlock(context: RenderContext, eq: RealtimeParametricEQ, analyzer: SpectrumAnalyzer) -> AudioDeviceIOBlock {
         return { _, inInputData, _, outOutputData, _ in
             let inABL = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inInputData))
             let outABL = UnsafeMutableAudioBufferListPointer(outOutputData)
@@ -377,26 +395,38 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                 }
             }
 
+            // Locate the first stereo buffer once — the EQ and the spectrum taps
+            // all operate on it. Non-stereo layouts pass through with gain only
+            // (documented MVP limit).
+            var stereoData: UnsafeMutablePointer<Float32>?
+            var stereoFrames = 0
+            for i in 0..<outABL.count {
+                if outABL[i].mNumberChannels == 2, let data = outABL[i].mData {
+                    stereoData = data.assumingMemoryBound(to: Float32.self)
+                    stereoFrames = Int(outABL[i].mDataByteSize) / (bytesPerSample * 2)
+                    break
+                }
+            }
+
+            // Spectrum pre-EQ tap (Chunk 3.1): the raw system mix, post-copy,
+            // pre-processing. One atomic read gates all analysis cost.
+            let analyzeThisCycle = analyzer.enabled.load(ordering: .relaxed)
+            if analyzeThisCycle, let stereo = stereoData {
+                analyzer.capturePre(stereo, frames: stereoFrames)
+            }
+
             // EQ pass (Chunk 2.2). Always drain pending parameter commands, even
             // when bypassed, so coefficients are current the moment bypass lifts.
             eq.drainCommands()
 
             let isBypassed = context.bypassed.load(ordering: .relaxed)
-            if !isBypassed {
+            if !isBypassed, let stereo = stereoData {
                 if context.wasBypassed {
                     // Re-engaging: clear stale filter history. The gain smoother's
                     // crossfade masks the transition.
                     eq.resetState()
                 }
-                // Process the first stereo buffer — the normal single-stream case.
-                // Non-stereo layouts pass through with gain only (documented MVP limit).
-                for i in 0..<outABL.count {
-                    if outABL[i].mNumberChannels == 2, let data = outABL[i].mData {
-                        let frames = Int(outABL[i].mDataByteSize) / (bytesPerSample * 2)
-                        eq.processStereoInterleaved(data.assumingMemoryBound(to: Float32.self), frameCount: frames)
-                        break
-                    }
-                }
+                eq.processStereoInterleaved(stereo, frameCount: stereoFrames)
             }
             context.wasBypassed = isBypassed
 
@@ -433,6 +463,12 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                     finalGain = gain
                 }
                 context.smoothedGain = finalGain
+            }
+
+            // Spectrum post tap (Chunk 3.1): what actually reaches the hardware
+            // (post-EQ, post-gain). When bypassed this equals the pre tap.
+            if analyzeThisCycle, let stereo = stereoData {
+                analyzer.capturePost(stereo, frames: stereoFrames)
             }
         }
     }
