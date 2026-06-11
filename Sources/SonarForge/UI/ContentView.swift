@@ -69,6 +69,18 @@ struct ContentView: View {
                         .help("Switch between the A and B profiles for quick comparison.")
 
                         Spacer()
+
+                        Button("Import AutoEQ…") { showingAutoEQImport = true }
+                            .help("Import a headphone correction from the AutoEQ project")
+                        Button("Reset to Flat") {
+                            selectedBandID = nil
+                            if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
+                                appModel.selectProfile(id: flat.id)
+                            } else {
+                                appModel.loadProfile(.flat)
+                            }
+                        }
+                        .help("Switch to the neutral Flat profile")
                     }
 
                     GroupBox("Gain Staging") {
@@ -118,20 +130,9 @@ struct ContentView: View {
             // (that cross-measurement was the lag — see commit message).
             if showBandsPanel {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Bands")
-                        .font(.headline)
-                    Spacer()
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) { showBandsPanel = false }
-                    } label: {
-                        Image(systemName: "sidebar.trailing")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Hide the bands panel")
-                    .accessibilityLabel("Hide bands panel")
-                }
-                .padding(.top, 4)
+                Text("Bands")
+                    .font(.headline)
+                    .padding(.top, 4)
 
                 BandListEditor(selectedBandID: $selectedBandID)
 
@@ -142,17 +143,7 @@ struct ContentView: View {
                         }
                     }
                     .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-
-                    Button("Import AutoEQ…") { showingAutoEQImport = true }
                     Spacer()
-                    Button("Reset to Flat") {
-                        selectedBandID = nil
-                        if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
-                            appModel.selectProfile(id: flat.id)
-                        } else {
-                            appModel.loadProfile(.flat)
-                        }
-                    }
                 }
                 .padding(.bottom, 8)
             }
@@ -326,6 +317,19 @@ struct BandListEditor: View {
     @Binding var selectedBandID: UUID?
 
     var body: some View {
+        // Column headers once, instead of cramped per-row unit labels.
+        HStack(spacing: 6) {
+            Text("Type").frame(width: 110, alignment: .leading)
+            Text("Hz").frame(width: 60, alignment: .center)
+            Text("dB").frame(width: 48, alignment: .center)
+            Text("Q").frame(width: 48, alignment: .center)
+            Spacer()
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 6)
+        .accessibilityHidden(true)
+
         // ScrollView + LazyVStack, deliberately not List: the AppKit-backed
         // List re-measures expensively on every window layout pass, which made
         // unrelated toggles feel laggy (sizeThatFits dominated the profile).
@@ -355,30 +359,29 @@ struct BandListEditor: View {
     @ViewBuilder
     private func row(index: Int, band: EQBand) -> some View {
         HStack(spacing: 6) {
+            // Units live in the column header row above the list — inline unit
+            // labels wrapped vertically at this width and read as clutter.
             Picker("", selection: binding(index, \.type)) {
                 ForEach(FilterType.allCases, id: \.self) { type in
                     Text(type.displayName).tag(type)
                 }
             }
             .labelsHidden()
-            .frame(width: 92)
+            .frame(width: 110)
             .accessibilityLabel("Band \(index + 1) filter type")
 
             TextField("Hz", value: binding(index, \.frequency), format: .number.precision(.fractionLength(0)))
-                .frame(width: 58)
+                .frame(width: 60)
                 .accessibilityLabel("Band \(index + 1) frequency in hertz")
-            Text("Hz").font(.caption2).foregroundStyle(.secondary)
 
             TextField("dB", value: binding(index, \.gain), format: .number.precision(.fractionLength(1)))
-                .frame(width: 44)
+                .frame(width: 48)
                 .disabled(band.type == .lowPass || band.type == .highPass || band.type == .notch)
                 .accessibilityLabel("Band \(index + 1) gain in decibels")
-            Text("dB").font(.caption2).foregroundStyle(.secondary)
 
             TextField("Q", value: binding(index, \.q), format: .number.precision(.fractionLength(2)))
-                .frame(width: 44)
+                .frame(width: 48)
                 .accessibilityLabel("Band \(index + 1) Q factor")
-            Text("Q").font(.caption2).foregroundStyle(.secondary)
 
             Spacer()
 
