@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-11 — **Chunk 5.2 core implemented** (graphical frequency-response editor: summed response curve over the live spectrum, draggable band handles with live engine updates, double-click add / right-click delete, numeric band rows with type/freq/gain/Q). Chunk 3.1 (spectrum) and Phase 4 done. Remaining: 5.2 polish (Q gestures, snapping, keyboard nudging), 5.4/5.5 accessibility + windows, Phase 6 hardening/release.
+**Last Updated**: 2026-06-11 — **Chunk 5.2 complete** (editor core user-validated; polish added: frequency/dB axis labels, ⌥-drag Q, arrow-key nudging of the selected band). Remaining: 5.4 accessibility pass + shortcut discoverability, 5.5 drag-and-drop import, Phase 6 hardening/release.
 
 ---
 
@@ -106,7 +106,7 @@ See `DECISIONS.md` for full records. Highlights:
 
 1. **Validate 3.1 + 4.3 + 5.2** (one session): spectrum traces react to music (Pre vs Post diverge under a strong profile); favorites ordering + ⌘1–9/⌘B; then the editor — drag handles (hear the EQ change live, file persists on release), double-click to add a band, right-click to delete, edit numbers in the sidebar, relaunch to confirm edits persisted.
 
-2. **5.2 polish next**: Q via scroll/modifier-drag, snapping, keyboard nudging of the selected band; then 5.4 (accessibility/VoiceOver pass, shortcut discoverability) and 5.5 (drag-and-drop import), Phase 6 hardening.
+2. **Next**: 5.4 (accessibility/VoiceOver pass, shortcut discoverability) and 5.5 (drag-and-drop profile import onto the window), then Phase 6 hardening (device robustness QA, long-run stability, signing/notarization). Snapping/zoom remain optional 5.2 extras.
 
 **5.2 core summary (2026-06-11)**: `EQResponseCurve` (summed dB response, 4 tests — 76 total), AppModel band editing (live engine apply during drags, persist-on-release), `FrequencyResponseEditor` (Canvas curve + grid over the live spectrum as observation-isolated siblings, draggable handles incl. pass/notch frequency-only behavior, double-click add, context-menu delete, selection sync with the sidebar), `BandListEditor` (type picker + freq/gain/Q fields + delete per band), working + Add Band and Reset-to-Flat (selects the library Flat).
 

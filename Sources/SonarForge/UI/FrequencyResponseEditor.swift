@@ -6,12 +6,14 @@ import SwiftUI
 /// Interactions:
 /// - Drag a handle: sets frequency (x, log axis) and gain (y) live; the engine
 ///   updates during the drag, the profile file is written once on release.
+/// - ⌥-drag a handle vertically: adjusts Q (narrower up, wider down).
+/// - Arrow keys (after clicking the editor): nudge the selected band —
+///   ←/→ frequency by 1/24 octave, ↑/↓ gain by 0.5 dB.
 /// - Double-click empty space: adds a peaking band there.
 /// - Right-click a handle: delete the band.
 /// - Click a handle: select (highlights; numeric editing in the sidebar).
 ///
-/// Deferred 5.2 polish: Q via scroll-wheel/modifier drag, snapping, keyboard
-/// nudging, zoom. Q is numerically editable in the sidebar.
+/// Deferred: snapping, zoom.
 ///
 /// Performance note: this view observes only the current profile and selection
 /// (it re-renders on edits, not at the spectrum's 20 Hz — see AUDIO_PATH.md on
@@ -19,6 +21,9 @@ import SwiftUI
 struct FrequencyResponseEditor: View {
     @Environment(AppModel.self) private var appModel
     @Binding var selectedBandID: UUID?
+
+    /// Band values at drag start — Q drags are relative to these.
+    @State private var dragStartBand: EQBand?
 
     private static let minFrequency = 20.0
     private static let maxFrequency = 20000.0
@@ -51,7 +56,29 @@ struct FrequencyResponseEditor: View {
                 }
             )
         }
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.leftArrow) { nudgeSelected(frequencyFactor: pow(2, -1.0 / 24)) }
+        .onKeyPress(.rightArrow) { nudgeSelected(frequencyFactor: pow(2, 1.0 / 24)) }
+        .onKeyPress(.upArrow) { nudgeSelected(gainDelta: 0.5) }
+        .onKeyPress(.downArrow) { nudgeSelected(gainDelta: -0.5) }
         .accessibilityLabel("Frequency response editor")
+    }
+
+    /// Arrow-key nudging of the selected band (requires the editor focused —
+    /// clicking a handle does both).
+    private func nudgeSelected(frequencyFactor: Double = 1, gainDelta: Double = 0) -> KeyPress.Result {
+        guard let id = selectedBandID,
+              let index = appModel.currentProfile.bands.firstIndex(where: { $0.id == id }) else {
+            return .ignored
+        }
+        var band = appModel.currentProfile.bands[index]
+        band.frequency = min(max(band.frequency * frequencyFactor, Self.minFrequency), Self.maxFrequency)
+        if band.type != .lowPass && band.type != .highPass && band.type != .notch {
+            band.gain = min(max(band.gain + gainDelta, Self.minDB), Self.maxDB)
+        }
+        appModel.updateBand(at: index, band)
+        return .handled
     }
 
     // MARK: - Coordinate mapping (log frequency ↔ x, dB ↔ y)
@@ -100,6 +127,32 @@ struct FrequencyResponseEditor: View {
         zero.move(to: CGPoint(x: 0, y: zeroY))
         zero.addLine(to: CGPoint(x: size.width, y: zeroY))
         context.stroke(zero, with: .color(.secondary.opacity(0.35)), lineWidth: 1)
+
+        drawAxisLabels(in: &context, size: size)
+    }
+
+    /// Frequency labels along the bottom, dB (EQ gain) labels on the left.
+    private func drawAxisLabels(in context: inout GraphicsContext, size: CGSize) {
+        let labelFont = Font.system(size: 9)
+
+        let frequencyLabels: [(Double, String)] = [
+            (31.5, "31"), (63, "63"), (125, "125"), (250, "250"), (500, "500"),
+            (1000, "1k"), (2000, "2k"), (4000, "4k"), (8000, "8k"), (16000, "16k"),
+        ]
+        for (frequency, label) in frequencyLabels {
+            let text = context.resolve(Text(label).font(labelFont).foregroundStyle(.secondary))
+            let textSize = text.measure(in: size)
+            context.draw(text, at: CGPoint(x: x(forFrequency: frequency, width: size.width),
+                                           y: size.height - textSize.height / 2 - 2))
+        }
+
+        for db in [-12.0, -6, 0, 6, 12] {
+            let label = db == 0 ? "0 dB" : String(format: "%+.0f", db)
+            let text = context.resolve(Text(label).font(labelFont).foregroundStyle(.secondary))
+            let textSize = text.measure(in: size)
+            context.draw(text, at: CGPoint(x: textSize.width / 2 + 4,
+                                           y: y(forDB: db, height: size.height) - textSize.height / 2 - 2))
+        }
     }
 
     private func drawCurve(for bands: [EQBand], in context: inout GraphicsContext, size: CGSize) {
@@ -141,15 +194,29 @@ struct FrequencyResponseEditor: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         selectedBandID = band.id
+                        if dragStartBand?.id != band.id {
+                            dragStartBand = band
+                        }
                         var updated = band
-                        updated.frequency = frequency(forX: value.location.x, width: size.width)
-                        // Pass filters have no gain; dragging them only moves frequency.
-                        if band.type != .lowPass && band.type != .highPass && band.type != .notch {
-                            updated.gain = db(forY: value.location.y, height: size.height)
+
+                        if NSEvent.modifierFlags.contains(.option), let start = dragStartBand {
+                            // ⌥-drag: vertical motion adjusts Q multiplicatively
+                            // relative to the drag start (up = narrower).
+                            let octavesOfQ = Double(-value.translation.height) / 60.0
+                            updated.q = min(max(start.q * pow(2, octavesOfQ), 0.1), 18.0)
+                            updated.frequency = start.frequency
+                            updated.gain = start.gain
+                        } else {
+                            updated.frequency = frequency(forX: value.location.x, width: size.width)
+                            // Pass filters have no gain; dragging them only moves frequency.
+                            if band.type != .lowPass && band.type != .highPass && band.type != .notch {
+                                updated.gain = db(forY: value.location.y, height: size.height)
+                            }
                         }
                         appModel.updateBand(at: index, updated, persist: false)
                     }
                     .onEnded { _ in
+                        dragStartBand = nil
                         appModel.commitProfileEdit()
                     }
             )
