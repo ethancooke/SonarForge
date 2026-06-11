@@ -140,6 +140,41 @@ final class AppModel {
         try data.write(to: url, options: .atomic)
     }
 
+    // MARK: - Band editing (Chunk 5.2)
+
+    /// Updates one band of the current profile and applies it to the engine
+    /// immediately. Pass `persist: false` during continuous gestures (drags)
+    /// to avoid writing the profile file at gesture rate; call
+    /// `commitProfileEdit()` once on gesture end.
+    func updateBand(at index: Int, _ band: EQBand, persist: Bool = true) {
+        guard currentProfile.bands.indices.contains(index) else { return }
+        currentProfile.bands[index] = band
+        audioEngine.loadProfile(currentProfile)
+        if persist { commitProfileEdit() }
+    }
+
+    @discardableResult
+    func addBand(_ band: EQBand = EQBand()) -> EQBand? {
+        guard currentProfile.bands.count < RealtimeParametricEQ.maxBands else { return nil }
+        currentProfile.bands.append(band)
+        audioEngine.loadProfile(currentProfile)
+        commitProfileEdit()
+        return band
+    }
+
+    func removeBand(at index: Int) {
+        guard currentProfile.bands.indices.contains(index) else { return }
+        currentProfile.bands.remove(at: index)
+        audioEngine.loadProfile(currentProfile)
+        commitProfileEdit()
+    }
+
+    /// Persists the current profile's content into the library (no-op for
+    /// transient profiles that are not in the library).
+    func commitProfileEdit() {
+        profileManager.update(currentProfile)
+    }
+
     /// Creates a profile from parsed AutoEQ data with mandatory attribution
     /// (D-006), adds it to the library, activates it, and applies it.
     @discardableResult

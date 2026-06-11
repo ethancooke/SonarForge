@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(AppModel.self) private var appModel
     @State private var showingProfileLibrary = false
     @State private var showingAutoEQImport = false
+    @State private var selectedBandID: UUID?
 
     var body: some View {
         @Bindable var model = appModel
@@ -30,13 +31,16 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
 
-                // Spectrum traces (Chunk 3.1). Isolated in a child view so the
-                // ~20 Hz level updates re-evaluate only that view, not this whole
-                // body (profile menus, pickers, …). The graphical EQ curve +
-                // draggable band handles join this view in Chunk 5.2.
-                SpectrumSection()
-                    .frame(minHeight: 260)
-                    .padding(.horizontal)
+                // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
+                // Siblings, not nested: the spectrum re-renders at 20 Hz in
+                // isolation, the editor re-renders only on profile edits.
+                ZStack {
+                    SpectrumSection()
+                    FrequencyResponseEditor(selectedBandID: $selectedBandID)
+                        .padding(6)
+                }
+                .frame(minHeight: 260)
+                .padding(.horizontal)
 
                 // Temporary numeric controls until the full editor exists
                 VStack(alignment: .leading, spacing: 8) {
@@ -105,30 +109,36 @@ struct ContentView: View {
             }
             .frame(minWidth: 520)
 
-            // Right sidebar - Band list (stub)
+            // Right sidebar — numeric band editor (Chunk 5.2/5.3).
             VStack(alignment: .leading, spacing: 8) {
                 Text("Bands")
                     .font(.headline)
                     .padding(.top, 4)
 
-                // Placeholder list — will be replaced with real editable band rows
-                List {
-                    Text("No bands (add via graphical editor or + button)")
-                        .foregroundStyle(.secondary)
-                }
-                .listStyle(.plain)
+                BandListEditor(selectedBandID: $selectedBandID)
 
                 HStack {
-                    Button("+ Add Band") { /* TODO: Phase 5 band editor */ }
+                    Button("+ Add Band") {
+                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                            selectedBandID = added.id
+                        }
+                    }
+                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+
                     Button("Import AutoEQ…") { showingAutoEQImport = true }
                     Spacer()
                     Button("Reset to Flat") {
-                        appModel.loadProfile(.flat)
+                        selectedBandID = nil
+                        if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
+                            appModel.selectProfile(id: flat.id)
+                        } else {
+                            appModel.loadProfile(.flat)
+                        }
                     }
                 }
                 .padding(.bottom, 8)
             }
-            .frame(minWidth: 240)
+            .frame(minWidth: 300)
             .padding(.horizontal, 8)
         }
         .navigationTitle("SonarForge")
@@ -148,6 +158,85 @@ struct ContentView: View {
         .sheet(isPresented: $showingAutoEQImport) {
             AutoEQImportView()
         }
+    }
+}
+
+/// Numeric band editor rows (Chunk 5.3 essentials): type, frequency, gain, Q,
+/// delete. Edits flow through AppModel.updateBand → engine + persistence.
+struct BandListEditor: View {
+    @Environment(AppModel.self) private var appModel
+    @Binding var selectedBandID: UUID?
+
+    var body: some View {
+        List(selection: $selectedBandID) {
+            ForEach(Array(appModel.currentProfile.bands.enumerated()), id: \.element.id) { index, band in
+                row(index: index, band: band)
+                    .tag(band.id)
+            }
+            if appModel.currentProfile.bands.isEmpty {
+                Text("No bands — double-click the curve area or use + Add Band")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .listStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func row(index: Int, band: EQBand) -> some View {
+        HStack(spacing: 6) {
+            Picker("", selection: binding(index, \.type)) {
+                ForEach(FilterType.allCases, id: \.self) { type in
+                    Text(type.displayName).tag(type)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 92)
+
+            TextField("Hz", value: binding(index, \.frequency), format: .number.precision(.fractionLength(0)))
+                .frame(width: 58)
+            Text("Hz").font(.caption2).foregroundStyle(.secondary)
+
+            TextField("dB", value: binding(index, \.gain), format: .number.precision(.fractionLength(1)))
+                .frame(width: 44)
+                .disabled(band.type == .lowPass || band.type == .highPass || band.type == .notch)
+            Text("dB").font(.caption2).foregroundStyle(.secondary)
+
+            TextField("Q", value: binding(index, \.q), format: .number.precision(.fractionLength(2)))
+                .frame(width: 44)
+            Text("Q").font(.caption2).foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                if selectedBandID == band.id { selectedBandID = nil }
+                appModel.removeBand(at: index)
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.plain)
+            .help("Remove band")
+        }
+        .textFieldStyle(.roundedBorder)
+        .font(.callout)
+    }
+
+    /// Field binding that routes edits through AppModel (engine + persistence).
+    private func binding<T>(_ index: Int, _ keyPath: WritableKeyPath<EQBand, T>) -> Binding<T> {
+        Binding(
+            get: {
+                guard appModel.currentProfile.bands.indices.contains(index) else {
+                    return EQBand()[keyPath: keyPath]
+                }
+                return appModel.currentProfile.bands[index][keyPath: keyPath]
+            },
+            set: { newValue in
+                guard appModel.currentProfile.bands.indices.contains(index) else { return }
+                var band = appModel.currentProfile.bands[index]
+                band[keyPath: keyPath] = newValue
+                appModel.updateBand(at: index, band)
+            }
+        )
     }
 }
 

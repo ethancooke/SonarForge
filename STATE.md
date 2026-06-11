@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-11 — **Chunk 3.1 implemented** (vDSP spectrum analyzer: pre/post realtime taps → lock-free rings → 20 Hz FFT → 64 log bins → Canvas traces; ~0.3% CPU after an observation-scoping fix). Phase 4 implemented in full (4.3 pending a short check). Remaining: Phase 5 (graphical EQ editor + UI polish), Phase 6 (hardening/release).
+**Last Updated**: 2026-06-11 — **Chunk 5.2 core implemented** (graphical frequency-response editor: summed response curve over the live spectrum, draggable band handles with live engine updates, double-click add / right-click delete, numeric band rows with type/freq/gain/Q). Chunk 3.1 (spectrum) and Phase 4 done. Remaining: 5.2 polish (Q gestures, snapping, keyboard nudging), 5.4/5.5 accessibility + windows, Phase 6 hardening/release.
 
 ---
 
@@ -104,9 +104,11 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Validate 3.1 + 4.3** (one look + a few keys): with music playing, watch the spectrum dance in the main window (Post = colored trace; enable Pre to compare against the EQ'd output — load a strong profile like Telephone and watch them diverge). Then favorite a couple of profiles and try the menu bar ordering + ⌘1–9 / ⌘B.
+1. **Validate 3.1 + 4.3 + 5.2** (one session): spectrum traces react to music (Pre vs Post diverge under a strong profile); favorites ordering + ⌘1–9/⌘B; then the editor — drag handles (hear the EQ change live, file persists on release), double-click to add a band, right-click to delete, edit numbers in the sidebar, relaunch to confirm edits persisted.
 
-2. **Phase 5 — Chunk 5.1/5.2: main window shell + graphical frequency-response editor** (draggable band handles, summed response curve — `BiquadCoefficients.magnitudeDB` was built for this), then 5.3–5.5 polish and Phase 6 hardening/release.
+2. **5.2 polish next**: Q via scroll/modifier-drag, snapping, keyboard nudging of the selected band; then 5.4 (accessibility/VoiceOver pass, shortcut discoverability) and 5.5 (drag-and-drop import), Phase 6 hardening.
+
+**5.2 core summary (2026-06-11)**: `EQResponseCurve` (summed dB response, 4 tests — 76 total), AppModel band editing (live engine apply during drags, persist-on-release), `FrequencyResponseEditor` (Canvas curve + grid over the live spectrum as observation-isolated siblings, draggable handles incl. pass/notch frequency-only behavior, double-click add, context-menu delete, selection sync with the sidebar), `BandListEditor` (type picker + freq/gain/Q fields + delete per band), working + Add Band and Reset-to-Flat (selects the library Flat).
 
 **3.1 summary (2026-06-11)**: `SampleRing` (SPSC float ring, stereo→mono mixdown writes from the IO block), `SpectrumProcessor` (Hann + vDSP real DFT, dBFS-calibrated, 64 log bins — 9 unit tests incl. sine calibration), `SpectrumAnalyzer` (20 Hz timer queue, rolling windows, snapshot callback), pre/post taps in the render block behind one atomic, Pre/Post toggles (both off = analysis fully disabled), Canvas trace view. Perf lesson recorded in AUDIO_PATH.md: spectrum view must stay observation-isolated (~34% → ~0.3% CPU).
 
