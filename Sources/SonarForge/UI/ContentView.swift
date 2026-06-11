@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(AppModel.self) private var appModel
     @State private var showingProfileLibrary = false
     @State private var showingAutoEQImport = false
+    @State private var showingBandsPanel = true
     @State private var selectedBandID: UUID?
     @State private var dropErrorMessage: String?
 
@@ -131,6 +132,29 @@ struct ContentView: View {
                         }
                         .padding(4)
                     }
+
+                    HStack(spacing: 8) {
+                        Button("+ Add Band") {
+                            showingBandsPanel = true
+                            if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                                selectedBandID = added.id
+                            }
+                        }
+                        .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+
+                        Button("Import AutoEQ…") { showingAutoEQImport = true }
+
+                        Button("Reset to Flat") {
+                            selectedBandID = nil
+                            if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
+                                appModel.selectProfile(id: flat.id)
+                            } else {
+                                appModel.loadProfile(.flat)
+                            }
+                        }
+
+                        Spacer()
+                    }
                 }
                 .padding(.horizontal)
 
@@ -138,37 +162,31 @@ struct ContentView: View {
             }
             .frame(minWidth: 520)
 
-            // Right sidebar — numeric band editor (Chunk 5.2/5.3).
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Bands")
-                    .font(.headline)
+            // Right sidebar — numeric band editor (Chunk 5.2/5.3). Collapsible
+            // so the frequency response and profile controls can take center stage.
+            if showingBandsPanel {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Bands")
+                            .font(.headline)
+                        Spacer()
+                        Button {
+                            showingBandsPanel = false
+                        } label: {
+                            Image(systemName: "sidebar.right")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Hide band details")
+                        .accessibilityLabel("Hide band details")
+                    }
                     .padding(.top, 4)
 
-                BandListEditor(selectedBandID: $selectedBandID)
-
-                HStack {
-                    Button("+ Add Band") {
-                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
-                            selectedBandID = added.id
-                        }
-                    }
-                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-
-                    Button("Import AutoEQ…") { showingAutoEQImport = true }
-                    Spacer()
-                    Button("Reset to Flat") {
-                        selectedBandID = nil
-                        if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
-                            appModel.selectProfile(id: flat.id)
-                        } else {
-                            appModel.loadProfile(.flat)
-                        }
-                    }
+                    BandListEditor(selectedBandID: $selectedBandID)
                 }
-                .padding(.bottom, 8)
+                .frame(minWidth: 300)
+                .padding(.horizontal, 8)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
-            .frame(minWidth: 300)
-            .padding(.horizontal, 8)
         }
         .navigationTitle("SonarForge")
         .toolbar {
@@ -179,6 +197,19 @@ struct ContentView: View {
                     Label("Profiles", systemImage: "list.bullet")
                 }
                 .help("Manage profiles (create, rename, import, export)")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingBandsPanel.toggle()
+                    }
+                } label: {
+                    Label(
+                        showingBandsPanel ? "Hide Bands" : "Show Bands",
+                        systemImage: showingBandsPanel ? "sidebar.right" : "slider.horizontal.3"
+                    )
+                }
+                .help(showingBandsPanel ? "Hide the band detail panel" : "Show the band detail panel")
             }
         }
         .sheet(isPresented: $showingProfileLibrary) {
