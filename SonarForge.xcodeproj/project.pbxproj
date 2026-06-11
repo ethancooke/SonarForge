@@ -295,6 +295,7 @@
 				36E6B53B0608BF5ADD3822B3 /* Sources */,
 				050CD9AFB9B5C4FF676031E8 /* Resources */,
 				7F803B7F8B27339EEEBAEA40 /* Frameworks */,
+				E1C102F59567ABD36A9E9A11 /* Install Full App Icon */,
 			);
 			buildRules = (
 			);
@@ -355,6 +356,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E1C102F59567ABD36A9E9A11 /* Install Full App Icon */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Install Full App Icon";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "FULL_ICON=\"${SRCROOT}/Assets/icon-exports/SonarForge.icns\"\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AppIcon.icns\"\nif [ -f \"$FULL_ICON\" ]; then\n  cp \"$FULL_ICON\" \"$DEST\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		36E6B53B0608BF5ADD3822B3 /* Sources */ = {

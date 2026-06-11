@@ -52,13 +52,24 @@ targets:
       properties:
         CFBundleDisplayName: SonarForge
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleVersion: "2"
         LSApplicationCategoryType: public.app-category.music
         NSAudioCaptureUsageDescription: >-
           SonarForge captures system audio with a Core Audio tap so it can
           apply your equalizer settings to everything you hear. Audio never
           leaves this Mac.
         NSHumanReadableCopyright: "Copyright © 2026 SonarForge contributors. Apache License 2.0."
+    postbuildScripts:
+      # actool emits a stripped-down AppIcon.icns; replace with the full multi-size
+      # icon so Dock/Finder always have every required representation.
+      - name: Install Full App Icon
+        script: |
+          FULL_ICON="${SRCROOT}/Assets/icon-exports/SonarForge.icns"
+          DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AppIcon.icns"
+          if [ -f "$FULL_ICON" ]; then
+            cp "$FULL_ICON" "$DEST"
+          fi
+        basedOnDependencyAnalysis: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sonarforge.SonarForge
