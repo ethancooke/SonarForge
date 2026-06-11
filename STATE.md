@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunk 4.2 implemented** (AutoEQ importer: parametric + GraphicEQ parser with 12 tests, import sheet with paste/file/drag-drop and live preview, mandatory attribution stored and displayed). Chunk 4.1 complete. Pending: user click-through of 4.1.3 UI + a real AutoEQ import listening test.
+**Last Updated**: 2026-06-10 — **Phase 4 implemented in full** (4.1 profiles + 4.2 AutoEQ importer user-validated with a real headphone profile; 4.3 quick switch implemented, pending a short check). A real imported AutoEQ profile (Koss KPH40, 5 bands) persists and applies at launch.
 
 ---
 
@@ -104,11 +104,11 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Validate 4.1.3 + 4.2** (one combined click-through):
-   - Toolbar → Profiles: create/rename/duplicate/favorite/delete; export a profile; re-import it (expect a deduplicated copy that becomes active).
-   - "Import AutoEQ…" (sidebar or Profiles sheet): paste a real AutoEQ ParametricEQ.txt (autoeq.app → pick headphone → Parametric Eq), confirm live preview + warnings, import, hear it apply; confirm the attribution line appears under "Current Profile".
+1. **Validate 4.3** (quick check): favorite a profile or two in the Profiles sheet — the menu bar should list favorites first (stars, ⌘-number hints) and the new in-app "Profiles" menu should switch with ⌘1–9 and toggle bypass with ⌘B. Favorites keep the order they were favorited.
 
-2. **Chunk 4.3 — quick switch, favorites ordering, ⌘1–9 shortcuts**, then Phase 3 (spectrum analyzer).
+2. **Phase 3 — Chunk 3.1: vDSP spectrum analyzer** (pre/post-EQ taps in the render path, FFT on a background queue, rate-limited delivery to SwiftUI), then Phase 5 UI (graphical EQ editor).
+
+**4.3 summary (2026-06-10)**: favorites order persisted via `ProfileStore.favoriteIDs` (toggle appends, unfavorite/delete removes, init reconciles stale IDs); `quickSwitchProfiles` = ordered favorites + rest by name, used identically by the menu bar (stars + ⌘n hints) and the new in-app Profiles command menu (⌘1–9, ⌘B bypass). True global hotkeys (other app frontmost) deferred — would need Carbon RegisterEventHotKey.
 
 **4.2 summary (2026-06-10)**: `AutoEQImporter` (pure parser: Filter-line format with PK/LSC/HSC/LS/HS/LP/HP/NO, ON/OFF handling, missing-Q→0.707, missing-preamp→derived headroom, >16-band truncation warnings; GraphicEQ point curves reduced to ≤15 log-spaced peaking bands; parametric text export for round trips — 12 tests, 60 total). `AutoEQImportView` sheet: paste box with file drag-drop, Load File… (name auto-suggested from filename), live parse preview + warnings, name/measured-by fields, constructed non-editable attribution. Imported profiles carry mandatory `sourceAttribution`, are activated immediately, and the attribution is displayed under "Current Profile" in the main window and in the library rows.
 

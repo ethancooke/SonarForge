@@ -38,6 +38,24 @@ final class ProfileManager {
         profiles.filter(\.isFavorite)
     }
 
+    /// Favorites in the user's order (the order they were favorited, persisted
+    /// in UserDefaults via the store). Profiles flagged favorite but missing
+    /// from the order list (edited externally) are appended defensively.
+    var orderedFavorites: [EQProfile] {
+        let ordered = favoriteOrder.compactMap { id in profiles.first(where: { $0.id == id && $0.isFavorite }) }
+        let stragglers = profiles.filter { $0.isFavorite && !favoriteOrder.contains($0.id) }
+        return ordered + stragglers
+    }
+
+    /// The quick-switch list used by the menu bar and the ⌘1–9 Profiles menu:
+    /// ordered favorites first, then the rest by name. Index = shortcut number.
+    var quickSwitchProfiles: [EQProfile] {
+        orderedFavorites + profiles.filter { !$0.isFavorite }
+    }
+
+    /// In-memory mirror of the persisted favorites order.
+    private var favoriteOrder: [UUID] = []
+
     /// - Parameter store: nil degrades to a non-persistent in-memory library
     ///   (storage directory creation failed — rare, but the app must still run).
     init(store: ProfileStore?) {
@@ -66,6 +84,15 @@ final class ProfileManager {
             activeProfileID = profiles.first(where: { $0.name == "Flat" })?.id ?? profiles.first?.id
             store.activeProfileID = activeProfileID
         }
+
+        // Reconcile the persisted favorites order with reality: drop stale IDs,
+        // append any favorite-flagged profiles missing from the list.
+        var order = store.favoriteIDs.filter { id in profiles.contains(where: { $0.id == id && $0.isFavorite }) }
+        for profile in profiles where profile.isFavorite && !order.contains(profile.id) {
+            order.append(profile.id)
+        }
+        favoriteOrder = order
+        store.favoriteIDs = order
     }
 
     // MARK: - CRUD
@@ -110,6 +137,8 @@ final class ProfileManager {
     func delete(_ id: UUID) {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
         profiles.remove(at: index)
+        favoriteOrder.removeAll { $0 == id }
+        store?.favoriteIDs = favoriteOrder
         do {
             try store?.delete(id: id)
         } catch {
@@ -127,6 +156,12 @@ final class ProfileManager {
     func toggleFavorite(_ id: UUID) {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
         profiles[index].isFavorite.toggle()
+        if profiles[index].isFavorite {
+            favoriteOrder.append(id)
+        } else {
+            favoriteOrder.removeAll { $0 == id }
+        }
+        store?.favoriteIDs = favoriteOrder
         persist(profiles[index])
     }
 

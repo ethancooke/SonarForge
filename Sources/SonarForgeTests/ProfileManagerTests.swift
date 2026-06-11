@@ -153,6 +153,50 @@ final class ProfileManagerTests: XCTestCase {
         XCTAssertEqual(loaded.bands.count, 1)
     }
 
+    // MARK: - Favorites ordering & quick switch (4.3)
+
+    func testFavoritesKeepTheOrderTheyWereFavorited() throws {
+        let manager = try makeManager()
+        let telephone = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Telephone" }))
+        let bass = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Bass Boost" }))
+
+        manager.toggleFavorite(telephone.id)
+        manager.toggleFavorite(bass.id)
+        XCTAssertEqual(manager.orderedFavorites.map(\.name), ["Telephone", "Bass Boost"],
+                       "favoriting order, not name order")
+
+        let relaunched = try makeManager()
+        XCTAssertEqual(relaunched.orderedFavorites.map(\.name), ["Telephone", "Bass Boost"],
+                       "order persists across relaunch")
+    }
+
+    func testUnfavoriteAndDeleteRemoveFromOrder() throws {
+        let manager = try makeManager()
+        let telephone = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Telephone" }))
+        let bass = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Bass Boost" }))
+        manager.toggleFavorite(telephone.id)
+        manager.toggleFavorite(bass.id)
+
+        manager.toggleFavorite(telephone.id)   // unfavorite
+        XCTAssertEqual(manager.orderedFavorites.map(\.name), ["Bass Boost"])
+
+        manager.delete(bass.id)
+        XCTAssertTrue(manager.orderedFavorites.isEmpty)
+        XCTAssertTrue(try makeStore().favoriteIDs.isEmpty, "persisted order cleaned up")
+    }
+
+    func testQuickSwitchListsFavoritesFirstThenRestByName() throws {
+        let manager = try makeManager()
+        let midCut = try XCTUnwrap(manager.profiles.first(where: { $0.name == "Mid Cut" }))
+        manager.toggleFavorite(midCut.id)
+
+        let quick = manager.quickSwitchProfiles
+        XCTAssertEqual(quick.first?.name, "Mid Cut")
+        let rest = quick.dropFirst().map(\.name)
+        XCTAssertEqual(Array(rest), rest.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
+        XCTAssertEqual(quick.count, manager.profiles.count, "every profile appears exactly once")
+    }
+
     // MARK: - Import / Export
 
     func testExportImportRoundTripPreservesContentWithNewIdentity() throws {
