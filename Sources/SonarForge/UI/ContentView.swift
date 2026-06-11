@@ -181,16 +181,22 @@ struct AudioEngineDebugView: View {
                 }
 
                 HStack {
-                    Text("Test Profile")
+                    Text("Profile")
                     Menu(appModel.currentProfile.name) {
-                        ForEach(EQProfile.debugPresets) { preset in
-                            Button(preset.name) {
-                                appModel.loadProfile(preset)
+                        ForEach(appModel.profileManager.profiles) { profile in
+                            Button {
+                                appModel.selectProfile(id: profile.id)
+                            } label: {
+                                if profile.id == appModel.profileManager.activeProfileID {
+                                    Label(profile.name, systemImage: "checkmark")
+                                } else {
+                                    Text(profile.name)
+                                }
                             }
                         }
                     }
                     .frame(maxWidth: 200)
-                    .help("Built-in EQ presets for validating the live render path (Chunk 2.2). The real profile system arrives in Phase 4.")
+                    .help("Profiles persist across launches (Chunk 4.1). Management UI and AutoEQ import arrive in 4.1.3/4.2.")
                     if let notes = appModel.currentProfile.notes {
                         Text(notes)
                             .font(.caption)

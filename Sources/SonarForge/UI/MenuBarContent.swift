@@ -37,17 +37,25 @@ struct MenuBarContent: View {
 
             Divider()
 
-            // Quick profile switcher (populated from favorites / recents later)
-            Text("Quick Profiles")
+            // Quick profile switcher. Favorites + ⌘1–9 shortcuts come in Chunk 4.3;
+            // for now list the library (small at this stage).
+            Text("Profiles")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Button("Flat") {
-                appModel.loadProfile(.flat)
+            ForEach(appModel.profileManager.profiles) { profile in
+                Button {
+                    appModel.selectProfile(id: profile.id)
+                } label: {
+                    HStack {
+                        Text(profile.name)
+                        if profile.id == appModel.profileManager.activeProfileID {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
             }
-
-            // Placeholder for dynamic profile list
-            // ForEach(favoriteProfiles) { profile in ... }
 
             Divider()
 

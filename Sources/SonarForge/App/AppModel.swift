@@ -50,11 +50,15 @@ final class AppModel {
     // MARK: - Dependencies (injected)
 
     private(set) var audioEngine: AudioEngineProtocol
+    private(set) var profileManager: ProfileManager
 
     // MARK: - Initialization
 
-    init(audioEngine: AudioEngineProtocol = SonarForgeAudioEngine()) {
+    init(audioEngine: AudioEngineProtocol = SonarForgeAudioEngine(),
+         profileManager: ProfileManager? = nil) {
         self.audioEngine = audioEngine
+        self.profileManager = profileManager ?? ProfileManager(store: try? ProfileStore())
+
         self.audioEngine.onStateChange = { [weak self] newState in
             // Engine callbacks arrive on a background queue; hop to the main actor.
             Task { @MainActor in
@@ -63,10 +67,35 @@ final class AppModel {
         }
         refreshOutputDevices()
 
+        // Restore the last-used profile and apply it to the engine. The engine
+        // stores the bands and re-applies them at the real device rate on start,
+        // so this is safe before the engine is running.
+        if let active = self.profileManager.activeProfile {
+            loadProfile(active)
+        }
+
         // Debug/automation hook: `open SonarForge.app --args --autostart-engine`
         // starts the engine immediately (used for autonomous CPU/stability testing).
         if CommandLine.arguments.contains("--autostart-engine") {
             startEngine()
+        }
+    }
+
+    // MARK: - Profile library (UI → manager → engine)
+
+    func selectProfile(id: UUID) {
+        profileManager.setActive(id)
+        if let profile = profileManager.activeProfile {
+            loadProfile(profile)
+        }
+    }
+
+    func deleteProfile(id: UUID) {
+        let wasActive = profileManager.activeProfileID == id
+        profileManager.delete(id)
+        // Deleting the active profile falls back to another one; apply it.
+        if wasActive, let profile = profileManager.activeProfile {
+            loadProfile(profile)
         }
     }
 

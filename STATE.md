@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Chunk 4.1.1 complete** (ProfileStore persistence layer, fully unit-tested; see the 4.1.x sub-chunk breakdown in DEVELOPMENT_PLAN.md). Phase 2 complete and listening-validated. Next: 4.1.2 (ProfileManager wired into AppModel).
+**Last Updated**: 2026-06-10 — **Chunk 4.1.2 complete** (ProfileManager wired into AppModel; profiles persist and the last-used profile is restored and applied to the engine at launch — verified live). Next: 4.1.3 (profile management UI + export/import).
 
 ---
 
@@ -104,13 +104,14 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 4.1.2 — ProfileManager (@Observable) wired into AppModel**:
-   - CRUD over the new `ProfileStore` (done in 4.1.1: `Sources/SonarForge/Profiles/ProfileStore.swift`, one JSON file per profile, atomic writes, corruption-tolerant load, seeding, active/favorites in UserDefaults — 10 unit tests).
-   - Last-used profile restored and applied to the engine at launch; debug presets become seeded starter profiles; debug menu switches to real profiles.
+1. **Chunk 4.1.3 — Profile UI + export/import round-trip**:
+   - Debug-grade management UI (select/create/rename/duplicate/delete/favorite) over the new `ProfileManager`.
+   - Export active profile via save panel; import native profile JSON.
+   - Menu bar already lists profiles with a checkmark on the active one (done in 4.1.2); favorites ordering + ⌘1–9 shortcuts remain Chunk 4.3.
 
-2. **Chunk 4.1.3 — Profile UI + export/import round-trip** (debug-grade management UI, save panel export, native JSON import, menu bar shows active profile).
+2. **Chunk 4.2 — AutoEQ importer + attribution UX**, then Phase 3 (spectrum analyzer).
 
-3. **Chunk 4.2 — AutoEQ importer + attribution UX**, then Phase 3 (spectrum analyzer).
+**4.1.2 summary (2026-06-10)**: `ProfileManager` (@Observable; seeding, never-empty library, active restore, CRUD with name dedup, in-memory fallback if storage unavailable — 12 unit tests) created by AppModel, which restores and applies the active profile at launch and routes UI selection through `selectProfile(id:)`. Debug preset menu and menu bar now list the real persisted library. Verified live: externally created profile JSON files load, and the persisted active profile (Bass Boost) was applied to the engine on launch.
 
 **Phase 2 validated 2026-06-10**: test-preset switching (Flat / Bass Boost / Treble Boost / Mid Cut / Telephone) audibly correct with clean transitions.
 
