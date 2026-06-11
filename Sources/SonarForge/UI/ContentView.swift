@@ -157,18 +157,14 @@ struct ContentView: View {
             // Right sidebar — kept mounted but width-collapsed so toggling does not
             // tear down the List (10+ pickers/text fields) or animate a split relayout
             // across the spectrum/curve canvases.
-            BandsSidebar(
-                selectedBandID: $selectedBandID,
-                onHide: { showingBandsPanel = false }
-            )
-            // Lay out the sidebar at a stable 300 pt width, then clip the column.
-            // Zero-width layout was forcing AppKit to re-measure every picker row.
-            .frame(width: 300, alignment: .leading)
-            .frame(width: showingBandsPanel ? 300 : 0)
-            .clipped()
-            .allowsHitTesting(showingBandsPanel)
-            .accessibilityHidden(!showingBandsPanel)
-            .animation(nil, value: showingBandsPanel)
+            if showingBandsPanel {
+                BandsSidebar(
+                    selectedBandID: $selectedBandID,
+                    onHide: { showingBandsPanel = false }
+                )
+                .frame(minWidth: 300, maxWidth: 300)
+                .transition(.identity)
+            }
         }
         .animation(nil, value: showingBandsPanel)
         .navigationTitle("SonarForge")
@@ -267,6 +263,7 @@ private struct BandsSidebar: View {
             .padding(.top, 4)
 
             BandListEditor(selectedBandID: $selectedBandID)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             Button("+ Add Band") {
                 if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
@@ -277,7 +274,7 @@ private struct BandsSidebar: View {
             .padding(.bottom, 8)
         }
         .padding(.horizontal, 8)
-        .frame(width: 300, alignment: .leading)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -288,30 +285,18 @@ struct BandListEditor: View {
     @Binding var selectedBandID: UUID?
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 4) {
-                ForEach(Array(appModel.currentProfile.bands.enumerated()), id: \.element.id) { index, band in
-                    row(index: index, band: band)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 3)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedBandID == band.id
-                                      ? Color.accentColor.opacity(0.14)
-                                      : Color.clear)
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture { selectedBandID = band.id }
-                }
-                if appModel.currentProfile.bands.isEmpty {
-                    Text("No bands — double-click the curve area or use + Add Band")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .padding(.horizontal, 4)
-                }
+        List(selection: $selectedBandID) {
+            ForEach(Array(appModel.currentProfile.bands.enumerated()), id: \.element.id) { index, band in
+                row(index: index, band: band)
+                    .tag(band.id)
             }
-            .padding(.vertical, 2)
+            if appModel.currentProfile.bands.isEmpty {
+                Text("No bands — double-click the curve area or use + Add Band")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
         }
+        .listStyle(.plain)
     }
 
     @ViewBuilder
