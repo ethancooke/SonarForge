@@ -60,8 +60,16 @@ final class AppModel {
     }
     var showSpectrumLegend: Bool = false
 
+    /// Set by the spectrum view's appear/disappear (Chunk 6.2 CPU saver):
+    /// analysis is display-only, so when the main window is closed (menu-bar
+    /// use) capture + FFT + redraw all stop. With continuous audio they cost
+    /// real CPU; with the window closed they bought nothing.
+    var spectrumViewVisible: Bool = false {
+        didSet { updateSpectrumEnabled() }
+    }
+
     private func updateSpectrumEnabled() {
-        let enabled = showPreSpectrum || showPostSpectrum
+        let enabled = (showPreSpectrum || showPostSpectrum) && spectrumViewVisible
         audioEngine.setSpectrumEnabled(enabled)
         if !enabled {
             preEQLevels = []

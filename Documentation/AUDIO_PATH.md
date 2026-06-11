@@ -113,6 +113,11 @@ includes gain as required by the Chunk 1.2 deliverables.
   CPU in Debug; isolation + 20 Hz brought the whole app back to ~0.3 %.)
 - **Toggles**: Pre and Post checkboxes; both off disables capture + analysis
   entirely (the IO block's atomic reads false; the timer idles).
+- **Visibility gating (Chunk 6.2)**: analysis also stops when the spectrum view
+  is not on screen (window closed → menu-bar use). With *continuous* audio the
+  full pipeline (2× FFT + 20 Hz redraw) measured 6–17 % CPU in Debug — earlier
+  near-zero readings were intermittent test tones leaving most ticks idle.
+  Display-only work should never run without a display.
 - Analyzer starts/stops with the engine and is recreated at the device rate.
 
 ## Threading Model
@@ -209,6 +214,12 @@ NSXPCConnection), none in audio code, and not growing. Raw data:
 | DRM content behavior documented | ✅ Netflix (browser DRM) **is captured** and passes through cleanly — the device-switch session ran on Netflix audio (2026-06-10). Apple Music / FairPlay still untested. |
 | No memory growth over 30+ min | ✅ 35-min soak passed (2026-06-10): RSS flat/declining, CPU ~0 %, no audio-code leaks |
 | USB DAC / external interface / Bluetooth | ⏳ deferred until hardware is at hand (low risk: speakers↔headphones already exercises device/rate changes); fold into Chunk 6.1 hardening |
+
+**Phase 6.2 soak (2026-06-11, ended early at user request)**: 10 min with the
+4-band Rock profile + spectrum + real music playing: RSS 149 → 141 MB (−8.4 MB,
+no growth), leaks 288 / 14.4 KB (matches the Phase 1 framework-only baseline,
+not growing). CPU 6–17 % Debug under continuous music exposed the spectrum
+visibility gap fixed above.
 
 **Acoustic end-to-end EQ verification (2026-06-11)**: −3 dBFS 1 kHz tone played
 through the live path (afplay → tap → aggregate → render block → EQ) with a

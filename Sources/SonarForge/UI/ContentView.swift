@@ -330,6 +330,8 @@ struct SpectrumSection: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .onAppear { appModel.spectrumViewVisible = true }
+        .onDisappear { appModel.spectrumViewVisible = false }
     }
 }
 
