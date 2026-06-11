@@ -355,6 +355,14 @@ struct AudioEngineDebugView: View {
                         appModel.toggleEngine()
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
+                    Button {
+                        appModel.resetAudioEngine()
+                    } label: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                    }
+                    .help("Reset the audio engine — full teardown and rebuild of the capture path. Use if audio gets into a bad state.")
+                    .accessibilityLabel("Reset audio engine")
+                    .disabled(!appModel.isProcessing)
                 }
 
                 HStack {

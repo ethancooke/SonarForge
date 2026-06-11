@@ -172,7 +172,7 @@ recovers automatically.
   Confirmed working: Netflix in the browser (2026-06-10). Untested: Apple
   Music / FairPlay-protected playback.
 - AirPlay output behavior is untested.
-- A brief gap (not a glitch) is expected during device switch rebuilds.
+- A brief gap (not a glitch) is expected during device switch rebuilds; teardown now ramps to silence (~40 ms, Chunk 6.1) so stops and rebuilds don't click.
 
 ## Measured Characteristics
 

@@ -93,6 +93,9 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         let bypassed = ManagedAtomic<Bool>(false)
         let preampGainBits = ManagedAtomic<UInt32>(Float(1.0).bitPattern)
         let outputGainBits = ManagedAtomic<UInt32>(Float(1.0).bitPattern)
+        /// Set by the control queue just before teardown; the gain smoother ramps
+        /// to silence so stop/restart transitions don't click (Chunk 6.1).
+        let fadeOut = ManagedAtomic<Bool>(false)
         var smoothedGain: Float = 0
         var smoothingCoeff: Float = 0.001
         /// RT-local: tracks bypass transitions so EQ state resets when re-engaging.
@@ -317,6 +320,13 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         removeDeviceListeners()
 
         if let procID = ioProcID, aggregateID != kAudioObjectUnknown {
+            // Fade to silence before teardown so stops and device-switch
+            // rebuilds don't click (~40 ms ≈ 93% of the way down at τ = 15 ms;
+            // the remainder is masked by the stop itself). The control queue
+            // may sleep; the render thread does the actual ramping.
+            renderContext.fadeOut.store(true, ordering: .relaxed)
+            usleep(40_000)
+
             var status = AudioDeviceStop(aggregateID, procID)
             if status != noErr { logger.error("AudioDeviceStop failed (OSStatus: \(status))") }
             status = AudioDeviceDestroyIOProcID(aggregateID, procID)
@@ -338,6 +348,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
 
         currentOutputDeviceID = kAudioObjectUnknown
         analyzer.stop()
+        renderContext.fadeOut.store(false, ordering: .relaxed)
         logger.info("Engine stopped and Core Audio objects released")
 
         // Reset state here (not in the public stop()) so internal stop→start sequences
@@ -438,7 +449,8 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             // equivalent to preamp-before/output-after until a nonlinear stage exists.
             let preampGain = Float(bitPattern: context.preampGainBits.load(ordering: .relaxed))
             let outputGain = Float(bitPattern: context.outputGainBits.load(ordering: .relaxed))
-            let target: Float = isBypassed ? 1.0 : preampGain * outputGain
+            let fadingOut = context.fadeOut.load(ordering: .relaxed)
+            let target: Float = fadingOut ? 0.0 : (isBypassed ? 1.0 : preampGain * outputGain)
 
             let startGain = context.smoothedGain
             if target == 1.0 && abs(startGain - 1.0) < 1e-6 {

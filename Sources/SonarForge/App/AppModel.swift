@@ -276,6 +276,14 @@ final class AppModel {
         isProcessing ? stopEngine() : startEngine()
     }
 
+    /// Troubleshooting escape hatch (Chunk 6.1): full teardown + rebuild of the
+    /// tap, aggregate, and IOProc. Both calls serialize on the engine's control
+    /// queue, so this is safe in any state.
+    func resetAudioEngine() {
+        audioEngine.stop()
+        audioEngine.start()
+    }
+
     func refreshOutputDevices() {
         outputDevices = AudioDeviceUtils.allOutputDevices()
     }
