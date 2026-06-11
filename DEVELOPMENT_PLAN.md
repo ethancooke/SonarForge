@@ -145,6 +145,11 @@ All estimates are rough and assume a single experienced developer with occasiona
 - Last-used profile remembered across launches.
 - Export single profile as `.sonarforgeprofile.json` (or simple extension).
 
+**Sub-chunks** (added 2026-06-10 for incremental delivery):
+- **4.1.1 — ProfileStore (persistence layer, no UI)**: one JSON file per profile in Application Support (atomic writes, corruption-tolerant load, first-run seeding), active-profile ID + favorites order in UserDefaults, injectable paths/defaults for tests.
+- **4.1.2 — ProfileManager (@Observable) wired into AppModel**: CRUD over the store, last-used profile restored and applied to the engine at launch, debug presets become seeded starter profiles and the debug menu switches to real profiles.
+- **4.1.3 — Profile UI + export/import round-trip**: debug-grade management UI (select/create/rename/duplicate/delete/favorite), export via save panel, import of native profile JSON, active profile name in the menu bar.
+
 **Dependencies**: Can start after models exist; benefits from having real EQ parameters.
 
 ---

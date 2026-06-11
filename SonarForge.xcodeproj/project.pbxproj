@@ -16,6 +16,7 @@
 		39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C4EC3B766CAA38B91E0159 /* ContentView.swift */; };
 		491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8099D566442C0E0A256CF89 /* PermissionHelper.swift */; };
 		4BD0D72AFC8E682FC02EA0E8 /* BiquadCoefficients.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC0EB11DA5A48559A073BD6 /* BiquadCoefficients.swift */; };
+		518422632FE84996B091CC71 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D366D632708ECC2ADB2DA5DE /* ProfileStore.swift */; };
 		602B6D8CFD5FC44D88FB31E5 /* BiquadCoefficientsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */; };
 		64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */; };
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
@@ -24,6 +25,7 @@
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
 		BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E3CC9FB2C142B415C61E85D /* GainMath.swift */; };
 		C987B0BBA980CFE02A8B3C0E /* AudioDeviceUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */; };
+		CCB94F99159B6FC388EBEF1F /* ProfileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D51B2CCA205E107E996D20 /* ProfileStoreTests.swift */; };
 		F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +46,7 @@
 		2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
 		2E3CC9FB2C142B415C61E85D /* GainMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMath.swift; sourceTree = "<group>"; };
 		456E5263CDB3F894E35017DF /* RealtimeParametricEQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeParametricEQ.swift; sourceTree = "<group>"; };
+		49D51B2CCA205E107E996D20 /* ProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStoreTests.swift; sourceTree = "<group>"; };
 		6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		6387B054AE633CFEAECA2128 /* DSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSPTests.swift; sourceTree = "<group>"; };
 		63C4EC3B766CAA38B91E0159 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -55,6 +58,7 @@
 		BBC0EB11DA5A48559A073BD6 /* BiquadCoefficients.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadCoefficients.swift; sourceTree = "<group>"; };
 		BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMathTests.swift; sourceTree = "<group>"; };
 		C08443F9720725E1952FAFE9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		D366D632708ECC2ADB2DA5DE /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
 		D8099D566442C0E0A256CF89 /* PermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionHelper.swift; sourceTree = "<group>"; };
 		DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceUtils.swift; sourceTree = "<group>"; };
 		DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonarForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -142,6 +146,7 @@
 				8A6522B39A34C4681AE84632 /* BiquadCoefficientsTests.swift */,
 				6387B054AE633CFEAECA2128 /* DSPTests.swift */,
 				BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */,
+				49D51B2CCA205E107E996D20 /* ProfileStoreTests.swift */,
 				95AE30DD128476018F5B8CED /* RealtimeParametricEQTests.swift */,
 			);
 			path = SonarForgeTests;
@@ -163,11 +168,20 @@
 				AABC648B6A53E2F9966C079B /* Audio */,
 				0F9170330FE4B2BCE3CBD1E9 /* DSP */,
 				DD29195E0CD830CC88332BFD /* Models */,
+				99720406FAB3E21A86096CE5 /* Profiles */,
 				2F74C76C3DF70E0E4704AEF2 /* Resources */,
 				55D90E995281ACE50D3F6D7D /* UI */,
 				47EB3339870B6B784D190147 /* Utilities */,
 			);
 			path = SonarForge;
+			sourceTree = "<group>";
+		};
+		99720406FAB3E21A86096CE5 /* Profiles */ = {
+			isa = PBXGroup;
+			children = (
+				D366D632708ECC2ADB2DA5DE /* ProfileStore.swift */,
+			);
+			path = Profiles;
 			sourceTree = "<group>";
 		};
 		AABC648B6A53E2F9966C079B /* Audio */ = {
@@ -281,6 +295,7 @@
 				BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */,
 				64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */,
 				491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */,
+				518422632FE84996B091CC71 /* ProfileStore.swift in Sources */,
 				A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */,
 				F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */,
 			);
@@ -293,6 +308,7 @@
 				602B6D8CFD5FC44D88FB31E5 /* BiquadCoefficientsTests.swift in Sources */,
 				A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */,
 				267C40FBA15525A453A8A228 /* GainMathTests.swift in Sources */,
+				CCB94F99159B6FC388EBEF1F /* ProfileStoreTests.swift in Sources */,
 				20871B31F7F27F19254070AB /* RealtimeParametricEQTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

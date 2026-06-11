@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-10 — **Phase 2 COMPLETE** (Chunks 2.1 + 2.2 listening-validated: debug preset switching works audibly and cleanly). The EQ is live. Next: Phase 4 (profiles + AutoEQ importer) recommended over Phase 3 (spectrum) since the EQ is now real and spectrum is display-only.
+**Last Updated**: 2026-06-10 — **Chunk 4.1.1 complete** (ProfileStore persistence layer, fully unit-tested; see the 4.1.x sub-chunk breakdown in DEVELOPMENT_PLAN.md). Phase 2 complete and listening-validated. Next: 4.1.2 (ProfileManager wired into AppModel).
 
 ---
 
@@ -104,12 +104,13 @@ See `DECISIONS.md` for full records. Highlights:
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Chunk 4.1 — Profile model, persistence, CRUD** (Phase 4; taken before Phase 3 because the EQ is live and spectrum is display-only):
-   - JSON file storage in Application Support with atomic writes; in-memory manager with `@Observable` surface; create/rename/delete/duplicate/favorite/set-active; last-used remembered across launches; export as profile JSON.
+1. **Chunk 4.1.2 — ProfileManager (@Observable) wired into AppModel**:
+   - CRUD over the new `ProfileStore` (done in 4.1.1: `Sources/SonarForge/Profiles/ProfileStore.swift`, one JSON file per profile, atomic writes, corruption-tolerant load, seeding, active/favorites in UserDefaults — 10 unit tests).
+   - Last-used profile restored and applied to the engine at launch; debug presets become seeded starter profiles; debug menu switches to real profiles.
 
-2. **Chunk 4.2 — AutoEQ importer + attribution UX** (parser for parametric + GraphicEQ formats, paste/file import, mandatory attribution).
+2. **Chunk 4.1.3 — Profile UI + export/import round-trip** (debug-grade management UI, save panel export, native JSON import, menu bar shows active profile).
 
-3. Phase 3 (spectrum analyzer) afterwards, or interleaved if desired.
+3. **Chunk 4.2 — AutoEQ importer + attribution UX**, then Phase 3 (spectrum analyzer).
 
 **Phase 2 validated 2026-06-10**: test-preset switching (Flat / Bass Boost / Treble Boost / Mid Cut / Telephone) audibly correct with clean transitions.
 
