@@ -41,6 +41,7 @@ targets:
     platform: macOS
     sources:
       - path: Sources/SonarForge
+      - path: Assets/Assets.xcassets
     dependencies:
       - package: Atomics
         product: Atomics
@@ -62,6 +63,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sonarforge.SonarForge
         PRODUCT_NAME: SonarForge
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         # Ad-hoc signing for local development; set a real team before distributing.
         CODE_SIGN_IDENTITY: "-"
