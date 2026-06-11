@@ -134,14 +134,6 @@ struct ContentView: View {
                     }
 
                     HStack(spacing: 8) {
-                        Button("+ Add Band") {
-                            showingBandsPanel = true
-                            if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
-                                selectedBandID = added.id
-                            }
-                        }
-                        .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-
                         Button("Import AutoEQ…") { showingAutoEQImport = true }
 
                         Button("Reset to Flat") {
@@ -182,6 +174,14 @@ struct ContentView: View {
                     .padding(.top, 4)
 
                     BandListEditor(selectedBandID: $selectedBandID)
+
+                    Button("+ Add Band") {
+                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                            selectedBandID = added.id
+                        }
+                    }
+                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+                    .padding(.bottom, 8)
                 }
                 .frame(minWidth: 300)
                 .padding(.horizontal, 8)
