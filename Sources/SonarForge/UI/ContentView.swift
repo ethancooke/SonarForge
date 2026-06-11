@@ -11,7 +11,7 @@ struct ContentView: View {
     var body: some View {
         @Bindable var model = appModel
 
-        HSplitView {
+        HStack(alignment: .top, spacing: 0) {
             // Left / main editor area
             VStack(spacing: 12) {
                 // Chunk 1.1 debug controls: capture/passthrough lifecycle, device
@@ -152,41 +152,20 @@ struct ContentView: View {
 
                 Spacer()
             }
-            .frame(minWidth: 520)
+            .frame(minWidth: 520, maxWidth: .infinity, maxHeight: .infinity)
 
-            // Right sidebar — numeric band editor (Chunk 5.2/5.3). Collapsible
-            // so the frequency response and profile controls can take center stage.
-            if showingBandsPanel {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Bands")
-                            .font(.headline)
-                        Spacer()
-                        Button {
-                            showingBandsPanel = false
-                        } label: {
-                            Image(systemName: "sidebar.right")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Hide band details")
-                        .accessibilityLabel("Hide band details")
-                    }
-                    .padding(.top, 4)
-
-                    BandListEditor(selectedBandID: $selectedBandID)
-
-                    Button("+ Add Band") {
-                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
-                            selectedBandID = added.id
-                        }
-                    }
-                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-                    .padding(.bottom, 8)
-                }
-                .frame(minWidth: 300)
-                .padding(.horizontal, 8)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
+            // Right sidebar — kept mounted but width-collapsed so toggling does not
+            // tear down the List (10+ pickers/text fields) or animate a split relayout
+            // across the spectrum/curve canvases.
+            BandsSidebar(
+                selectedBandID: $selectedBandID,
+                isVisible: showingBandsPanel,
+                onHide: { showingBandsPanel = false }
+            )
+            .frame(width: showingBandsPanel ? 300 : 0)
+            .clipped()
+            .allowsHitTesting(showingBandsPanel)
+            .accessibilityHidden(!showingBandsPanel)
         }
         .navigationTitle("SonarForge")
         .toolbar {
@@ -200,9 +179,7 @@ struct ContentView: View {
             }
             ToolbarItem(placement: .automatic) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showingBandsPanel.toggle()
-                    }
+                    showingBandsPanel.toggle()
                 } label: {
                     Label(
                         showingBandsPanel ? "Hide Bands" : "Show Bands",
@@ -260,6 +237,47 @@ struct ContentView: View {
         if !failures.isEmpty {
             dropErrorMessage = "Could not import: \(failures.joined(separator: ", ")). Files must be SonarForge profile JSON or AutoEQ text."
         }
+    }
+}
+
+/// Collapsible bands column. Lives outside `ContentView.body` so show/hide
+/// toggles do not rebuild the main editor stack.
+private struct BandsSidebar: View {
+    @Environment(AppModel.self) private var appModel
+    @Binding var selectedBandID: UUID?
+    let isVisible: Bool
+    let onHide: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Bands")
+                    .font(.headline)
+                Spacer()
+                Button(action: onHide) {
+                    Image(systemName: "sidebar.right")
+                }
+                .buttonStyle(.borderless)
+                .help("Hide band details")
+                .accessibilityLabel("Hide band details")
+            }
+            .padding(.top, 4)
+
+            BandListEditor(selectedBandID: $selectedBandID)
+
+            Button("+ Add Band") {
+                if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                    selectedBandID = added.id
+                }
+            }
+            .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+            .padding(.bottom, 8)
+        }
+        .padding(.horizontal, 8)
+        // Skip List layout while collapsed — the rows stay alive but AppKit does
+        // not re-measure ten pickers against a zero-width column on every toggle.
+        .opacity(isVisible ? 1 : 0)
+        .disabled(!isVisible)
     }
 }
 
