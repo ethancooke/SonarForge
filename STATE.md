@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-06-11 — **Phase 5 COMPLETE** (5.4: VoiceOver-adjustable handles, labeled fields, shortcuts cheat sheet ⇧⌘/; 5.5: window-level drag-and-drop import with AutoEQ fallback, library search, menu-bar window reopen). Remaining: Phase 6 hardening/release.
+**Last Updated**: 2026-06-11 — **Phase 6 in progress**: 6.1 fade-out + reset button done; 6.2 soak passed (memory clean; spectrum CPU now gated on view visibility); 6.3 done (first-run welcome/permission flow, troubleshooting, About with attribution, release-notes template, distinct menu-bar icon states). Remaining: 6.4 signing/notarization + tagged release; user hardware QA (BT/USB DAC, FairPlay).
 
 ---
 
@@ -18,7 +18,7 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 | 3 — Spectrum analyzer (3.1) | ✅ Complete (pre/post taps → 20 Hz FFT → live traces) |
 | 4 — Profiles + AutoEQ (4.1 persistence/CRUD, 4.2 importer + attribution, 4.3 quick switch) | ✅ Complete + validated (real Koss KPH40 AutoEQ profile in daily use) |
 | 5 — UI (shell, graphical editor, band list, spectrum overlay, accessibility, shortcuts help, drag-and-drop import, library search) | ✅ Complete |
-| 6 — Hardening & release | ⏳ Not started |
+| 6 — Hardening & release | 🔶 6.1/6.2/6.3 substantially done; 6.4 signing/release + hardware QA remain |
 
 **Headline facts**
 - Audio: tap → private aggregate → HAL IOProc; ~0% CPU running with EQ + spectrum + editor live; 35-min soak clean; Netflix browser DRM captured fine.
@@ -49,9 +49,9 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Validate Phase 5 completion**: axis labels, ⌥-drag Q, arrow nudging; ⇧⌘/ cheat sheet; drag a profile JSON (or AutoEQ .txt) onto the window; search in the Profiles sheet; close the window and reopen from the menu bar.
-2. **Phase 6.1/6.2**: device-change robustness QA, long-run (multi-hour) stability with EQ active, CPU saver review.
-3. **Phase 6.3/6.4**: first-run/permission UX, README/release notes, signing + notarization, tagged v0.1 release.
+1. **Validate 6.3**: Help ▸ Welcome / Troubleshooting / Keyboard Shortcuts; About SonarForge (attribution + version); menu-bar icon states (filled circle = processing, slash = bypassed, plain = off). First-run welcome shows once for new users.
+2. **6.4 — signing + release**: Developer ID signing, notarization, finish the user's release.yml, tag v0.1.0 using Documentation/RELEASE_NOTES_TEMPLATE.md.
+3. **Hardware QA (user)**: Bluetooth/USB DAC device-switch cycle, Apple Music (FairPlay) capture behavior.
 
 ---
 

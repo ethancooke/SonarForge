@@ -190,6 +190,12 @@ struct ContentView: View {
         .sheet(isPresented: $model.showingShortcutsHelp) {
             ShortcutsHelpView()
         }
+        .sheet(isPresented: $model.showingWelcome) {
+            WelcomeView()
+        }
+        .sheet(isPresented: $model.showingTroubleshooting) {
+            TroubleshootingView()
+        }
         // Chunk 5.5: drop profile files anywhere on the window. Native profile
         // JSON imports directly; other text files fall back to the AutoEQ parser.
         .dropDestination(for: URL.self) { urls, _ in

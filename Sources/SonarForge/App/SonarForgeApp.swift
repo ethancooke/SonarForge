@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct SonarForgeApp: App {
     @State private var appModel = AppModel()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         WindowGroup(id: "main") {
@@ -36,20 +37,40 @@ struct SonarForgeApp: App {
             }
 
             CommandGroup(after: .help) {
+                Button("Welcome to SonarForge…") {
+                    appModel.showingWelcome = true
+                }
                 Button("Keyboard Shortcuts…") {
                     appModel.showingShortcutsHelp = true
                 }
                 .keyboardShortcut("/", modifiers: [.command, .shift])
+                Button("Troubleshooting…") {
+                    appModel.showingTroubleshooting = true
+                }
+            }
+
+            CommandGroup(replacing: .appInfo) {
+                Button("About SonarForge") {
+                    openWindow(id: "about")
+                }
             }
         }
+
+        Window("About SonarForge", id: "about") {
+            AboutView()
+        }
+        .windowResizability(.contentSize)
 
         // Status item / menu bar extra
         MenuBarExtra {
             MenuBarContent()
                 .environment(appModel)
         } label: {
-            // Use a simple SF Symbol or custom asset for now
-            Image(systemName: appModel.isBypassed ? "waveform.slash" : "waveform")
+            // Distinct at a glance: filled circle = actively processing,
+            // slash = bypassed, plain = engine off.
+            Image(systemName: appModel.isBypassed ? "waveform.slash"
+                  : appModel.isProcessing ? "waveform.circle.fill"
+                  : "waveform")
         }
         .menuBarExtraStyle(.window) // or .menu for simpler menu
     }

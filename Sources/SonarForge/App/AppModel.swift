@@ -12,8 +12,16 @@ final class AppModel {
 
     var isBypassed: Bool = false
     var engineState: AudioEngineState = .idle
-    /// Toggled by the Help menu command (the command can't present sheets itself).
+    /// Toggled by Help menu commands (commands can't present sheets themselves).
     var showingShortcutsHelp: Bool = false
+    var showingWelcome: Bool = false
+    var showingTroubleshooting: Bool = false
+
+    private static let welcomeSeenKey = "hasSeenWelcome"
+
+    func markWelcomeSeen() {
+        UserDefaults.standard.set(true, forKey: Self.welcomeSeenKey)
+    }
     var isProcessing: Bool { engineState == .running }
 
     var currentProfile: EQProfile = .flat
@@ -160,6 +168,13 @@ final class AppModel {
         // starts the engine immediately (used for autonomous CPU/stability testing).
         if CommandLine.arguments.contains("--autostart-engine") {
             startEngine()
+        }
+
+        // First run: show the welcome/permission explainer (Chunk 6.3). Skipped
+        // for automation launches so scripts stay headless.
+        if !UserDefaults.standard.bool(forKey: Self.welcomeSeenKey),
+           !CommandLine.arguments.contains("--autostart-engine") {
+            showingWelcome = true
         }
     }
 
