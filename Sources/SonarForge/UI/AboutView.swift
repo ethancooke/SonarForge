@@ -48,8 +48,13 @@ struct AboutView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .padding(24)
-        .frame(width: 420)
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .padding(.bottom, 28)
+        .frame(width: 440)
+        // Let the window adopt the content's full natural height — a fixed
+        // height clipped the license line on some text-size settings.
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder

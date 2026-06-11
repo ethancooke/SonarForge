@@ -14,6 +14,15 @@ struct ProfileLibraryView: View {
     @State private var showingAutoEQImport = false
     @State private var showingResetAllConfirmation = false
     @State private var searchText = ""
+    /// UI highlight (independent of the *active* profile) — target of the
+    /// toolbar Actions menu and of scroll-to after New/Import.
+    @State private var selectedID: UUID?
+    @State private var scrollTarget: UUID?
+
+    private var selectedProfile: EQProfile? {
+        guard let selectedID else { return nil }
+        return appModel.profileManager.profiles.first { $0.id == selectedID }
+    }
 
     private var visibleProfiles: [EQProfile] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -43,7 +52,8 @@ struct ProfileLibraryView: View {
                 .padding(.vertical, 10)
                 .accessibilityLabel("Search profiles by name or attribution")
 
-            List {
+            ScrollViewReader { proxy in
+            List(selection: $selectedID) {
                 if !factoryProfiles.isEmpty {
                     Section("Built-in") {
                         ForEach(factoryProfiles) { profile in
@@ -65,6 +75,12 @@ struct ProfileLibraryView: View {
                 }
             }
             .listStyle(.inset)
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                withAnimation { proxy.scrollTo(target, anchor: .center) }
+                scrollTarget = nil
+            }
+            }
 
             if let errorMessage {
                 Text(errorMessage)
@@ -80,7 +96,7 @@ struct ProfileLibraryView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
         }
-        .frame(minWidth: 520, minHeight: 400)
+        .frame(minWidth: 540, minHeight: 500)
         .sheet(isPresented: $showingAutoEQImport) {
             AutoEQImportView()
         }
@@ -121,8 +137,11 @@ struct ProfileLibraryView: View {
             Spacer()
             Button("New") {
                 let created = appModel.profileManager.create()
+                selectedID = created.id
+                scrollTarget = created.id
                 beginRename(created)
             }
+            actionsMenu
             Menu {
                 Button("Import Profile…") { runImportPanel() }
                 Button("Import AutoEQ…") { showingAutoEQImport = true }
@@ -138,6 +157,40 @@ struct ProfileLibraryView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    /// Toolbar twin of the row context menu, operating on the highlighted
+    /// profile — discoverable for users who don't think to right-click.
+    private var actionsMenu: some View {
+        Menu {
+            if let profile = selectedProfile {
+                let isActive = profile.id == appModel.profileManager.activeProfileID
+                Button("Activate") { appModel.selectProfile(id: profile.id) }
+                    .disabled(isActive)
+                Button(profile.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
+                    appModel.profileManager.toggleFavorite(profile.id)
+                }
+                if profile.isFactory {
+                    Button("Reset to Default") { appModel.resetFactoryPreset(id: profile.id) }
+                        .disabled(!appModel.profileManager.isFactoryModified(profile.id))
+                }
+                Button("Rename") { beginRename(profile) }
+                    .disabled(profile.isFactory)
+                Button("Duplicate") { _ = appModel.profileManager.duplicate(profile.id) }
+                Button("Export\u{2026}") { runExportPanel(for: profile) }
+                Divider()
+                Button("Delete", role: .destructive) { deleteCandidate = profile }
+                    .disabled(profile.isFactory)
+            } else {
+                Text("Select a profile first")
+            }
+        } label: {
+            Label("Actions", systemImage: "slider.horizontal.3")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .disabled(selectedProfile == nil)
+        .help(selectedProfile.map { "Actions for \u{201C}\($0.name)\u{201D}" } ?? "Select a profile to enable actions")
     }
 
     // MARK: - Rows
@@ -184,10 +237,14 @@ struct ProfileLibraryView: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
+        .tag(profile.id)
         .listRowBackground(isActive ? Color.accentColor.opacity(0.08) : nil)
         .onTapGesture {
-            guard renamingID == nil, !isActive else { return }
-            appModel.selectProfile(id: profile.id)
+            guard renamingID == nil else { return }
+            selectedID = profile.id
+            if !isActive {
+                appModel.selectProfile(id: profile.id)
+            }
         }
         .contextMenu {
             Button("Activate") { appModel.selectProfile(id: profile.id) }
@@ -267,7 +324,9 @@ struct ProfileLibraryView: View {
         var failures = 0
         for url in panel.urls {
             do {
-                _ = try appModel.importProfile(from: url)
+                let imported = try appModel.importProfile(from: url)
+                selectedID = imported.id
+                scrollTarget = imported.id
             } catch {
                 failures += 1
             }

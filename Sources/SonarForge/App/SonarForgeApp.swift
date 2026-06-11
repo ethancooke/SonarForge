@@ -6,7 +6,10 @@ struct SonarForgeApp: App {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup(id: "main") {
+        // A single-instance Window scene (not WindowGroup): one main window,
+        // no File ▸ New Window — duplicate EQ windows controlling the same
+        // engine were just confusing.
+        Window("SonarForge", id: "main") {
             ContentView()
                 .environment(appModel)
         }
