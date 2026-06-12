@@ -1,0 +1,68 @@
+name: Release
+
+# Tag a release: git tag v0.1.0 && git push origin v0.1.0
+# Creates a DRAFT GitHub release with the zip + checksum attached — review the
+# notes (start from Documentation/RELEASE_NOTES_TEMPLATE.md) and publish.
+#
+# Signing/notarization run only when the repo secrets are configured:
+#   MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD   (Developer ID Application cert)
+#   NOTARY_APPLE_ID, NOTARY_TEAM_ID, NOTARY_PASSWORD (app-specific password)
+# Without them the artifact is ad-hoc signed (testing only; Gatekeeper will
+# block it on other machines).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release-macos:
+    runs-on: macos-15   # Apple Silicon runner (arm64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Import signing certificate
+        if: ${{ vars.SIGNING_ENABLED == 'true' }}
+        env:
+          CERT_B64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PWD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN=build.keychain
+          security create-keychain -p ci "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          echo "$CERT_B64" | base64 --decode > cert.p12
+          security import cert.p12 -k "$KEYCHAIN" -P "$CERT_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KEYCHAIN"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          rm cert.p12
+
+      - name: Build release artifact
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          set -o pipefail
+          bash Scripts/release.sh
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            build/release/SonarForge-*.zip
+            build/release/SonarForge-*.zip.sha256
+          body: |
+            Draft — fill in from Documentation/RELEASE_NOTES_TEMPLATE.md before publishing.
+
+            **Requirements**: macOS 14.2+, Apple Silicon (M1 or newer).
+            Grant "System Audio Recording" when prompted on first engine start.

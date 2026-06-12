@@ -161,7 +161,7 @@ final class AppModel {
         if let importIndex = CommandLine.arguments.firstIndex(of: "--import-profile"),
            CommandLine.arguments.indices.contains(importIndex + 1) {
             let path = CommandLine.arguments[importIndex + 1]
-            try? importProfile(from: URL(fileURLWithPath: path))
+            _ = try? importProfile(from: URL(fileURLWithPath: path))
         }
 
         // Debug/automation hook: `open SonarForge.app --args --autostart-engine`
