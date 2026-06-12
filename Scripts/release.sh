@@ -32,10 +32,19 @@ xcodebuild -project SonarForge.xcodeproj -scheme SonarForge \
 cp -R "$ARCHIVE/Products/Applications/SonarForge.app" "$APP"
 
 echo "==> Sign (identity: $SIGN_IDENTITY, hardened runtime)"
-codesign --force --options runtime \
+# Secure timestamps are REQUIRED for notarization but unsupported for ad-hoc.
+TIMESTAMP_FLAG=""
+[[ "$SIGN_IDENTITY" != "-" ]] && TIMESTAMP_FLAG="--timestamp"
+codesign --force --options runtime $TIMESTAMP_FLAG \
          --entitlements "$ROOT/Sources/SonarForge/Resources/Entitlements.entitlements" \
          --sign "$SIGN_IDENTITY" "$APP"
 codesign --verify --strict "$APP"
+
+# Regression guard: the audio-input entitlement is load-bearing under the
+# hardened runtime — without it the tap delivers silence in Release builds
+# (this exact regression shipped silently once; see AUDIO_PATH.md).
+codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.device.audio-input" \
+  || { echo "ERROR: audio-input entitlement missing from signature — Release builds would capture silence."; exit 1; }
 
 VERSION=$(defaults read "$APP/Contents/Info.plist" CFBundleShortVersionString)
 ZIP="$OUT/SonarForge-$VERSION.zip"
@@ -45,20 +54,37 @@ BIN="$APP/Contents/MacOS/SonarForge"
 file "$BIN" | grep -q arm64 || { echo "ERROR: not arm64"; exit 1; }
 if file "$BIN" | grep -q x86_64; then echo "ERROR: contains x86_64 slice"; exit 1; fi
 
-if [[ -n "${NOTARY_APPLE_ID:-}" && -n "${NOTARY_TEAM_ID:-}" && -n "${NOTARY_PASSWORD:-}" ]]; then
+# Notarize via either an app-specific password (NOTARY_APPLE_ID/TEAM_ID/PASSWORD)
+# or a stored keychain profile (NOTARY_KEYCHAIN_PROFILE — create once with:
+#   xcrun notarytool store-credentials sonarforge-notary --apple-id … --team-id …)
+NOTARIZE=""
+if [[ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]]; then
+  NOTARIZE="profile"
+elif [[ -n "${NOTARY_APPLE_ID:-}" && -n "${NOTARY_TEAM_ID:-}" && -n "${NOTARY_PASSWORD:-}" ]]; then
+  NOTARIZE="password"
+fi
+
+if [[ -n "$NOTARIZE" ]]; then
   if [[ "$SIGN_IDENTITY" == "-" ]]; then
     echo "ERROR: notarization requires a Developer ID identity (SIGN_IDENTITY), not ad-hoc."
     exit 1
   fi
-  echo "==> Notarize"
+  echo "==> Notarize ($NOTARIZE credentials)"
   ditto -c -k --keepParent "$APP" "$ZIP"
-  xcrun notarytool submit "$ZIP" \
-        --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" \
-        --password "$NOTARY_PASSWORD" --wait
+  if [[ "$NOTARIZE" == "profile" ]]; then
+    xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait
+  else
+    xcrun notarytool submit "$ZIP" \
+          --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" \
+          --password "$NOTARY_PASSWORD" --wait
+  fi
   xcrun stapler staple "$APP"
   rm "$ZIP"   # re-zip with the stapled ticket
+
+  echo "==> Gatekeeper assessment"
+  spctl --assess --type execute -vv "$APP"
 else
-  echo "==> Skipping notarization (NOTARY_* not set)"
+  echo "==> Skipping notarization (no NOTARY_KEYCHAIN_PROFILE or NOTARY_* env)"
 fi
 
 echo "==> Package"
