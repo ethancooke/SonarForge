@@ -23,6 +23,12 @@
   rebuilt with a fade).
 - AirPlay output behavior is untested.
 
+## Disclaimer
+
+Provided "AS IS" without warranty (Apache 2.0 §7–8). EQ boosts can make audio
+much louder — start at low volume with new profiles and protect your hearing
+and equipment. SonarForge collects no data (see PRIVACY.md).
+
 ## Checksums
 
 - `SonarForge.app.zip` — `shasum -a 256`: `…`

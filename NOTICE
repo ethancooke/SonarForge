@@ -1,0 +1,31 @@
+SonarForge
+Copyright (c) 2026 SonarForge contributors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product is provided "AS IS", without warranties or conditions of any
+kind, and the authors are not liable for any damages arising from its use
+(Apache License 2.0, Sections 7 and 8). Audio processing software can produce
+loud output: protect your hearing and your equipment, and start at low volume
+when applying new EQ profiles.
+
+────────────────────────────────────────────────────────────────────────────
+Third-party software distributed in binary form:
+
+swift-atomics
+https://github.com/apple/swift-atomics
+Copyright (c) 2020-2024 Apple Inc. and the Swift project authors
+Licensed under the Apache License, Version 2.0.
+
+────────────────────────────────────────────────────────────────────────────
+Acknowledgements (no code or data redistributed; names used nominatively,
+no affiliation or endorsement implied):
+
+- AutoEQ project (Jaakko Pasanen, MIT-licensed code) and the headphone
+  measurement community, including oratory1990. SonarForge ships a parser for
+  AutoEQ's text formats; it does not bundle or redistribute AutoEQ results or
+  measurement data. Users who import profiles see mandatory source attribution.
+- eqMac (Bitgap, Apache 2.0 public repository) — an inspiration for system-wide
+  EQ on macOS. SonarForge shares no code with eqMac and uses Apple's driverless
+  Core Audio taps instead of a virtual driver.
+- Apple Core Audio, Accelerate, and sample code.

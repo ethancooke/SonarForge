@@ -87,8 +87,14 @@ else
   echo "==> Skipping notarization (no NOTARY_KEYCHAIN_PROFILE or NOTARY_* env)"
 fi
 
-echo "==> Package"
-ditto -c -k --keepParent "$APP" "$ZIP"
+echo "==> Package (app + LICENSE + NOTICE)"
+STAGE="$OUT/stage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
+cp -R "$APP" "$STAGE/"
+cp "$ROOT/LICENSE" "$ROOT/NOTICE" "$STAGE/"
+ditto -c -k "$STAGE" "$ZIP"
+rm -rf "$STAGE"
 shasum -a 256 "$ZIP" | tee "$ZIP.sha256"
 
 echo ""

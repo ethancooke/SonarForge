@@ -96,6 +96,23 @@ Key areas:
 - The AutoEQ community and headphone measurement experts (oratory1990 et al.).
 - Accelerate and AVFoundation teams for the excellent low-level tools.
 
+## Disclaimer
+
+SonarForge is provided **"AS IS"**, without warranty of any kind, and the
+authors accept no liability for damages arising from its use (Apache License
+2.0, §7–8). An equalizer can make audio **much louder** — large boosts or a
+high preamp can overdrive headphones and speakers. Start at low volume when
+trying new profiles, and protect your hearing and your equipment.
+
+SonarForge is an independent project. It is **not affiliated with or endorsed
+by** Apple, Bitgap (eqMac), the AutoEQ project, or any headphone measurement
+author; their names are used only to refer to them. SonarForge does not bundle
+or redistribute AutoEQ results or measurement data — it parses files you
+supply, and displays their source attribution.
+
+See [PRIVACY.md](PRIVACY.md) (short version: the app collects nothing) and
+[NOTICE](NOTICE) for third-party attributions.
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.

@@ -45,6 +45,11 @@ struct WelcomeView: View {
             }
             .font(.callout)
 
+            Label("EQ boosts can make audio much louder. Start at low volume with new profiles — protect your hearing and your speakers.",
+                  systemImage: "ear.trianglebadge.exclamationmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             Divider()
 
             HStack {
