@@ -59,10 +59,13 @@ jobs:
         with:
           draft: true
           files: |
+            build/release/SonarForge-*.dmg
+            build/release/SonarForge-*.dmg.sha256
             build/release/SonarForge-*.zip
             build/release/SonarForge-*.zip.sha256
           body: |
             Draft — fill in from Documentation/RELEASE_NOTES_TEMPLATE.md before publishing.
 
+            **Install**: open the `.dmg` and drag SonarForge to Applications. (The `.zip` is provided as an alternative.)
             **Requirements**: macOS 14.2+, Apple Silicon (M1 or newer).
             Grant "System Audio Recording" when prompted on first engine start.

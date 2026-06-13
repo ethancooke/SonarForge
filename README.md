@@ -31,10 +31,11 @@ SonarForge delivers reliable, low-CPU, artifact-free audio processing with a cle
 
 ## Installation
 
-1. Download the latest release from GitHub Releases (or build from source).
-2. Open SonarForge. Grant "Screen & System Audio Recording" permission when prompted (required for Core Audio Taps).
-3. Select your output device if needed.
-4. Create or import EQ profiles (AutoEQ recommended for headphones).
+1. Download `SonarForge-<version>.dmg` from the latest [GitHub Release](https://github.com/ethancooke/SonarForge/releases).
+2. Open the disk image and **drag SonarForge to Applications**.
+3. Launch it from Applications. (Release builds are signed and notarized by Apple, so it opens with a single "downloaded from the Internet" confirmation — no Gatekeeper workarounds.)
+4. Grant **System Audio Recording** permission when prompted on first start (required for the Core Audio tap).
+5. Select your output device if needed, then create or import EQ profiles (AutoEQ recommended for headphones).
 
 ## Building from Source
 

@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# Builds a distributable SonarForge.app (Chunk 6.4).
+# Builds distributable SonarForge artifacts (Chunk 6.4).
 #
 # Usage:
 #   Scripts/release.sh                  # ad-hoc signed (local testing)
 #   SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" \
-#   NOTARY_APPLE_ID=… NOTARY_TEAM_ID=… NOTARY_PASSWORD=… \
+#   NOTARY_KEYCHAIN_PROFILE=sonarforge-notary \
 #   Scripts/release.sh                  # signed + notarized + stapled
+#   (NOTARY_APPLE_ID / NOTARY_TEAM_ID / NOTARY_PASSWORD also work in place of
+#    the keychain profile.)
 #
-# Output: build/release/SonarForge.app, SonarForge-<version>.zip + .sha256
+# Output in build/release/:
+#   SonarForge.app          — signed (notarized + stapled when credentialed)
+#   SonarForge-<v>.dmg      — PRIMARY artifact for humans (drag to /Applications)
+#   SonarForge-<v>.zip      — secondary (scripts, future Homebrew cask)
+#   plus .sha256 for each.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +21,27 @@ OUT="$ROOT/build/release"
 ARCHIVE="$OUT/SonarForge.xcarchive"
 APP="$OUT/SonarForge.app"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"   # "-" = ad-hoc
+
+# Notarization credentials: a stored keychain profile takes precedence over the
+# app-specific-password triple. Empty => skip notarization (local/ad-hoc).
+NOTARIZE=""
+if [[ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]]; then
+  NOTARIZE="profile"
+elif [[ -n "${NOTARY_APPLE_ID:-}" && -n "${NOTARY_TEAM_ID:-}" && -n "${NOTARY_PASSWORD:-}" ]]; then
+  NOTARIZE="password"
+fi
+
+# Submit a container (.zip or .dmg) to the notary service and wait.
+notarize_submit() {
+  local artifact="$1"
+  if [[ "$NOTARIZE" == "profile" ]]; then
+    xcrun notarytool submit "$artifact" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait
+  else
+    xcrun notarytool submit "$artifact" \
+          --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" \
+          --password "$NOTARY_PASSWORD" --wait
+  fi
+}
 
 cd "$ROOT"
 rm -rf "$OUT"
@@ -31,7 +58,7 @@ xcodebuild -project SonarForge.xcodeproj -scheme SonarForge \
 
 cp -R "$ARCHIVE/Products/Applications/SonarForge.app" "$APP"
 
-echo "==> Sign (identity: $SIGN_IDENTITY, hardened runtime)"
+echo "==> Sign app (identity: $SIGN_IDENTITY, hardened runtime)"
 # Secure timestamps are REQUIRED for notarization but unsupported for ad-hoc.
 TIMESTAMP_FLAG=""
 [[ "$SIGN_IDENTITY" != "-" ]] && TIMESTAMP_FLAG="--timestamp"
@@ -46,59 +73,69 @@ codesign --verify --strict "$APP"
 codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.device.audio-input" \
   || { echo "ERROR: audio-input entitlement missing from signature — Release builds would capture silence."; exit 1; }
 
-VERSION=$(defaults read "$APP/Contents/Info.plist" CFBundleShortVersionString)
-ZIP="$OUT/SonarForge-$VERSION.zip"
-
 # Verify the platform contract: arm64-only, 14.2 minimum.
 BIN="$APP/Contents/MacOS/SonarForge"
 file "$BIN" | grep -q arm64 || { echo "ERROR: not arm64"; exit 1; }
 if file "$BIN" | grep -q x86_64; then echo "ERROR: contains x86_64 slice"; exit 1; fi
 
-# Notarize via either an app-specific password (NOTARY_APPLE_ID/TEAM_ID/PASSWORD)
-# or a stored keychain profile (NOTARY_KEYCHAIN_PROFILE — create once with:
-#   xcrun notarytool store-credentials sonarforge-notary --apple-id … --team-id …)
-NOTARIZE=""
-if [[ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]]; then
-  NOTARIZE="profile"
-elif [[ -n "${NOTARY_APPLE_ID:-}" && -n "${NOTARY_TEAM_ID:-}" && -n "${NOTARY_PASSWORD:-}" ]]; then
-  NOTARIZE="password"
-fi
+VERSION=$(defaults read "$APP/Contents/Info.plist" CFBundleShortVersionString)
+ZIP="$OUT/SonarForge-$VERSION.zip"
+DMG="$OUT/SonarForge-$VERSION.dmg"
 
+# Notarize the APP first and staple its ticket, so the .app is self-contained
+# (opens cleanly even if a user extracts it out of the dmg/zip). The dmg/zip
+# built afterwards then carry an already-stapled app.
 if [[ -n "$NOTARIZE" ]]; then
-  if [[ "$SIGN_IDENTITY" == "-" ]]; then
-    echo "ERROR: notarization requires a Developer ID identity (SIGN_IDENTITY), not ad-hoc."
-    exit 1
-  fi
-  echo "==> Notarize ($NOTARIZE credentials)"
-  ditto -c -k --keepParent "$APP" "$ZIP"
-  if [[ "$NOTARIZE" == "profile" ]]; then
-    xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait
-  else
-    xcrun notarytool submit "$ZIP" \
-          --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" \
-          --password "$NOTARY_PASSWORD" --wait
-  fi
+  [[ "$SIGN_IDENTITY" == "-" ]] && { echo "ERROR: notarization needs a Developer ID identity, not ad-hoc."; exit 1; }
+  echo "==> Notarize app ($NOTARIZE credentials)"
+  APPZIP="$OUT/_app_for_notary.zip"
+  ditto -c -k --keepParent "$APP" "$APPZIP"
+  notarize_submit "$APPZIP"
   xcrun stapler staple "$APP"
-  rm "$ZIP"   # re-zip with the stapled ticket
-
-  echo "==> Gatekeeper assessment"
+  rm -f "$APPZIP"
+  echo "==> Gatekeeper assessment (app)"
   spctl --assess --type execute -vv "$APP"
 else
   echo "==> Skipping notarization (no NOTARY_KEYCHAIN_PROFILE or NOTARY_* env)"
 fi
 
-echo "==> Package (app + LICENSE + NOTICE)"
-STAGE="$OUT/stage"
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/"
-cp "$ROOT/LICENSE" "$ROOT/NOTICE" "$STAGE/"
-ditto -c -k "$STAGE" "$ZIP"
-rm -rf "$STAGE"
+# --- DMG (primary, drag-to-Applications) -----------------------------------
+echo "==> Build DMG"
+DMG_STAGE="$OUT/dmg"
+rm -rf "$DMG_STAGE"
+mkdir -p "$DMG_STAGE"
+cp -R "$APP" "$DMG_STAGE/"
+ln -s /Applications "$DMG_STAGE/Applications"   # drag target
+cp "$ROOT/LICENSE" "$ROOT/NOTICE" "$DMG_STAGE/"
+hdiutil create -volname "SonarForge" -srcfolder "$DMG_STAGE" \
+        -ov -format UDZO "$DMG" >/dev/null
+rm -rf "$DMG_STAGE"
+
+if [[ -n "$NOTARIZE" ]]; then
+  echo "==> Sign + notarize DMG"
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
+  notarize_submit "$DMG"
+  xcrun stapler staple "$DMG"          # so the disk image itself opens warning-free
+  spctl --assess --type open --context context:primary-signature -vv "$DMG" || true
+fi
+
+# --- ZIP (secondary) --------------------------------------------------------
+echo "==> Build ZIP (app + LICENSE + NOTICE)"
+ZIP_STAGE="$OUT/zip"
+rm -rf "$ZIP_STAGE"
+mkdir -p "$ZIP_STAGE"
+cp -R "$APP" "$ZIP_STAGE/"
+cp "$ROOT/LICENSE" "$ROOT/NOTICE" "$ZIP_STAGE/"
+ditto -c -k "$ZIP_STAGE" "$ZIP"
+rm -rf "$ZIP_STAGE"
+
+echo "==> Checksums"
+shasum -a 256 "$DMG" | tee "$DMG.sha256"
 shasum -a 256 "$ZIP" | tee "$ZIP.sha256"
 
 echo ""
 echo "Done:"
 echo "  $APP"
-echo "  $ZIP"
-[[ "$SIGN_IDENTITY" == "-" ]] && echo "NOTE: ad-hoc signed — fine locally; Gatekeeper will block it on other Macs."
+echo "  $DMG   (primary — drag to /Applications)"
+echo "  $ZIP   (secondary)"
+[[ "$SIGN_IDENTITY" == "-" ]] && echo "NOTE: ad-hoc signed — fine locally; Gatekeeper will block these on other Macs until signed + notarized with a Developer ID."

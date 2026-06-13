@@ -29,9 +29,16 @@ Provided "AS IS" without warranty (Apache 2.0 §7–8). EQ boosts can make audio
 much louder — start at low volume with new profiles and protect your hearing
 and equipment. SonarForge collects no data (see PRIVACY.md).
 
+## Install
+
+Open `SonarForge-X.Y.Z.dmg` and drag SonarForge to Applications. Signed and
+notarized — opens with a single confirmation, no Gatekeeper workaround. A
+`.zip` is also attached as an alternative.
+
 ## Checksums
 
-- `SonarForge.app.zip` — `shasum -a 256`: `…`
+- `SonarForge-X.Y.Z.dmg` — `shasum -a 256`: `…`
+- `SonarForge-X.Y.Z.zip` — `shasum -a 256`: `…`
 
 ## Attribution
 

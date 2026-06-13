@@ -46,7 +46,9 @@ Repo → Settings → Secrets and variables → Actions:
 | **Variable** | `SIGNING_ENABLED` | `true` |
 
 Then: `git tag v0.1.0 && git push origin v0.1.0` → draft release appears with
-the signed, notarized, stapled zip attached.
+the signed, notarized, stapled **.dmg** (primary) and **.zip** attached. The
+pipeline notarizes and staples both the app and the disk image, so the .dmg
+opens warning-free too.
 
 ### Local machine (one-time, nicer than env vars)
 ```bash
