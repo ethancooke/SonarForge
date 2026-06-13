@@ -6,7 +6,21 @@ on:
   pull_request:
     branches: [ main ]
 
+# Superseded pushes/PR updates cancel in-flight runs (saves macOS minutes).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: SwiftLint (errors fail; warnings advisory)
+        run: |
+          which swiftlint || brew install swiftlint
+          swiftlint lint --reporter github-actions-logging Sources
+
   build-macos:
     runs-on: macos-15   # Apple Silicon runner (arm64)
     steps:

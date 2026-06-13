@@ -47,7 +47,7 @@ final class AppModel {
     // MARK: - Output device selection
 
     var outputDevices: [AudioOutputDevice] = []
-    var selectedOutputUID: String? = nil {
+    var selectedOutputUID: String? {
         didSet {
             guard oldValue != selectedOutputUID else { return }
             audioEngine.selectOutputDevice(uid: selectedOutputUID)
@@ -116,7 +116,7 @@ final class AppModel {
         var lastProbe = Date.distantPast
 
         self.audioEngine.onSpectrum = { [weak self] pre, post in
-            if (probeLogging || probeFilePath != nil),
+            if probeLogging || probeFilePath != nil,
                Date().timeIntervalSince(lastProbe) > 1.0,
                let peak = pre.indices.max(by: { pre[$0] < pre[$1] }) {
                 lastProbe = Date()

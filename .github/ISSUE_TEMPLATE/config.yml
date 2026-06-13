@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting guide
+    url: https://github.com/ethancooke/SonarForge#readme
+    about: Common issues (silence, permission, unaffected apps) are covered in-app under Help ▸ Troubleshooting and in the README.

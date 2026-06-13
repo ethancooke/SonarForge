@@ -1,0 +1,43 @@
+# SwiftLint configuration for SonarForge.
+# Philosophy: catch real defects; encode the project's existing conventions
+# rather than fight them. CI fails on errors only (warnings are advisory).
+
+excluded:
+  - build
+  - SonarForge.xcodeproj
+  - Assets
+
+# DSP code legitimately uses RBJ Audio EQ Cookbook notation (b0, a1, q, w0, A…)
+# and short math locals. Single-character identifiers are idiomatic here.
+identifier_name:
+  min_length: 1
+  max_length: 60
+  excluded:
+    - A   # RBJ cookbook amplitude (10^(dB/40)) — canonical DSP notation
+
+# Long help strings / doc comments are common and preferred over awkward wraps.
+line_length:
+  warning: 150
+  error: 240
+  ignores_comments: true
+  ignores_urls: true
+
+# This codebase intentionally uses trailing commas in multiline collections.
+disabled_rules:
+  - trailing_comma
+
+function_body_length:
+  warning: 90
+  error: 180
+
+type_body_length:
+  warning: 400
+  error: 700
+
+file_length:
+  warning: 650
+  error: 1100
+
+cyclomatic_complexity:
+  warning: 15
+  error: 30

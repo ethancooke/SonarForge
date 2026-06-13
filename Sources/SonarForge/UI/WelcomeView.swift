@@ -25,14 +25,22 @@ struct WelcomeView: View {
                     Image(systemName: "1.circle.fill").foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("How it works").bold()
-                        Text("SonarForge captures your Mac's audio with a macOS audio tap, applies your EQ, and plays the result to your output device. Everything stays on this Mac — nothing is recorded or sent anywhere.")
+                        Text("SonarForge captures your Mac's audio with a macOS audio tap, applies your EQ, "
+                            + "and plays the result to your output device. Everything stays on this Mac — "
+                            + "nothing is recorded or sent anywhere.")
                     }
                 }
                 GridRow {
                     Image(systemName: "2.circle.fill").foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("One permission").bold()
-                        Text("The first time you start the engine, macOS asks for **System Audio Recording** permission — that's the audio tap. If you deny it, SonarForge can't hear anything to equalize. You can change it later in System Settings ▸ Privacy & Security.")
+                        // Multiline literal (not concatenation): Text needs a literal
+                        // for the **markdown** to render rather than show asterisks.
+                        Text("""
+                        The first time you start the engine, macOS asks for **System Audio Recording** \
+                        permission — that's the audio tap. If you deny it, SonarForge can't hear anything \
+                        to equalize. You can change it later in System Settings ▸ Privacy & Security.
+                        """)
                     }
                 }
                 GridRow {

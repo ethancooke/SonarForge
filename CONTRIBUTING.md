@@ -17,9 +17,15 @@ Be respectful, constructive, and patient. Audio is subtle; disagreements about D
 
 1. Fork and clone.
 2. Ensure you are on macOS 14.2 or later with Xcode 16+ on Apple Silicon (M1 or newer). Intel Macs are not supported.
-3. Read [ARCHITECTURE.md](ARCHITECTURE.md) and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
-4. Build the project and run it. Grant the necessary permissions when prompted.
+3. Read [ARCHITECTURE.md](ARCHITECTURE.md), [Documentation/AUDIO_PATH.md](Documentation/AUDIO_PATH.md) (the authoritative audio-path reference), and [STATE.md](STATE.md) for current status.
+4. Build: `open SonarForge.xcodeproj` and run (⌘R). Grant the System Audio Recording permission when prompted. If you change build settings, edit `project.yml` and run `xcodegen generate` — the project file is generated, never hand-edited.
 5. Play some audio from another app and verify passthrough works before making changes.
+
+## Quality gates (run these before opening a PR)
+
+- **Tests**: `xcodebuild -project SonarForge.xcodeproj -scheme SonarForge -destination 'platform=macOS,arch=arm64' test` — all must pass. New DSP/profile/parser logic needs tests.
+- **Lint**: `swiftlint lint Sources` (`brew install swiftlint`) — errors fail CI; warnings are advisory. The config (`.swiftlint.yml`) deliberately allows DSP math notation (`b0`, `a1`, `A`, …).
+- CI runs both on every push and PR; PRs must be green to merge.
 
 ## Branching & PRs
 

@@ -15,9 +15,13 @@ struct TroubleshootingView: View {
 
     private let items: [Item] = [
         Item(symptom: "Engine stuck on “Starting…”",
-             advice: "macOS is usually blocking the System Audio Recording permission. Open Privacy Settings, make sure SonarForge is enabled under Screen & System Audio Recording, then Retry. The engine reports a timeout after 10 seconds with details."),
+             advice: "macOS is usually blocking the System Audio Recording permission. "
+                + "Open Privacy Settings, make sure SonarForge is enabled under Screen & System Audio Recording, "
+                + "then Retry. The engine reports a timeout after 10 seconds with details."),
         Item(symptom: "Engine runs but you hear silence",
-             advice: "Check that the Output Device picker matches the device you're actually listening on, and that the permission above is granted (a denied tap delivers silence rather than an error). The Reset Audio Engine button (circular arrows) rebuilds the whole path."),
+             advice: "Check that the Output Device picker matches the device you're actually listening on, "
+                + "and that the permission above is granted (a denied tap delivers silence rather than an error). "
+                + "The Reset Audio Engine button (circular arrows) rebuilds the whole path."),
         Item(symptom: "EQ doesn't seem to change the sound",
              advice: "Check Bypass is off, the active profile actually has bands, and their gains aren't 0 dB. The Post spectrum trace should visibly follow your curve."),
         Item(symptom: "Some apps aren't affected",
