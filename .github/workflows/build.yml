@@ -11,11 +11,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: CI only needs to read the repo. (The release workflow
+# separately grants contents: write for publishing.)
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: SwiftLint (errors fail; warnings advisory)
         run: |
           which swiftlint || brew install swiftlint
@@ -24,7 +29,7 @@ jobs:
   build-macos:
     runs-on: macos-15   # Apple Silicon runner (arm64)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Select Xcode
         run: |
