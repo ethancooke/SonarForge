@@ -135,3 +135,11 @@ temp/
 # Build products (if not using DerivedData exclusion properly)
 # Uncomment if you want stricter hygiene for open source
 # **/build/
+
+# Signing material — never commit certificates or credentials
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+.env
+.env.*
