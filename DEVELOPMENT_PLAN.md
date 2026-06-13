@@ -1,6 +1,13 @@
 # SonarForge Development Plan
 
-> **For AI agents**: See [AGENTS.md](../AGENTS.md) first. It contains the recommended reading order (including `VISION.md`, `DECISIONS.md`, and `STATE.md`), key locked decisions, and current status.
+> **Status (2026-06-13): historical roadmap.** Phases 0–5 and most of Phase 6
+> are delivered — the MVP is functionally complete. This document is preserved
+> as the record of *how the build was planned and sequenced* (and of the
+> explicitly-deferred Phase 7 items); it is **not** a list of current work.
+> For live status see [STATE.md](STATE.md); for what was actually built and why,
+> see [Documentation/AUDIO_PATH.md](Documentation/AUDIO_PATH.md) and
+> [DECISIONS.md](DECISIONS.md). The per-chunk "Current Status" notes below were
+> accurate when written and are left as-is for provenance.
 
 This document breaks the project into logical, sequential phases and chunks. The ordering prioritizes early validation of the **critical audio path** (capture → process → output with bypass) so that the hardest and most consequential work is de-risked before heavy UI investment.
 

@@ -2,7 +2,7 @@
 
 This document describes the exact technique used for system audio capture →
 passthrough → output, the threading model, and measured characteristics, as
-required by the Chunk 1.1 exit criteria in `CHUNK1_IMPLEMENTATION_GUIDE.md`.
+first written for the Chunk 1.1 exit criteria and kept current as the audio path evolved.
 
 ## Technique
 
@@ -209,7 +209,7 @@ audio):** process stable for the full duration; RSS *declined* from ~131 MB to
 NSXPCConnection), none in audio code, and not growing. Raw data:
 `/tmp/sonarforge_soak.csv` methodology in repo history.
 
-## Validation Status (checklist from CHUNK1_IMPLEMENTATION_GUIDE.md §6)
+## Validation Status (Chunk 1.1 acceptance checklist)
 
 | Item | Status |
 |---|---|

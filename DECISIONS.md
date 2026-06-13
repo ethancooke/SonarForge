@@ -42,7 +42,7 @@ This document records major decisions, their rationale, and current status. It h
 - CATap has known limitations (some DRM-protected content, certain exclusive-mode apps, and AirPlay behavior may not be fully captured).
 - If Chunk 1.1 validation reveals fundamental gaps for the target use cases, a hybrid or driver fallback can be re-evaluated (high cost, low priority).
 
-**Status**: Primary path locked for MVP. See `ARCHITECTURE.md` (Audio Path section) and `CHUNK1_IMPLEMENTATION_GUIDE.md`.
+**Status**: Primary path locked for MVP. See `ARCHITECTURE.md` (Audio Path section) and `Documentation/AUDIO_PATH.md` (as-built reference + validation record).
 
 **Attribution note**: Techniques and lessons from eqMac’s open-source driver work should still be studied and attributed where relevant, even if not directly copied.
 

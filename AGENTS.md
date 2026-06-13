@@ -31,18 +31,16 @@ When starting work, a new agent **must** read the following in this sequence:
    - Audio path (capture via CATap, processing, output, bypass)
    - Threading and concurrency model
    - DSP approach (biquad + vDSP)
-5. `DECISIONS.md` — Architectural Decision Records (why major choices were made, including platform and capture mechanism).
-6. `DEVELOPMENT_PLAN.md` — The complete phased plan with chunks.
-   - Prioritization rule: The critical audio path must be solid before heavy UI work.
-7. `CHUNK1_IMPLEMENTATION_GUIDE.md` — Detailed step-by-step instructions + validation checklist for the most important chunk (Chunk 1.1).
-8. `STATE.md` — Current project state (what exists, what is next, immediate actions).
-9. `Documentation/Xcode-Setup.md` — Exact Xcode project settings (deployment target 14.2, arm64 only).
-10. `Documentation/GETTING_STARTED.md` — How to build and run locally.
-11. `CONTRIBUTING.md` — Process expectations.
+5. `DECISIONS.md` — Architectural Decision Records D-001…D-010 (why major choices were made, including platform, capture mechanism, render topology, and the lock-free parameter path).
+6. `Documentation/AUDIO_PATH.md` — **The authoritative reference for the live audio path** as actually built: tap → private aggregate → HAL IOProc, gain staging, EQ integration, spectrum analysis, threading model, measured characteristics, and dev gotchas. Read this before touching audio code.
+7. `STATE.md` — Current project state (phase status table, what exists, immediate next steps).
+8. `Documentation/Xcode-Setup.md` — Exact Xcode project settings (deployment target 14.2, arm64 only; project is generated from `project.yml` via XcodeGen).
+9. `Documentation/GETTING_STARTED.md` — How to build and run locally.
+10. `CONTRIBUTING.md` — Process expectations and pre-PR quality gates (tests + lint).
 
-After the reading list above, skim the source skeletons under `Sources/SonarForge/` (especially `Audio/AudioEngine.swift` — which documents platform requirements — and the DSP files) to understand current implementation state.
+Supporting docs as needed: `DEVELOPMENT_PLAN.md` (the original phased roadmap — now a historical record; the MVP is delivered, so treat it as context, not marching orders), `Documentation/SIGNING.md` (release credentials), `PRIVACY.md` / `NOTICE` / `SECURITY.md`.
 
-Also read the latest `STATE.md` to know exactly where the project stands right now.
+After the reading list above, skim the source under `Sources/SonarForge/` (the `Audio/` and `DSP/` layers especially) to understand the implementation. `STATE.md` § "Where Things Live" maps the modules.
 
 ---
 
@@ -50,7 +48,7 @@ Also read the latest `STATE.md` to know exactly where the project stands right n
 
 - **Minimum macOS**: 14.2 (chosen because this is where Core Audio Taps / `CATapDescription` + `AudioHardwareCreateProcessTap` are documented as stable by Apple).
 - **Architecture support**: Apple Silicon (arm64) **only**. No Intel / x86_64. This is a hard requirement.
-- **Capture mechanism**: Core Audio Process Taps (driverless) is the primary and preferred approach. User-space audio driver (like eqMac's) is explicitly deferred and should only be considered if CATap proves fundamentally insufficient during Chunk 1.1 validation.
+- **Capture mechanism**: Core Audio Process Taps (driverless) is the primary and preferred approach. User-space audio driver (like eqMac's) is explicitly deferred. (Validated: the CATap path captures cleanly, including Netflix browser DRM — see AUDIO_PATH.md.)
 - **Scope discipline**: Stick to the MVP feature list in README.md. New features outside the documented non-goals should be rejected or moved to a future discussion.
 - **Audio thread sanctity**: No allocations, locks, or heavy work on the real-time render thread. Parameter updates must use lock-free / double-buffered / atomic mechanisms.
 
@@ -62,12 +60,9 @@ These decisions were confirmed by the project owner in conversation and are now 
 
 See the dedicated `STATE.md` file for the most up-to-date status. 
 
-As of the latest update (2026-06-09):
-- **Chunk 0.1 is complete.** `SonarForge.xcodeproj` is generated via **XcodeGen** from `project.yml` (the source of truth for build settings — run `xcodegen generate` after editing it). 14.2 + arm64-only settings are applied and verified (arm64-only binary, minos 14.2).
-- Build + unit tests pass; the app shell launches and quits cleanly.
-- Next: Execute Chunk 1.1 (the critical audio path validation) per `CHUNK1_IMPLEMENTATION_GUIDE.md`.
+`STATE.md` is the single source of truth for status; the summary here is just a pointer.
 
-**Do not start UI-heavy work (graphical EQ editor, spectrum visualization polish, etc.) until Chunk 1.1 acceptance criteria are met.**
+As of 2026-06-13: the **MVP is functionally complete** (Phases 0–5 and most of Phase 6 done and listening-validated — capture, EQ, spectrum, profiles + AutoEQ import, full UI, accessibility, release pipeline). The project is pushed to GitHub (private) with green CI. Remaining before a public v0.1.0: Apple Developer ID credentials for signing/notarization, and a hardware QA pass (Bluetooth/USB DAC, Apple Music/FairPlay). See `STATE.md` for the live picture and `DECISIONS.md` for the locked choices.
 
 ---
 
@@ -86,14 +81,14 @@ See `ARCHITECTURE.md` for the full data flow diagram and threading rules.
 
 ## How to Continue Work
 
-1. Check `DEVELOPMENT_PLAN.md` for the current phase and which chunk is next.
-2. For any chunk, read its description + any linked implementation guide.
-3. When implementing audio-related changes, update or add notes about:
+1. Check `STATE.md` for current status and the prioritized next steps.
+2. When implementing audio-related changes, update `Documentation/AUDIO_PATH.md` with:
    - Threading model
-   - Measured CPU impact (Instruments)
+   - Measured CPU impact (Instruments / the `--debug-log-spectrum-file` probe)
    - Bypass behavior
    - Device / sample rate change handling
-4. Before declaring a high-risk chunk (especially anything touching the audio render path) complete, run through the explicit acceptance criteria and validation checklist.
+3. Run the pre-PR quality gates in `CONTRIBUTING.md` (tests + SwiftLint) before declaring anything done; CI enforces them on every push.
+4. Record any new architectural decision in `DECISIONS.md` (next ID is D-011).
 
 ---
 
