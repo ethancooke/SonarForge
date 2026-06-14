@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Spectrum display stub (Chunk 3.1): pre-EQ and post-EQ traces over the
-/// log-frequency display bins. The polished version (axis labels, response
-/// curve overlay, draggable EQ handles) is Phase 5 — this proves the data path.
+/// Spectrum display: pre-EQ and post-EQ traces over the log-frequency display
+/// bins, drawn behind the EQ response curve and its draggable band handles.
 struct SpectrumView: View {
     let preLevels: [Float]
     let postLevels: [Float]
@@ -85,10 +84,6 @@ struct SpectrumLegend: View {
                     title: "EQ curve",
                     detail: "filter gain only (excludes preamp)"
                 )
-            }
-            if showPre && showPost {
-                Text("Post above pre at a frequency = net boost there")
-                    .foregroundStyle(.secondary)
             }
         }
         .font(.caption2)

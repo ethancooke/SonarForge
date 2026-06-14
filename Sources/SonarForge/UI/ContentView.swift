@@ -17,21 +17,34 @@ struct ContentView: View {
         HSplitView {
             // Left / main editor area
             VStack(spacing: 12) {
-                // Chunk 1.1 debug controls: capture/passthrough lifecycle, device
-                // selection, and error surfacing. Will be folded into proper UI later.
-                AudioEngineDebugView()
+                // Engine lifecycle (start/stop/reset) and output device selection.
+                AudioEnginePanel()
                     .padding(.horizontal)
                     .padding(.top, 8)
 
                 // Observation-isolated: Pre/Post/Legend toggles re-render only
-                // this pane, never the band list / sliders / debug panel.
+                // this pane, never the band list, sliders, or engine panel.
                 FrequencyPane(selectedBandID: $selectedBandID)
 
-                // Temporary numeric controls until the full editor exists
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        Text("Current Profile: \(appModel.currentProfile.name)")
+                        Text("Profile")
                             .font(.subheadline)
+                        Menu(appModel.currentProfile.name) {
+                            ForEach(appModel.profileManager.profiles) { profile in
+                                Button {
+                                    appModel.selectProfile(id: profile.id)
+                                } label: {
+                                    if profile.id == appModel.profileManager.activeProfileID {
+                                        Label(profile.name, systemImage: "checkmark")
+                                    } else {
+                                        Text(profile.name)
+                                    }
+                                }
+                            }
+                        }
+                        .fixedSize()
+                        .help("Switch the active EQ profile. Manage and import profiles from the Profiles button in the toolbar.")
                         if appModel.currentProfile.isFactory {
                             Label("Built-in", systemImage: "lock.fill")
                                 .font(.caption)
@@ -55,6 +68,12 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if let notes = appModel.currentProfile.notes {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
 
                     HStack {
                         Button(appModel.isBypassed ? "Bypass (ON)" : "Bypass") {
@@ -63,10 +82,18 @@ struct ContentView: View {
                         .tint(appModel.isBypassed ? .orange : .accentColor)
                         .help("Compare against unprocessed audio. Excludes preamp, output gain, and (later) the EQ.")
 
-                        Button("A / B Swap") {
-                            appModel.swapAB()
+                        Picker("A/B compare", selection: Binding(
+                            get: { appModel.showingB },
+                            set: { showB in if showB != appModel.showingB { appModel.swapAB() } }
+                        )) {
+                            Text("A").tag(false)
+                            Text("B").tag(true)
                         }
-                        .help("Switch between the A and B profiles for quick comparison.")
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Compare two profiles by ear. Pick a profile while on A, "
+                              + "switch to B and pick another, then toggle A/B to compare.")
 
                         Spacer()
 
@@ -123,11 +150,11 @@ struct ContentView: View {
             }
             .frame(minWidth: 520)
 
-            // Right sidebar — numeric band editor (Chunk 5.2/5.3). The collapse
-            // lives INSIDE this HSplitView pane: AppKit split panes are
-            // independent layout worlds, so toggling here never re-measures the
-            // left pane, and left-pane toggles never re-measure these rows
-            // (that cross-measurement was the lag — see commit message).
+            // Right sidebar — numeric band editor. The collapse lives INSIDE this
+            // HSplitView pane: AppKit split panes are independent layout worlds,
+            // so toggling here never re-measures the left pane, and left-pane
+            // toggles never re-measure these rows (that cross-measurement was the
+            // lag — see commit message).
             if showBandsPanel {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Bands")
@@ -201,8 +228,8 @@ struct ContentView: View {
         .sheet(isPresented: $model.showingTroubleshooting) {
             TroubleshootingView()
         }
-        // Chunk 5.5: drop profile files anywhere on the window. Native profile
-        // JSON imports directly; other text files fall back to the AutoEQ parser.
+        // Drop profile files anywhere on the window. Native profile JSON imports
+        // directly; other text files fall back to the AutoEQ parser.
         .dropDestination(for: URL.self) { urls, _ in
             handleDroppedFiles(urls)
             return true
@@ -240,7 +267,7 @@ struct ContentView: View {
 /// Frequency-response header + graph stack, observation-isolated (the same
 /// lesson as SpectrumSection, see AUDIO_PATH.md): Pre/Post/Legend toggles and
 /// 20 Hz spectrum updates re-render only this subtree — never the band list,
-/// gain sliders, or debug panel above it.
+/// gain sliders, or engine panel above it.
 struct FrequencyPane: View {
     @Binding var selectedBandID: UUID?
 
@@ -310,8 +337,8 @@ struct LegendOverlay: View {
     }
 }
 
-/// Numeric band editor rows (Chunk 5.3 essentials): type, frequency, gain, Q,
-/// delete. Edits flow through AppModel.updateBand → engine + persistence.
+/// Numeric band editor rows: type, frequency, gain, Q, delete. Edits flow
+/// through AppModel.updateBand → engine + persistence.
 struct BandListEditor: View {
     @Environment(AppModel.self) private var appModel
     @Binding var selectedBandID: UUID?
@@ -443,9 +470,9 @@ struct SpectrumSection: View {
     }
 }
 
-/// Temporary Chunk 1.1 debug panel: engine lifecycle, output device picker, and
-/// permission/error guidance. Replaced by real UI in Phase 5.
-struct AudioEngineDebugView: View {
+/// Engine controls: start/stop/reset lifecycle, output device selection, and
+/// permission/error guidance.
+struct AudioEnginePanel: View {
     @Environment(AppModel.self) private var appModel
 
     var body: some View {
@@ -453,14 +480,31 @@ struct AudioEngineDebugView: View {
 
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Circle()
                         .fill(stateColor)
                         .frame(width: 10, height: 10)
                     Text(appModel.engineState.description)
                         .font(.subheadline)
-                        .lineLimit(2)
+                        .lineLimit(1)
+
+                    Picker("Output Device", selection: $model.selectedOutputUID) {
+                        Text("System Default").tag(String?.none)
+                        ForEach(appModel.outputDevices) { device in
+                            Text(device.name).tag(Optional(device.uid))
+                        }
+                    }
+                    .frame(minWidth: 240, maxWidth: 360)
+                    Button {
+                        appModel.refreshOutputDevices()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help("Refresh device list")
+                    .accessibilityLabel("Refresh output device list")
+
                     Spacer()
+
                     Button(appModel.isProcessing ? "Stop Engine" : "Start Engine") {
                         appModel.toggleEngine()
                     }
@@ -473,49 +517,6 @@ struct AudioEngineDebugView: View {
                     .help("Reset the audio engine — full teardown and rebuild of the capture path. Use if audio gets into a bad state.")
                     .accessibilityLabel("Reset audio engine")
                     .disabled(!appModel.isProcessing)
-                }
-
-                HStack {
-                    Picker("Output Device", selection: $model.selectedOutputUID) {
-                        Text("System Default").tag(String?.none)
-                        ForEach(appModel.outputDevices) { device in
-                            Text(device.name).tag(Optional(device.uid))
-                        }
-                    }
-                    .frame(maxWidth: 360)
-
-                    Button {
-                        appModel.refreshOutputDevices()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help("Refresh device list")
-                    .accessibilityLabel("Refresh output device list")
-                }
-
-                HStack {
-                    Text("Profile")
-                    Menu(appModel.currentProfile.name) {
-                        ForEach(appModel.profileManager.profiles) { profile in
-                            Button {
-                                appModel.selectProfile(id: profile.id)
-                            } label: {
-                                if profile.id == appModel.profileManager.activeProfileID {
-                                    Label(profile.name, systemImage: "checkmark")
-                                } else {
-                                    Text(profile.name)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: 200)
-                    .help("Switch the active EQ profile. Profiles persist across launches; manage and import them from the Profiles button in the toolbar.")
-                    if let notes = appModel.currentProfile.notes {
-                        Text(notes)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
 
                 if case .failed = appModel.engineState {
