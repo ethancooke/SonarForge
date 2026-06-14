@@ -509,7 +509,7 @@ struct AudioEngineDebugView: View {
                         }
                     }
                     .frame(maxWidth: 200)
-                    .help("Profiles persist across launches (Chunk 4.1). Management UI and AutoEQ import arrive in 4.1.3/4.2.")
+                    .help("Switch the active EQ profile. Profiles persist across launches; manage and import them from the Profiles button in the toolbar.")
                     if let notes = appModel.currentProfile.notes {
                         Text(notes)
                             .font(.caption)
@@ -540,7 +540,7 @@ struct AudioEngineDebugView: View {
             }
             .padding(4)
         } label: {
-            Label("Audio Engine (Chunk 1.1 Debug)", systemImage: "waveform.badge.mic")
+            Label("Audio Engine", systemImage: "waveform.badge.mic")
         }
     }
 
