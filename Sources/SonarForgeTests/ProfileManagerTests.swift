@@ -250,10 +250,17 @@ final class ProfileManagerTests: XCTestCase {
 
     // MARK: - Factory presets
 
-    func testFactoryCatalogHasTenIndustryPresets() throws {
-        XCTAssertEqual(EQProfile.factoryPresets.count, 10)
+    func testFactoryCatalogHasExpectedPresets() throws {
+        // 10 industry-recognizable presets + the artistic Sonar Wave.
+        XCTAssertEqual(EQProfile.factoryPresets.count, 11)
         XCTAssertTrue(EQProfile.factoryPresets.allSatisfy(\.isFactory))
         XCTAssertTrue(EQProfile.factoryPresets.allSatisfy { $0.preamp == 0 })
+    }
+
+    func testSonarWaveIsSixteenPeakingBands() throws {
+        let wave = try XCTUnwrap(EQProfile.canonicalFactory(id: FactoryPresetID.sonarWave))
+        XCTAssertEqual(wave.bands.count, 16)
+        XCTAssertTrue(wave.bands.allSatisfy { $0.type == .peaking })
     }
 
     func testFilterShowcaseDemonstratesAllFilterTypes() throws {

@@ -13,6 +13,7 @@ enum FactoryPresetID {
     static let loudness = UUID(uuidString: "11111111-1111-1111-1111-111111110008")!
     static let rock = UUID(uuidString: "11111111-1111-1111-1111-111111110009")!
     static let filterShowcase = UUID(uuidString: "11111111-1111-1111-1111-11111111000A")!
+    static let sonarWave = UUID(uuidString: "11111111-1111-1111-1111-11111111000B")!
 }
 
 /// Represents a complete, serializable EQ configuration.
@@ -130,6 +131,30 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
                     EQBand(type: .lowPass, frequency: 18000, gain: 0, q: 0.707),
                 ],
                 notes: "Demo of all filter types — 10 bands (pass, shelf, peak, notch)"),
+
+        // A sine wave traced across the spectrum with 16 log-spaced peaking bands
+        // (gains follow sin over 2.5 cycles, ±8.7 dB, Q 1.8). Purely artistic —
+        // the summed response draws a clean wave on the graph; not corrective.
+        factory(id: FactoryPresetID.sonarWave, name: "Sonar Wave",
+                bands: [
+                    EQBand(type: .peaking, frequency: 28, gain: 0, q: 1.8),
+                    EQBand(type: .peaking, frequency: 43, gain: 8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 66, gain: 8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 101, gain: 0, q: 1.8),
+                    EQBand(type: .peaking, frequency: 155, gain: -8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 237, gain: -8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 363, gain: 0, q: 1.8),
+                    EQBand(type: .peaking, frequency: 557, gain: 8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 854, gain: 8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 1310, gain: 0, q: 1.8),
+                    EQBand(type: .peaking, frequency: 2008, gain: -8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 3078, gain: -8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 4718, gain: 0, q: 1.8),
+                    EQBand(type: .peaking, frequency: 7233, gain: 8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 11089, gain: 8.7, q: 1.8),
+                    EQBand(type: .peaking, frequency: 17000, gain: 0, q: 1.8),
+                ],
+                notes: "A sine wave across the spectrum — a playful, artistic profile (not corrective EQ)"),
     ]
 
     /// Returns the canonical factory definition for a built-in preset id.
