@@ -58,6 +58,11 @@ xcodebuild -project SonarForge.xcodeproj -scheme SonarForge \
 
 cp -R "$ARCHIVE/Products/Applications/SonarForge.app" "$APP"
 
+# Strip quarantine/provenance xattrs picked up during local dev (e.g. Preview
+# touching AppIcon.icns). Left in the bundle they can break Gatekeeper on
+# other Macs (macOS 26: "File created by an AppSandbox, exec/open not allowed").
+xattr -cr "$APP"
+
 echo "==> Sign app (identity: $SIGN_IDENTITY, hardened runtime)"
 # Secure timestamps are REQUIRED for notarization but unsupported for ad-hoc.
 TIMESTAMP_FLAG=""
@@ -72,6 +77,18 @@ codesign --verify --strict "$APP"
 # (this exact regression shipped silently once; see AUDIO_PATH.md).
 codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.device.audio-input" \
   || { echo "ERROR: audio-input entitlement missing from signature — Release builds would capture silence."; exit 1; }
+
+# Regression guard: no AppSandbox provenance xattr may survive into the signed
+# bundle. macOS 26 Gatekeeper rejects any bundle containing one ("File created
+# by an AppSandbox, exec/open not allowed") — this shipped silently once (a
+# sandboxed tool touched AppIcon.icns during icon work) and broke launch on
+# other Macs. The `xattr -cr` above strips them pre-sign; this confirms none
+# came back. Download quarantine (com.apple.quarantine) is unrelated and fine.
+if xattr -rl "$APP" | grep -qi "provenance"; then
+  echo "ERROR: AppSandbox provenance xattr present in signed bundle — Gatekeeper would reject this on macOS 26:"
+  xattr -rl "$APP" | grep -i "provenance"
+  exit 1
+fi
 
 # Verify the platform contract: arm64-only, 14.2 minimum.
 BIN="$APP/Contents/MacOS/SonarForge"
