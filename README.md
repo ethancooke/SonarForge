@@ -1,127 +1,111 @@
-# SonarForge
+<h1 align="center">SonarForge</h1>
 
-**A free, open-source, native macOS system-wide parametric equalizer.**
+<p align="center">
+  <strong>A free, open-source, system-wide parametric equalizer for macOS.</strong><br>
+  Native SwiftUI · low CPU · artifact-free · first-class AutoEQ headphone support.
+</p>
 
-SonarForge delivers reliable, low-CPU, artifact-free audio processing with a clean modern SwiftUI experience. It focuses on essential high-quality EQ functionality and excellent headphone profile support (especially seamless AutoEQ integration).
+<p align="center">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
+  <img src="https://img.shields.io/badge/macOS-14.2%2B-black?logo=apple" alt="macOS 14.2+">
+  <img src="https://img.shields.io/badge/Apple%20Silicon-arm64-orange" alt="Apple Silicon">
+  <img src="https://img.shields.io/badge/price-%240-brightgreen" alt="Free">
+</p>
 
-- **Target**: macOS 14.2 and later on Apple Silicon only (M1 and newer).
-- **License**: Apache License 2.0.
-- **Philosophy**: Focused essentials, native feel, zero paywalls, maximum audio fidelity.
+<p align="center">
+  <img src="Assets/sonar-wave-hero.png" alt="SonarForge showing the Sonar Wave preset — a sine-shaped EQ curve over a live spectrum" width="820">
+</p>
 
-## Features (MVP Scope)
+SonarForge sits in your Mac's audio path and shapes **everything you hear** — no per-app setup, no virtual devices to wrangle. It pairs a precise multi-band parametric EQ with a live spectrum analyzer and seamless [AutoEQ](https://github.com/jaakkopasanen/AutoEQ) headphone corrections, in a window that feels like it shipped with macOS.
 
-- System-wide audio capture and processing via Core Audio Taps (driverless on supported macOS).
-- High-quality parametric EQ (multiple bands, peaking, shelves, high/low pass, etc.).
-- Real-time spectrum analyzer (FFT via Accelerate/vDSP).
-- Headphone profile system with easy AutoEQ import.
-- Profile management: save, load, export, import, favorites, quick switch.
-- Preamp / output gain.
-- Global bypass and A/B comparison.
-- Minimal, useful menu bar / status item.
-- Resizable main window, full native dark mode, excellent keyboard + VoiceOver accessibility.
-- Thoughtful keyboard shortcuts.
+> *Pictured: the built-in **Sonar Wave** preset — a 16-band curve drawn as a sine wave, just for the look of it.*
 
-## Non-Goals
+## Highlights
 
-- AU hosting or plugin chaining.
-- Spatial / 3D audio or advanced effects.
-- Per-app routing or mixing.
-- Convolution / FIR (unless it becomes trivial later).
-- Any monetization.
+- 🎚️ **True system-wide EQ** — driverless capture via Core Audio Taps; processes all system audio at once.
+- 🎧 **AutoEQ in two clicks** — paste or drop an AutoEQ profile; source attribution is preserved and shown.
+- 📈 **Live spectrum** — pre/post FFT traces (Accelerate/vDSP) behind a draggable response curve.
+- 🪶 **Low CPU, artifact-free** — Direct Form II Transposed biquads; ~0.2% of one core for a full band set.
+- 🗂️ **Profiles** — save, import/export, favorites, quick-switch, A/B compare, and global bypass.
+- 🍎 **Native & accessible** — SwiftUI, dark mode, full keyboard + VoiceOver support, menu-bar item.
+- 🆓 **Free & private** — Apache 2.0, zero telemetry, no network calls, no paywalls.
 
-## Installation
+**Requirements:** macOS 14.2+ on Apple Silicon (M1 or newer). *Intel Macs are not supported.*
 
-1. Download `SonarForge-<version>.dmg` from the latest [GitHub Release](https://github.com/ethancooke/SonarForge/releases).
+## Install
+
+1. Download `SonarForge-<version>.dmg` from the [latest release](https://github.com/ethancooke/SonarForge/releases).
 2. Open the disk image and **drag SonarForge to Applications**.
-3. Launch it from Applications. (Release builds are signed and notarized by Apple, so it opens with a single "downloaded from the Internet" confirmation — no Gatekeeper workarounds.)
-4. Grant **System Audio Recording** permission when prompted on first start (required for the Core Audio tap).
-5. Select your output device if needed, then create or import EQ profiles (AutoEQ recommended for headphones).
+3. Launch from Applications. Builds are signed and notarized by Apple, so it opens with the normal one-time confirmation — no Gatekeeper workarounds.
+4. Grant **System Audio Recording** when prompted (required for the Core Audio tap).
+5. Play something, hit **Start Engine**, and pick or import a profile.
 
-## Building from Source
+## Using SonarForge
 
-Requirements:
-- Xcode 16+ (or latest)
-- macOS 14.2 SDK (deployment target 14.2)
-- Apple Silicon Mac (M1 or newer) — required for both development and runtime (no Intel support)
+- **Graph editor** — drag a band handle to set frequency (x) and gain (y); ⌥-drag for Q; double-click to add a band; right-click to delete.
+- **Band list** — precise numeric editing of type / Hz / dB / Q.
+- **Profiles** — switch from the Profile menu; manage, import, and export from the Profiles button. Drop a profile or AutoEQ file anywhere on the window to import it.
+- **Compare** — toggle **A | B** between two profiles, or **Bypass** to hear the original.
+- **Shortcuts** — press ⌘? for the in-app cheat sheet.
+
+## AutoEQ headphone corrections
+
+SonarForge makes community headphone corrections from [AutoEQ](https://github.com/jaakkopasanen/AutoEQ) painless:
+
+1. Find your headphone's Parametric EQ settings (AutoEQ / oratory1990).
+2. Copy the text block.
+3. **Profiles → Import from AutoEQ** — or just drop the file on the window.
+4. The profile is created with full source attribution, shown in the app.
+
+> Imported profiles always retain credit to the original measurement author and AutoEQ.
+
+## Building from source
+
+Requires Xcode 16+ and an Apple Silicon Mac (macOS 14.2 deployment target).
 
 ```bash
-git clone https://github.com/<your-org>/SonarForge.git
+git clone https://github.com/ethancooke/SonarForge.git
 cd SonarForge
-open SonarForge.xcodeproj
+open SonarForge.xcodeproj   # build the SonarForge scheme
 ```
 
-Build the `SonarForge` scheme (Release for distribution builds).
+Distribution builds come from `Scripts/release.sh` (sign → notarize → staple → dmg/zip). See [Documentation/SIGNING.md](Documentation/SIGNING.md).
 
-Code signing / notarization is required for distribution outside the App Store or direct developer ID.
+## Under the hood
 
-## Usage
+- **Capture:** Core Audio Taps (`CATapDescription`, `AudioHardwareCreateProcessTap`) — modern, driverless, low overhead.
+- **DSP:** RBJ biquads in Direct Form II Transposed, with lock-free parameter updates to the realtime thread.
+- **Analysis:** Accelerate `vDSP` FFT with windowing and log-frequency mapping.
+- **Local-only:** no network calls, ever. Handles sample-rate and device changes gracefully (44.1–96 kHz+).
 
-- **Menu Bar**: Toggle bypass, switch profiles, open main window, access settings.
-- **Main Window**: Graphical frequency response editor + band list. Drag nodes on the curve or edit numerically.
-- **Profiles**: Import AutoEQ settings via the dedicated importer (paste text or load file). Attribution is preserved and displayed.
-- **Shortcuts**: See the Keyboard Shortcuts section in-app (or ⌘?).
+More depth in [Documentation/AUDIO_PATH.md](Documentation/AUDIO_PATH.md).
 
-## AutoEQ Integration
+## Non-goals
 
-SonarForge makes it easy to apply community headphone corrections from [AutoEQ](https://github.com/jaakkopasanen/AutoEQ).
-
-1. Visit the AutoEQ project or oratory1990 measurements.
-2. Copy the Parametric EQ settings (or the full text block).
-3. In SonarForge → Profiles → Import from AutoEQ.
-4. The profile is created with proper source attribution.
-
-**Attribution**: All imported profiles must retain clear credit to the original measurement author and AutoEQ. SonarForge displays this prominently.
-
-## Technical Highlights
-
-- Audio path built on Apple's Core Audio Taps (`CATapDescription`, `AudioHardwareCreateProcessTap`) for modern, low-overhead system capture.
-- DSP implemented with carefully designed biquad IIR filters (Direct Form II Transposed) for stability and low CPU.
-- Spectrum analysis uses Accelerate `vDSP` (FFT, windowing, log-frequency mapping).
-- All processing is strictly local. No network calls for audio.
-- Designed for sample rates 44.1 kHz – 96 kHz+ with graceful device change handling.
+AU/plugin hosting · spatial/3D audio · per-app routing · convolution/FIR · any monetization.
 
 ## Contributing
 
-We welcome contributions that improve audio quality, stability, or the native experience. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and open issues/discussions before large changes.
+Contributions that improve audio quality, stability, or native feel are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). High-value areas: DSP/coefficient quality, realtime performance, SwiftUI polish & accessibility, and AutoEQ import robustness.
 
-Key areas:
-- DSP filter quality and coefficient calculation.
-- Real-time performance / CPU profiling.
-- SwiftUI polish and accessibility.
-- AutoEQ import robustness and profile UX.
+## Thanks
 
-## Attribution & Thanks
-
-- Inspired in part by the open-source work in [eqMac](https://github.com/bitgapp/eqMac), particularly their user-space driver explorations (Apache 2.0). We have chosen a driverless Core Audio Tap path for this project.
-- Apple's Core Audio team and public sample code for Audio Server Plug-ins and the Core Audio Taps documentation.
+- [eqMac](https://github.com/bitgapp/eqMac) for open user-space driver explorations (Apache 2.0); SonarForge takes a driverless Core Audio Tap path.
+- Apple's Core Audio team and public sample code for Audio Taps.
 - The AutoEQ community and headphone measurement experts (oratory1990 et al.).
-- Accelerate and AVFoundation teams for the excellent low-level tools.
 
-## Disclaimer
+## Disclaimer & privacy
 
-SonarForge is provided **"AS IS"**, without warranty of any kind, and the
-authors accept no liability for damages arising from its use (Apache License
-2.0, §7–8). An equalizer can make audio **much louder** — large boosts or a
-high preamp can overdrive headphones and speakers. Start at low volume when
-trying new profiles, and protect your hearing and your equipment.
+Provided **"AS IS"**, with no warranty and no liability for damages (Apache 2.0 §7–8). An equalizer can make audio **much louder** — large boosts or a high preamp can overdrive headphones and speakers, so start quiet and protect your hearing.
 
-SonarForge is an independent project. It is **not affiliated with or endorsed
-by** Apple, Bitgap (eqMac), the AutoEQ project, or any headphone measurement
-author; their names are used only to refer to them. SonarForge does not bundle
-or redistribute AutoEQ results or measurement data — it parses files you
-supply, and displays their source attribution.
-
-See [PRIVACY.md](PRIVACY.md) (short version: the app collects nothing) and
-[NOTICE](NOTICE) for third-party attributions.
+SonarForge is an independent project and is **not affiliated with or endorsed by** Apple, Bitgap (eqMac), or the AutoEQ project; their names refer only to them. It bundles no AutoEQ data — it parses files you supply. The app collects nothing (see [PRIVACY.md](PRIVACY.md)); third-party notices live in [NOTICE](NOTICE).
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+[Apache License 2.0](LICENSE).
 
 ---
 
-**SonarForge** — Precise. Native. Free.
+<p align="center"><strong>SonarForge</strong> — Precise. Native. Free.</p>
 
----
-
-**For AI agents / new contributors**: Start by reading [AGENTS.md](AGENTS.md). It points to the full recommended reading order (`VISION.md`, `DECISIONS.md`, `STATE.md`, etc.) so the project can be picked up cleanly in a new session or different tool.
+<sub>New contributor or AI agent? Start with [AGENTS.md](AGENTS.md) for the recommended reading order (VISION, DECISIONS, STATE, …).</sub>
