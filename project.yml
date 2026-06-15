@@ -47,6 +47,12 @@ targets:
         product: Atomics
     entitlements:
       path: Sources/SonarForge/Resources/Entitlements.entitlements
+      properties:
+        # REQUIRED under the hardened runtime: without it the Core Audio tap
+        # silently delivers zeros in Release builds. Declared here so `xcodegen
+        # generate` regenerates the file WITH the key — a path-only entitlements
+        # block overwrites the file with an empty <dict/> and drops it. Do not remove.
+        com.apple.security.device.audio-input: true
     info:
       path: Sources/SonarForge/Resources/Info.plist
       properties:

@@ -188,6 +188,18 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-011: Audio-input entitlement is declared in `project.yml`, not hand-maintained
+
+**Date**: 2026-06-15
+
+**Decision**: `com.apple.security.device.audio-input` lives in the `entitlements.properties` block of `project.yml`, so `xcodegen generate` regenerates `Sources/SonarForge/Resources/Entitlements.entitlements` *with* the key.
+
+**Rationale**: A `path`-only entitlements block makes XcodeGen overwrite that file with an empty `<dict/>` on every regenerate, silently dropping the entitlement. Under the hardened runtime that makes the Core Audio tap deliver zeros in Release builds (Debug masks it). This regression shipped once and recurred after a later `xcodegen generate`. Declaring the key in `project.yml` makes regeneration idempotent; `Scripts/release.sh` also fails the build if the signed bundle lacks the entitlement (defense in depth).
+
+**Status**: Locked. See `project.yml` (`entitlements.properties`) and the guard in `Scripts/release.sh`.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

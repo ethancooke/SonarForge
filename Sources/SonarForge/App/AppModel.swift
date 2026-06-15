@@ -25,9 +25,12 @@ final class AppModel {
     var isProcessing: Bool { engineState == .running }
 
     var currentProfile: EQProfile = .flat
-    var aProfile: EQProfile = .flat
-    var bProfile: EQProfile = .flat
     var showingB: Bool = false              // A/B comparison state
+    // A/B slots reference library profiles by id (not snapshots): swapping
+    // reloads the live, saved profile, so edits made on either side are never
+    // reverted, and the active selection tracks whichever slot is showing.
+    private var aProfileID: UUID?
+    private var bProfileID: UUID?
 
     // Gain staging (Chunk 1.2). didSet wiring means SwiftUI slider bindings reach
     // the engine directly; the engine smooths the change on the render thread.
@@ -332,12 +335,8 @@ final class AppModel {
 
     func loadProfile(_ profile: EQProfile) {
         currentProfile = profile
-        // Update A/B as appropriate
-        if !showingB {
-            aProfile = profile
-        } else {
-            bProfile = profile
-        }
+        // Remember which profile is loaded in the showing slot (by id).
+        if showingB { bProfileID = profile.id } else { aProfileID = profile.id }
         // The profile's preamp is part of A/B state (Chunk 1.2).
         preampDB = profile.preamp
         audioEngine.loadProfile(profile)
@@ -345,10 +344,22 @@ final class AppModel {
 
     func swapAB() {
         showingB.toggle()
-        let active = showingB ? bProfile : aProfile
-        currentProfile = active
-        preampDB = active.preamp
-        audioEngine.loadProfile(active)
+        let slotID = showingB ? bProfileID : aProfileID
+        // Reload the slot's profile fresh from the library so edits on either
+        // side are preserved (never a stale snapshot), and make it the active
+        // profile so the Profile menu reflects the slot that's showing.
+        if let id = slotID, let profile = profileManager.profiles.first(where: { $0.id == id }) {
+            profileManager.setActive(id)
+            currentProfile = profile
+            preampDB = profile.preamp
+            audioEngine.loadProfile(profile)
+        } else if showingB {
+            // First switch to B with nothing assigned yet: adopt the current
+            // profile as B's starting point (pick a different one to compare).
+            bProfileID = currentProfile.id
+        } else {
+            aProfileID = currentProfile.id
+        }
     }
 
     // Called by the audio engine (on a background queue) when spectrum updates arrive

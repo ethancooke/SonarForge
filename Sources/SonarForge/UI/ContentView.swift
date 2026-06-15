@@ -148,7 +148,11 @@ struct ContentView: View {
 
                 Spacer()
             }
-            .frame(minWidth: 520)
+            // Lower than the content's natural width on purpose: when the window
+            // is narrow enough that HSplitView squeezes this pane, a high minWidth
+            // forces the content wider than the pane and it overflows (clips) on
+            // both sides. A lower floor lets the row compress to fit instead.
+            .frame(minWidth: 440)
 
             // Right sidebar — numeric band editor. The collapse lives INSIDE this
             // HSplitView pane: AppKit split panes are independent layout worlds,
@@ -156,26 +160,36 @@ struct ContentView: View {
             // toggles never re-measure these rows (that cross-measurement was the
             // lag — see commit message).
             if showBandsPanel {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Bands")
-                    .font(.headline)
-                    .padding(.top, 4)
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Bands")
+                        .font(.headline)
+                        .padding(.top, 4)
 
-                BandListEditor(selectedBandID: $selectedBandID)
+                    BandListEditor(selectedBandID: $selectedBandID)
 
-                HStack {
-                    Button("+ Add Band") {
-                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
-                            selectedBandID = added.id
+                    HStack {
+                        Button("+ Add Band") {
+                            if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                                selectedBandID = added.id
+                            }
                         }
+                        .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+                        Spacer()
                     }
-                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-                    Spacer()
+                    .padding(.bottom, 8)
                 }
-                .padding(.bottom, 8)
+                // Fixed editor width + a trailing Spacer to absorb the rest of the
+                // pane. (HSplitView stretches the pane's root to full width, and a
+                // maxWidth on a VStack wrapping a greedy ScrollView doesn't reliably
+                // constrain it — a fixed width does, so the delete button stays with
+                // its row instead of stranding at the far edge.)
+                .frame(width: 330, alignment: .leading)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 8)
-            .frame(minWidth: 300, maxWidth: 360)
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
+            .frame(minWidth: 360)
             } else {
                 // Slim reveal strip so the panel is rediscoverable without the toolbar.
                 VStack {
@@ -488,13 +502,20 @@ struct AudioEnginePanel: View {
                         .font(.subheadline)
                         .lineLimit(1)
 
+                    Image(systemName: "speaker.wave.2")
+                        .foregroundStyle(.secondary)
+                        .help("Output device")
                     Picker("Output Device", selection: $model.selectedOutputUID) {
                         Text("System Default").tag(String?.none)
                         ForEach(appModel.outputDevices) { device in
                             Text(device.name).tag(Optional(device.uid))
                         }
                     }
-                    .frame(minWidth: 240, maxWidth: 360)
+                    .labelsHidden()
+                    // Value only (the inline "Output Device" label ate the width and
+                    // collapsed the value); the speaker icon conveys the purpose. Sizes
+                    // to the device name and compresses gracefully on a narrow window.
+                    .frame(minWidth: 110, maxWidth: 260)
                     Button {
                         appModel.refreshOutputDevices()
                     } label: {
@@ -509,6 +530,7 @@ struct AudioEnginePanel: View {
                         appModel.toggleEngine()
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .fixedSize()   // never truncate the primary action; the picker absorbs compression
                     Button {
                         appModel.resetAudioEngine()
                     } label: {
