@@ -62,7 +62,7 @@ See the dedicated `STATE.md` file for the most up-to-date status.
 
 `STATE.md` is the single source of truth for status; the summary here is just a pointer.
 
-As of 2026-06-13: the **MVP is functionally complete** (Phases 0–5 and most of Phase 6 done and listening-validated — capture, EQ, spectrum, profiles + AutoEQ import, full UI, accessibility, release pipeline). The project is pushed to GitHub (private) with green CI. Remaining before a public v0.1.0: Apple Developer ID credentials for signing/notarization, and a hardware QA pass (Bluetooth/USB DAC, Apple Music/FairPlay). See `STATE.md` for the live picture and `DECISIONS.md` for the locked choices.
+As of 2026-06-14: **v0.1.0 is shipped** — signed, notarized, and published to GitHub Releases, with a live, dry-run-verified CI signed-release pipeline. Phases 0–6 are essentially complete (capture, EQ, spectrum, profiles + AutoEQ import, full UI, accessibility, signed/notarized release). The repo is still **private** with green CI; remaining before going public: rotate the notarization app-specific password (exposed during CI-secrets setup) and the private→public flip. Ongoing: broader beta + hardware QA (Bluetooth/USB DAC, Apple Music/FairPlay). See `STATE.md` for the live picture and `DECISIONS.md` for the locked choices.
 
 ---
 
