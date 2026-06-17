@@ -46,6 +46,13 @@ struct FrequencyResponseEditor: View {
         let bands = appModel.currentProfile.bands
         let response = bands.isEmpty ? [] : EQResponseCurve.responseDB(
             bands: bands, sampleRate: Self.displaySampleRate, frequencies: Self.curveFrequencies)
+        // Each band's own contribution (color + its response + selection), so its
+        // footprint can be drawn in the band's color behind the summed curve.
+        let bandCurves: [(color: Color, response: [Double], selected: Bool)] = bands.map { band in
+            (BandPalette.color(forFrequency: band.frequency),
+             EQResponseCurve.responseDB(bands: [band], sampleRate: Self.displaySampleRate, frequencies: Self.curveFrequencies),
+             band.id == selectedBandID)
+        }
 
         GeometryReader { geometry in
             let size = geometry.size
@@ -53,7 +60,11 @@ struct FrequencyResponseEditor: View {
             ZStack {
                 Canvas { context, size in
                     drawGrid(in: &context, size: size)
-                    drawCurve(response: response, in: &context, size: size)
+                    for bandCurve in bandCurves {
+                        drawBandFootprint(bandCurve.response, color: bandCurve.color,
+                                          emphasized: bandCurve.selected, in: &context, size: size)
+                    }
+                    drawTotalCurve(response: response, in: &context, size: size)
                 }
 
                 ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
@@ -166,7 +177,11 @@ struct FrequencyResponseEditor: View {
         }
     }
 
-    private func drawCurve(response: [Double], in context: inout GraphicsContext, size: CGSize) {
+    /// A single band's contribution: a translucent fill from 0 dB to its own
+    /// response plus a line, both in the band's color. The selected band is
+    /// emphasized so "what does this band do" reads at a glance.
+    private func drawBandFootprint(_ response: [Double], color: Color, emphasized: Bool,
+                                   in context: inout GraphicsContext, size: CGSize) {
         guard !response.isEmpty else { return }
 
         var curve = Path()
@@ -175,15 +190,30 @@ struct FrequencyResponseEditor: View {
                                 y: y(forDB: response[i], height: size.height))
             if i == 0 { curve.move(to: point) } else { curve.addLine(to: point) }
         }
-        context.stroke(curve, with: .color(.accentColor), style: StrokeStyle(lineWidth: 2, lineJoin: .round))
 
-        // Soft fill between the curve and 0 dB for readability.
         var fill = curve
         let zeroY = y(forDB: 0, height: size.height)
         fill.addLine(to: CGPoint(x: size.width, y: zeroY))
         fill.addLine(to: CGPoint(x: 0, y: zeroY))
         fill.closeSubpath()
-        context.fill(fill, with: .color(.accentColor.opacity(0.08)))
+        context.fill(fill, with: .color(color.opacity(emphasized ? 0.22 : 0.09)))
+        context.stroke(curve, with: .color(color.opacity(emphasized ? 1.0 : 0.5)),
+                       style: StrokeStyle(lineWidth: emphasized ? 2 : 1.2, lineJoin: .round))
+    }
+
+    /// The summed response — the "what you actually hear" curve — drawn neutral
+    /// and bold on top of the colored band footprints.
+    private func drawTotalCurve(response: [Double], in context: inout GraphicsContext, size: CGSize) {
+        guard !response.isEmpty else { return }
+
+        var curve = Path()
+        for (i, frequency) in Self.curveFrequencies.enumerated() {
+            let point = CGPoint(x: x(forFrequency: frequency, width: size.width),
+                                y: y(forDB: response[i], height: size.height))
+            if i == 0 { curve.move(to: point) } else { curve.addLine(to: point) }
+        }
+        context.stroke(curve, with: .color(.primary.opacity(0.85)),
+                       style: StrokeStyle(lineWidth: 2, lineJoin: .round))
     }
 
     // MARK: - Handles
@@ -191,12 +221,13 @@ struct FrequencyResponseEditor: View {
     @ViewBuilder
     private func handle(for band: EQBand, at index: Int, in size: CGSize) -> some View {
         let isSelected = band.id == selectedBandID
+        let color = BandPalette.color(forFrequency: band.frequency)
         let position = CGPoint(x: x(forFrequency: band.frequency, width: size.width),
                                y: y(forDB: band.gain, height: size.height))
 
         Circle()
-            .fill(isSelected ? Color.accentColor : Color(nsColor: .controlBackgroundColor))
-            .stroke(Color.accentColor, lineWidth: 2)
+            .fill(isSelected ? color : Color(nsColor: .controlBackgroundColor))
+            .stroke(color, lineWidth: 2)
             .frame(width: isSelected ? 16 : 12, height: isSelected ? 16 : 12)
             .position(position)
             .gesture(

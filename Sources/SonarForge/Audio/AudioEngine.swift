@@ -220,9 +220,9 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
 
             // 3. Create a private aggregate: output device is the clock master, the tap is
             //    drift-compensated against it. tapautostart lets IO begin as soon as we start.
-            let aggregateUID = "com.sonarforge.aggregate"
+            let aggregateUID = AudioDeviceUtils.privateAggregateUID
             let description: [String: Any] = [
-                kAudioAggregateDeviceNameKey: "SonarForge",
+                kAudioAggregateDeviceNameKey: AudioDeviceUtils.privateAggregateName,
                 kAudioAggregateDeviceUIDKey: aggregateUID,
                 kAudioAggregateDeviceIsPrivateKey: true,
                 kAudioAggregateDeviceMainSubDeviceKey: outputUID,

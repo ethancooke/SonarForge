@@ -63,24 +63,16 @@ final class AppModel {
     var preEQLevels: [Float] = []
     var postEQLevels: [Float] = []
 
-    var showPreSpectrum: Bool = false {
-        didSet { updateSpectrumEnabled() }
-    }
-    var showPostSpectrum: Bool = true {
-        didSet { updateSpectrumEnabled() }
-    }
-    var showSpectrumLegend: Bool = false
-
     /// Set by the spectrum view's appear/disappear (Chunk 6.2 CPU saver):
     /// analysis is display-only, so when the main window is closed (menu-bar
-    /// use) capture + FFT + redraw all stop. With continuous audio they cost
-    /// real CPU; with the window closed they bought nothing.
+    /// use) capture + FFT + redraw all stop. Pre and post traces are always
+    /// shown when the window is open (no per-trace toggle).
     var spectrumViewVisible: Bool = false {
         didSet { updateSpectrumEnabled() }
     }
 
     private func updateSpectrumEnabled() {
-        let enabled = (showPreSpectrum || showPostSpectrum) && spectrumViewVisible
+        let enabled = spectrumViewVisible
         audioEngine.setSpectrumEnabled(enabled)
         if !enabled {
             preEQLevels = []
@@ -92,6 +84,9 @@ final class AppModel {
 
     private(set) var audioEngine: AudioEngineProtocol
     private(set) var profileManager: ProfileManager
+
+    /// Retains the Core Audio device-list listener so the output picker auto-updates.
+    @ObservationIgnored private var deviceListListener: AudioObjectPropertyListenerBlock?
 
     // MARK: - Initialization
 
@@ -145,12 +140,18 @@ final class AppModel {
             }
             Task { @MainActor in
                 guard let self else { return }
-                if self.showPreSpectrum { self.preEQLevels = pre }
-                if self.showPostSpectrum { self.postEQLevels = post }
+                self.preEQLevels = pre
+                self.postEQLevels = post
             }
         }
         updateSpectrumEnabled()
         refreshOutputDevices()
+
+        // Keep the output picker current automatically (devices plugged/unplugged,
+        // our aggregate appearing/disappearing) — no manual refresh needed.
+        deviceListListener = AudioDeviceUtils.addDeviceListChangeListener { [weak self] in
+            Task { @MainActor in self?.refreshOutputDevices() }
+        }
 
         // Restore the last-used profile and apply it to the engine. The engine
         // stores the bands and re-applies them at the real device rate on start,

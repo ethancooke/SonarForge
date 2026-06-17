@@ -160,36 +160,29 @@ struct ContentView: View {
             // toggles never re-measure these rows (that cross-measurement was the
             // lag — see commit message).
             if showBandsPanel {
-            HStack(alignment: .top, spacing: 0) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Bands")
-                        .font(.headline)
-                        .padding(.top, 4)
+            // Fixed-width sidebar: the pane is exactly as wide as the editor needs,
+            // so there's no dead space on the right and the rows aren't stretched.
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Bands")
+                    .font(.headline)
+                    .padding(.top, 4)
 
-                    BandListEditor(selectedBandID: $selectedBandID)
+                BandListEditor(selectedBandID: $selectedBandID)
 
-                    HStack {
-                        Button("+ Add Band") {
-                            if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
-                                selectedBandID = added.id
-                            }
+                HStack {
+                    Button("+ Add Band") {
+                        if let added = appModel.addBand(EQBand(type: .peaking, frequency: 1000, gain: 0, q: 1.0)) {
+                            selectedBandID = added.id
                         }
-                        .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
-                        Spacer()
                     }
-                    .padding(.bottom, 8)
+                    .disabled(appModel.currentProfile.bands.count >= RealtimeParametricEQ.maxBands)
+                    Spacer()
                 }
-                // Fixed editor width + a trailing Spacer to absorb the rest of the
-                // pane. (HSplitView stretches the pane's root to full width, and a
-                // maxWidth on a VStack wrapping a greedy ScrollView doesn't reliably
-                // constrain it — a fixed width does, so the delete button stays with
-                // its row instead of stranding at the far edge.)
-                .frame(width: 330, alignment: .leading)
-                Spacer(minLength: 0)
+                .padding(.bottom, 8)
             }
             .padding(.leading, 14)
             .padding(.trailing, 10)
-            .frame(minWidth: 360)
+            .frame(width: 356)
             } else {
                 // Slim reveal strip so the panel is rediscoverable without the toolbar.
                 VStack {
@@ -285,68 +278,24 @@ struct ContentView: View {
 struct FrequencyPane: View {
     @Binding var selectedBandID: UUID?
 
-    // Deliberately observes nothing: the toggles and the legend each read
-    // AppModel in their own leaf views below, so flipping a checkbox cannot
-    // invalidate layout beyond that leaf. (Profiling showed pane-level
-    // observation forced a whole-window sizeThatFits pass per toggle — the
-    // band rows' AppKit-backed fields made that expensive.)
+    // Observes nothing itself (no @Environment) — the spectrum and editor read
+    // AppModel in their own leaf views, so 20 Hz spectrum updates never re-lay
+    // out this whole pane. (See AUDIO_PATH.md on observation isolation.)
     var body: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("Frequency Response")
-                    .font(.headline)
-                Spacer()
-                SpectrumToggles()
-            }
-            .padding(.horizontal)
+            Text("Frequency Response")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
 
-            // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
-            ZStack(alignment: .topTrailing) {
+            // Live pre + post spectrum traces behind the graphical EQ editor.
+            ZStack {
                 SpectrumSection()
                 FrequencyResponseEditor(selectedBandID: $selectedBandID)
                     .padding(6)
-                LegendOverlay()
-                    .padding(12)
             }
             .frame(minHeight: 260)
             .padding(.horizontal)
-        }
-    }
-}
-
-/// Leaf view for the Pre/Post/Legend checkboxes — the only view their state
-/// re-renders.
-struct SpectrumToggles: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        @Bindable var model = appModel
-        HStack {
-            Toggle("Pre", isOn: $model.showPreSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the unprocessed system audio")
-            Toggle("Post", isOn: $model.showPostSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
-            Toggle("Legend", isOn: $model.showSpectrumLegend)
-                .toggleStyle(.checkbox)
-                .help("Show or hide the spectrum and EQ curve legend on the graph.")
-        }
-    }
-}
-
-/// Leaf view for the legend overlay — legend/Pre/Post/band changes re-render
-/// only this corner of the ZStack.
-struct LegendOverlay: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        if appModel.showSpectrumLegend {
-            SpectrumLegend(
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum,
-                hasEQCurve: !appModel.currentProfile.bands.isEmpty
-            )
         }
     }
 }
@@ -381,9 +330,16 @@ struct BandListEditor: View {
                         .padding(.vertical, 3)
                         .padding(.horizontal, 6)
                         .background(
-                            selectedBandID == band.id ? Color.accentColor.opacity(0.10) : Color.clear,
+                            selectedBandID == band.id ? BandPalette.color(forFrequency: band.frequency).opacity(0.14) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 5)
                         )
+                        .overlay(alignment: .leading) {
+                            // Color tag tying the row to its graph footprint + handle.
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(BandPalette.color(forFrequency: band.frequency))
+                                .frame(width: 3)
+                                .padding(.vertical, 4)
+                        }
                         .contentShape(Rectangle())
                         .onTapGesture { selectedBandID = band.id }
                 }
@@ -469,9 +425,7 @@ struct SpectrumSection: View {
                 .fill(Color(nsColor: .controlBackgroundColor))
             SpectrumView(
                 preLevels: appModel.preEQLevels,
-                postLevels: appModel.postEQLevels,
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum
+                postLevels: appModel.postEQLevels
             )
             .padding(6)
             if !appModel.isProcessing {
@@ -516,13 +470,6 @@ struct AudioEnginePanel: View {
                     // collapsed the value); the speaker icon conveys the purpose. Sizes
                     // to the device name and compresses gracefully on a narrow window.
                     .frame(minWidth: 110, maxWidth: 260)
-                    Button {
-                        appModel.refreshOutputDevices()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help("Refresh device list")
-                    .accessibilityLabel("Refresh output device list")
 
                     Spacer()
 

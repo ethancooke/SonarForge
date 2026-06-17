@@ -14,6 +14,7 @@
 		1B62CE36C6F414FB2B0F7F7A /* SpectrumTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBAE9C3D9EC16D38EEDB2F89 /* SpectrumTests.swift */; };
 		1E3D4E73C2289640DC028248 /* EQResponseCurve.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F1DD883C795C0ED627950D3 /* EQResponseCurve.swift */; };
 		20871B31F7F27F19254070AB /* RealtimeParametricEQTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95AE30DD128476018F5B8CED /* RealtimeParametricEQTests.swift */; };
+		20A108E17A148E1A68DFB265 /* BandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4D93BD8BDDAADD313218127 /* BandPalette.swift */; };
 		21C9CA20C608B8AAFC6159E7 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */; };
 		267C40FBA15525A453A8A228 /* GainMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */; };
 		2BF2931666C012DBF49C1489 /* ProfileManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A544CF2249DD575F76E6EC /* ProfileManagerTests.swift */; };
@@ -102,6 +103,7 @@
 		DBAE9C3D9EC16D38EEDB2F89 /* SpectrumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumTests.swift; sourceTree = "<group>"; };
 		DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonarForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
+		F4D93BD8BDDAADD313218127 /* BandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandPalette.swift; sourceTree = "<group>"; };
 		FD188809AD7AF330F6644F14 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -171,6 +173,7 @@
 			children = (
 				A3423652758E7B95A34E99DC /* AboutView.swift */,
 				0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */,
+				F4D93BD8BDDAADD313218127 /* BandPalette.swift */,
 				63C4EC3B766CAA38B91E0159 /* ContentView.swift */,
 				80DB05206431EB8490B85801 /* FrequencyResponseEditor.swift */,
 				6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */,
@@ -394,6 +397,7 @@
 				30EC85B212AFCDC7217D564C /* AudioEngineProtocol.swift in Sources */,
 				6B79F6459E8CB9BFF78EA72D /* AutoEQImportView.swift in Sources */,
 				63A90C4D61CE82AE8AE352E5 /* AutoEQImporter.swift in Sources */,
+				20A108E17A148E1A68DFB265 /* BandPalette.swift in Sources */,
 				4BD0D72AFC8E682FC02EA0E8 /* BiquadCoefficients.swift in Sources */,
 				05E05E142701A263B489D779 /* BiquadFilter.swift in Sources */,
 				39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */,
