@@ -121,8 +121,10 @@ includes gain as required by the Chunk 1.2 deliverables.
   never inside it, or resize animations redo the biquad math every frame.
   Measured (Debug, audio playing): Pre/Legend toggles ~72 ms, panel collapse
   ~35 ms.
-- **Toggles**: Pre and Post checkboxes; both off disables capture + analysis
-  entirely (the IO block's atomic reads false; the timer idles).
+- **Enablement**: both pre and post traces are always shown — there are no
+  user-facing toggles. A single relaxed atomic still gates the whole cost,
+  driven by view visibility (below): when the spectrum view is off screen the
+  IO block's atomic reads false and the timer idles.
 - **Visibility gating (Chunk 6.2)**: analysis also stops when the spectrum view
   is not on screen (window closed → menu-bar use). With *continuous* audio the
   full pipeline (2× FFT + 20 Hz redraw) measured 6–17 % CPU in Debug — earlier

@@ -1,6 +1,6 @@
 # AGENTS.md — SonarForge
 
-This file exists so that any AI coding agent (Grok, Claude, Cursor, etc.) can pick up the project with minimal reliance on chat history.
+This file exists so that any contributor or AI coding assistant can pick up the project with minimal reliance on chat history.
 
 **Goal**: Make the entire project state, architecture, plan, constraints, and current status fully legible from the files in this repository.
 
@@ -31,7 +31,7 @@ When starting work, a new agent **must** read the following in this sequence:
    - Audio path (capture via CATap, processing, output, bypass)
    - Threading and concurrency model
    - DSP approach (biquad + vDSP)
-5. `DECISIONS.md` — Architectural Decision Records D-001…D-010 (why major choices were made, including platform, capture mechanism, render topology, and the lock-free parameter path).
+5. `DECISIONS.md` — Architectural Decision Records D-001…D-011 (why major choices were made, including platform, capture mechanism, render topology, the lock-free parameter path, and the audio-input entitlement).
 6. `Documentation/AUDIO_PATH.md` — **The authoritative reference for the live audio path** as actually built: tap → private aggregate → HAL IOProc, gain staging, EQ integration, spectrum analysis, threading model, measured characteristics, and dev gotchas. Read this before touching audio code.
 7. `STATE.md` — Current project state (phase status table, what exists, immediate next steps).
 8. `Documentation/Xcode-Setup.md` — Exact Xcode project settings (deployment target 14.2, arm64 only; project is generated from `project.yml` via XcodeGen).
@@ -69,9 +69,9 @@ As of 2026-06-14: **v0.1.0 is shipped** — signed, notarized, and published to 
 ## Important Technical Context
 
 - Primary audio capture: `CATapDescription` + `AudioHardwareCreateProcessTap` (global tap, exclude own PID, `muteBehavior = .muted`).
-- Processing will use `AVAudioEngine` (with possible lower-level render callbacks for optimization later).
+- Processing runs in a single HAL IOProc on a private aggregate device — **not** `AVAudioEngine` (see `DECISIONS.md` D-007 and `Documentation/AUDIO_PATH.md`).
 - DSP uses Direct Form II Transposed biquads (RBJ cookbook coefficients).
-- Spectrum analysis will use Accelerate `vDSP`.
+- Spectrum analysis uses Accelerate `vDSP`.
 - Profiles are plain Codable JSON for easy import/export and AutoEQ compatibility.
 - Attribution for AutoEQ / oratory1990 profiles must be prominent and non-removable.
 
@@ -88,7 +88,7 @@ See `ARCHITECTURE.md` for the full data flow diagram and threading rules.
    - Bypass behavior
    - Device / sample rate change handling
 3. Run the pre-PR quality gates in `CONTRIBUTING.md` (tests + SwiftLint) before declaring anything done; CI enforces them on every push.
-4. Record any new architectural decision in `DECISIONS.md` (next ID is D-011).
+4. Record any new architectural decision in `DECISIONS.md` (next ID is D-012).
 
 ---
 
