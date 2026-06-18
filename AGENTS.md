@@ -58,11 +58,7 @@ These decisions were confirmed by the project owner in conversation and are now 
 
 ## Current Project State
 
-See the dedicated `STATE.md` file for the most up-to-date status. 
-
-`STATE.md` is the single source of truth for status; the summary here is just a pointer.
-
-As of 2026-06-14: **v0.1.0 is shipped** — signed, notarized, and published to GitHub Releases, with a live, dry-run-verified CI signed-release pipeline. Phases 0–6 are essentially complete (capture, EQ, spectrum, profiles + AutoEQ import, full UI, accessibility, signed/notarized release). The repo is still **private** with green CI; remaining before going public: the private→public flip. Ongoing: broader beta + hardware QA (Bluetooth/USB DAC, Apple Music/FairPlay). See `STATE.md` for the live picture and `DECISIONS.md` for the locked choices.
+`STATE.md` is the single source of truth for project status (version, phase table, what exists, immediate next steps). Read it before starting work. Locked architectural choices live in `DECISIONS.md`.
 
 ---
 
