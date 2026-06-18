@@ -30,8 +30,8 @@ enum BandPalette {
         let i = min(Int(scaled), stops.count - 2)
         let t = scaled - Double(i)
         let a = stops[i], b = stops[i + 1]
-        return Color(red:   a.r + (b.r - a.r) * t,
+        return Color(red: a.r + (b.r - a.r) * t,
                      green: a.g + (b.g - a.g) * t,
-                     blue:  a.b + (b.b - a.b) * t)
+                     blue: a.b + (b.b - a.b) * t)
     }
 }

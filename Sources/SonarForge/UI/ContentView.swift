@@ -120,7 +120,8 @@ struct ContentView: View {
                                 }
                                 .labelsHidden()
                                 .frame(minWidth: 160, maxWidth: 280)
-                                .help("Gain applied before the EQ. Lower this to create headroom — AutoEQ profiles typically use a negative preamp to offset boosted bands.")
+                                .help("Gain applied before the EQ. Lower this to create headroom — "
+                                    + "AutoEQ profiles typically use a negative preamp to offset boosted bands.")
                                 Text(String(format: "%+.1f dB", model.preampDB))
                                     .monospacedDigit()
                                     .frame(width: 64, alignment: .trailing)
@@ -490,7 +491,8 @@ struct AudioEnginePanel: View {
 
                 if case .failed = appModel.engineState {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("The engine could not start. If this is a permission problem, grant SonarForge access under System Audio Recording and retry.")
+                        Text("The engine could not start. If this is a permission problem, "
+                            + "grant SonarForge access under System Audio Recording and retry.")
                             .font(.caption)
                             .foregroundStyle(.red)
                         HStack {
@@ -503,7 +505,9 @@ struct AudioEnginePanel: View {
                         }
                     }
                 } else if !appModel.isProcessing {
-                    Text("Start the engine while playing audio in another app. macOS will ask for System Audio Recording permission on first start. If you hear silence afterwards, check Privacy & Security and retry.")
+                    Text("Start the engine while playing audio in another app. macOS will ask for "
+                        + "System Audio Recording permission on first start. If you hear silence "
+                        + "afterwards, check Privacy & Security and retry.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

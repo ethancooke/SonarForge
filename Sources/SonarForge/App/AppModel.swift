@@ -300,7 +300,7 @@ final class AppModel {
     }
 
     func toggleEngine() {
-        isProcessing ? stopEngine() : startEngine()
+        if isProcessing { stopEngine() } else { startEngine() }
     }
 
     /// Troubleshooting escape hatch (Chunk 6.1): full teardown + rebuild of the

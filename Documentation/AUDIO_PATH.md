@@ -92,8 +92,8 @@ includes gain as required by the Chunk 1.2 deliverables.
 - **Measured**: 12 bands at 48 kHz stereo cost **0.29 % of one core**
   (optimized build, Apple Silicon; ~4.6 % in Debug from bounds checks —
   the unit-test bound guards regressions, the Release number is the target).
-- **Debug presets**: Flat / Bass Boost / Treble Boost / Mid Cut / Telephone in
-  the debug panel exercise the live path until the Phase 4 profile system.
+- **Live integration**: the EQ runs in the live render path, driven by the saved
+  profile / AutoEQ system (Phase 4).
 
 ## Spectrum Analysis (Chunk 3.1)
 
@@ -156,14 +156,14 @@ afterwards touched only by the render thread.
   debounced full engine rebuild — simple and safe; finer-grained recovery can
   come in Chunk 6.1.
 - Engine state machine: `idle → starting → running / failed(reason)`, surfaced
-  in the debug UI with "Open Privacy Settings" + "Retry" on failure.
+  in the UI with "Open Privacy Settings" + "Retry" on failure.
 
 ## Permission
 
 The system shows the **System Audio Recording** TCC prompt automatically on
 first tap IO (the `NSAudioCaptureUsageDescription` string is in Info.plist).
 There is no public preflight API for this TCC class; if the user denies, the
-tap may deliver silence rather than fail, so the debug UI tells users to check
+tap may deliver silence rather than fail, so the app tells users to check
 Privacy & Security if they hear nothing.
 
 **Dev gotcha (observed 2026-06-10)**: after a rebuild, the ad-hoc signature can

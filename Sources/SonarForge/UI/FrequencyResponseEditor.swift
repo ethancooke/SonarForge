@@ -266,7 +266,8 @@ struct FrequencyResponseEditor: View {
                     appModel.removeBand(at: index)
                 }
             }
-            .help("\(band.type.displayName) — \(Int(band.frequency)) Hz, \(String(format: "%+.1f", band.gain)) dB, Q \(String(format: "%.2f", band.q))")
+            .help("\(band.type.displayName) — \(Int(band.frequency)) Hz, "
+                + "\(String(format: "%+.1f", band.gain)) dB, Q \(String(format: "%.2f", band.q))")
             .accessibilityElement()
             .accessibilityLabel("Band \(index + 1), \(band.type.displayName)")
             .accessibilityValue("\(Int(band.frequency)) hertz, \(String(format: "%+.1f", band.gain)) decibels, Q \(String(format: "%.2f", band.q))")

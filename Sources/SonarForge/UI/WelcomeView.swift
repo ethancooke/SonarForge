@@ -47,7 +47,11 @@ struct WelcomeView: View {
                     Image(systemName: "3.circle.fill").foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Get a headphone profile").bold()
-                        Text("Use **Import AutoEQ…** with a correction from autoeq.app for your headphones, drag the file onto the window, or build your own curve by double-clicking the graph.")
+                        Text("""
+                        Use **Import AutoEQ…** with a correction from autoeq.app for your \
+                        headphones, drag the file onto the window, or build your own curve \
+                        by double-clicking the graph.
+                        """)
                     }
                 }
             }

@@ -267,8 +267,11 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
 
             // 6. Install the realtime IO block (nil queue → HAL realtime thread) and start.
             var newProcID: AudioDeviceIOProcID?
-            try check(AudioDeviceCreateIOProcIDWithBlock(&newProcID, newAggregateID, nil, Self.makeIOBlock(context: renderContext, eq: eq, analyzer: analyzer)),
-                      "AudioDeviceCreateIOProcIDWithBlock")
+            try check(
+                AudioDeviceCreateIOProcIDWithBlock(
+                    &newProcID, newAggregateID, nil,
+                    Self.makeIOBlock(context: renderContext, eq: eq, analyzer: analyzer)),
+                "AudioDeviceCreateIOProcIDWithBlock")
             ioProcID = newProcID
             try check(AudioDeviceStart(newAggregateID, newProcID), "AudioDeviceStart")
 
@@ -303,7 +306,11 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         let generation = startGeneration.wrappingIncrementThenLoad(ordering: .relaxed)
         let item = DispatchWorkItem { [weak self] in
             guard let self, self.startGeneration.load(ordering: .relaxed) == generation else { return }
-            self.logger.error("Start watchdog fired: engine still starting after \(Self.startWatchdogTimeout, privacy: .public)s — likely a stale System Audio Recording TCC entry (see AUDIO_PATH.md)")
+            self.logger.error("""
+                Start watchdog fired: engine still starting after \
+                \(Self.startWatchdogTimeout, privacy: .public)s — likely a stale \
+                System Audio Recording TCC entry (see AUDIO_PATH.md)
+                """)
             self.onStateChange?(.failed(Self.startTimeoutMessage))
         }
         startWatchdogItem = item
