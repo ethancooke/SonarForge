@@ -49,7 +49,7 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 
 ## Immediate Next Steps (Prioritized)
 
-1. **Public-launch prep** (toward flipping the repo private→public): history secret-scan ✅ clean; `SECURITY.md` in place; **rotate the notarization app-specific password** (it was exposed in plaintext during CI-secrets setup) and update the `NOTARY_PASSWORD` secret; enable branch protection on `main` once public (free on public repos).
+1. **Public-launch prep** (toward flipping the repo private→public): history secret-scan ✅ clean; `SECURITY.md` in place; enable branch protection on `main` once public (free on public repos).
 2. **Hardware QA**: Bluetooth/USB DAC device-switch cycle, Apple Music (FairPlay) capture behavior, CPU spread across M-series chips.
 3. **Deferred extras** as demand dictates: global hotkeys, curve snapping/zoom, A/B crossfade, optional limiter, Sparkle auto-update.
 
