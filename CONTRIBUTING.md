@@ -9,7 +9,7 @@ Be respectful, constructive, and patient. Audio is subtle; disagreements about D
 ## Development Philosophy
 
 - **Audio quality and stability are non-negotiable**. Performance regressions or audible artifacts must be treated as release blockers.
-- Keep the scope narrow (see README Non-Goals). Large feature requests will be closed or moved to a future "SonarForge Pro" discussion only after the core is excellent.
+- Keep the scope narrow (see README Non-Goals). Large or out-of-scope feature requests may be declined or deferred so the core stays excellent.
 - Prefer simple, well-tested solutions over clever ones.
 - All changes to the audio path require clear justification and, ideally, before/after measurements or listening notes.
 
@@ -82,17 +82,17 @@ When contributing filters or processing changes:
 
 If your contribution is based on a specific technique or open-source code (including portions of eqMac's driver work or Apple's samples), add clear attribution in code comments and update the README "Attribution & Thanks" section if appropriate.
 
-## Questions & Discussions
+## Questions & feature ideas
 
-- Use GitHub Discussions for usage questions and broad ideas.
-- Use Issues for bugs and specific, scoped feature work.
-- For anything touching the audio path or architecture, tag maintainers early.
+- Open an **issue** for bugs and specific, scoped feature requests.
+- For usage questions or broad ideas, open an issue too (or a Discussion, if the repo has them enabled).
+- For anything touching the audio path or architecture, flag it early so it can be discussed before you build.
 
 ## Release Process (Maintainers)
 
-- Versioning: SemVer. Breaking audio behavior changes require a major or at least clear migration notes.
-- All releases must pass manual listening tests on multiple content types and at least two different output devices (internal + external DAC or headphones).
-- Update `CHANGELOG.md` (create one if it doesn't exist for the first release).
+- Versioning: SemVer. Breaking audio behavior changes warrant a major bump or, at minimum, clear migration notes.
+- Sanity-check a release by listening across a few content types and output devices before publishing.
+- Tag a version (`git tag vX.Y.Z && git push origin vX.Y.Z`); CI builds, signs, and notarizes a draft release. Fill the notes from `Documentation/RELEASE_NOTES_TEMPLATE.md` and publish.
 
 ---
 
