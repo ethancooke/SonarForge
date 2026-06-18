@@ -180,7 +180,6 @@ This document describes the high-level architecture, key technical decisions, mo
 ## References
 
 - Apple: "Capturing system audio with Core Audio taps" (developer.apple.com)
-- eqMac driver source (for historical techniques and attribution, even if not directly used)
 - Audio EQ Cookbook (Robert Bristow-Johnson)
 - Accelerate vDSP documentation
 - iqualize (open source CATap-based EQ) as a modern reference implementation for tap usage patterns

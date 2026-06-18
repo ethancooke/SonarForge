@@ -48,7 +48,7 @@ After the reading list above, skim the source under `Sources/SonarForge/` (the `
 
 - **Minimum macOS**: 14.2 (chosen because this is where Core Audio Taps / `CATapDescription` + `AudioHardwareCreateProcessTap` are documented as stable by Apple).
 - **Architecture support**: Apple Silicon (arm64) **only**. No Intel / x86_64. This is a hard requirement.
-- **Capture mechanism**: Core Audio Process Taps (driverless) is the primary and preferred approach. User-space audio driver (like eqMac's) is explicitly deferred. (Validated: the CATap path captures cleanly, including Netflix browser DRM — see AUDIO_PATH.md.)
+- **Capture mechanism**: Core Audio Process Taps (driverless) is the primary and preferred approach. A user-space audio driver is explicitly deferred. (Validated: the CATap path captures cleanly, including Netflix browser DRM — see AUDIO_PATH.md.)
 - **Scope discipline**: Stick to the MVP feature list in README.md. New features outside the documented non-goals should be rejected or moved to a future discussion.
 - **Audio thread sanctity**: No allocations, locks, or heavy work on the real-time render thread. Parameter updates must use lock-free / double-buffered / atomic mechanisms.
 

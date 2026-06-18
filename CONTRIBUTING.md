@@ -80,7 +80,7 @@ When contributing filters or processing changes:
 
 ## Attribution
 
-If your contribution is based on a specific technique or open-source code (including portions of eqMac's driver work or Apple's samples), add clear attribution in code comments and update the README "Attribution & Thanks" section if appropriate.
+If your contribution is based on a specific technique or open-source code (for example, Apple's sample code), add clear attribution in code comments and update the README "Thanks" section if appropriate.
 
 ## Questions & feature ideas
 

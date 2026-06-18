@@ -44,7 +44,7 @@ This document records major decisions, their rationale, and current status. It h
 
 **Status**: Primary path locked for MVP. See `ARCHITECTURE.md` (Audio Path section) and `Documentation/AUDIO_PATH.md` (as-built reference + validation record).
 
-**Attribution note**: Techniques and lessons from eqMac’s open-source driver work should still be studied and attributed where relevant, even if not directly copied.
+**Attribution note**: Any third-party technique or open-source code that is used must be attributed clearly in code and in `NOTICE`.
 
 ---
 

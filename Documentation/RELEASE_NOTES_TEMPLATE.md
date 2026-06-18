@@ -43,6 +43,5 @@ notarized — opens with a single confirmation, no Gatekeeper workaround. A
 ## Attribution
 
 Headphone corrections via the [AutoEQ project](https://autoeq.app) and the
-measurement community (oratory1990 et al.). Inspired in part by
-[eqMac](https://github.com/bitgapp/eqMac) (Apache 2.0). Licensed under the
+measurement community (oratory1990 et al.). Licensed under the
 Apache License 2.0.

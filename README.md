@@ -90,7 +90,7 @@ Contributions that improve audio quality, stability, or native feel are welcome 
 
 ## Thanks
 
-- [eqMac](https://github.com/bitgapp/eqMac) for open user-space driver explorations (Apache 2.0); SonarForge takes a driverless Core Audio Tap path.
+- [eqMac](https://github.com/bitgapp/eqMac) (Apache 2.0) — prior art for system-wide EQ on macOS.
 - Apple's Core Audio team and public sample code for Audio Taps.
 - The AutoEQ community and headphone measurement experts (oratory1990 et al.).
 
