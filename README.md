@@ -48,6 +48,8 @@ SonarForge sits in your Mac's audio path and shapes **everything you hear** — 
 - **Compare** — toggle **A | B** between two profiles, or **Bypass** to hear the original.
 - **Shortcuts** — press ⌘? for the in-app cheat sheet.
 
+> **On a voice/video call?** SonarForge re-renders system audio, which interferes with apps' echo cancellation. On a **speaker** call, stop the engine or switch to headphones — Bypass isn't enough (it still re-renders). Headphones avoid the issue entirely.
+
 ## AutoEQ headphone corrections
 
 SonarForge makes community headphone corrections from [AutoEQ](https://github.com/jaakkopasanen/AutoEQ) painless:

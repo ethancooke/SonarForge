@@ -29,6 +29,12 @@ struct TroubleshootingView: View {
              advice: "Apps using exclusive audio access or certain DRM paths can bypass the system tap. "
                 + "Netflix in a browser is confirmed to work; some protected players may not. "
                 + "This is a macOS limitation of the driverless approach."),
+        Item(symptom: "On a call, the other person hears an echo of themselves",
+             advice: "SonarForge re-renders system audio, which interferes with the echo "
+                + "cancellation in apps like Discord, Zoom, and Teams. On a voice or video call "
+                + "played through speakers, stop the engine or switch to headphones for the call. "
+                + "Bypass isn't enough — it still re-renders the audio; only stopping the engine "
+                + "restores the direct (uncancelled) path."),
         Item(symptom: "Audio glitch when switching devices",
              advice: "A brief gap during a device switch is expected — the capture path is rebuilt "
                 + "for the new device (with a fade, not a click). If audio doesn't come back "

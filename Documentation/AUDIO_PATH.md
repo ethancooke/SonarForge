@@ -189,6 +189,14 @@ recovers automatically.
   Confirmed working: Netflix in the browser (2026-06-10). Untested: Apple
   Music / FairPlay-protected playback.
 - AirPlay output behavior is untested.
+- **Voice/video calls on speakers**: the engine mutes each app's direct output
+  and re-renders an EQ'd, ~10 ms-delayed copy, which defeats the acoustic echo
+  cancellation in conferencing apps (Discord, Zoom, Teams, …) — the far end can
+  hear themselves echoed. Bypass does **not** help (it still re-renders); only
+  stopping the engine (tap destroyed → original output unmuted) or using
+  headphones restores AEC. Possible future mitigation: exclude communication
+  apps from the tap via `CATapDescription`'s process-exclusion list, or auto-pause
+  the engine when a capture session is active.
 - A brief gap (not a glitch) is expected during device switch rebuilds; teardown now ramps to silence (~40 ms, Chunk 6.1) so stops and rebuilds don't click.
 
 ## Measured Characteristics
