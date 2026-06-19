@@ -6,18 +6,18 @@ This document preserves the original project vision and requirements as provided
 
 ## Vision
 
-SonarForge is a free, open-source, native macOS system-wide parametric equalizer designed as a focused, high-quality competitor to eqMac. It prioritizes a clean, modern native SwiftUI experience and essential EQ functionality only. The goal is to deliver reliable, low-CPU, artifact-free audio processing with excellent headphone profile support (especially easy AutoEQ integration) while remaining deliberately trimmed in scope.
+SonarForge is a free, open-source, native macOS system-wide parametric equalizer. It prioritizes a clean, modern native SwiftUI experience and essential EQ functionality only. The goal is to deliver reliable, low-CPU, artifact-free audio processing with excellent headphone profile support (especially easy AutoEQ integration) while remaining deliberately trimmed in scope.
 
 ## Positioning
 
-- Fully free and open source (no Pro tier, no paywalls).
-- Superior native SwiftUI interface: modern, resizable, native dark mode, menu-bar/status item, thoughtful keyboard shortcuts, and strong accessibility.
+- Fully free and open source — no paywalls, no upsells.
+- A polished native SwiftUI interface: modern, resizable, native dark mode, menu-bar/status item, thoughtful keyboard shortcuts, and strong accessibility.
 - Focused on essentials rather than feature breadth.
 - Excellent for critical listening and precise headphone sound profile correction.
 
 ## Licensing
 
-Use the Apache License 2.0. Include proper attribution where code or techniques are inspired by existing open-source work (e.g., eqMac’s driver components).
+Use the Apache License 2.0. Include proper attribution where code or techniques are inspired by existing open-source work.
 
 ## Target Platform
 
@@ -57,7 +57,7 @@ Keep the scope narrow so the project remains maintainable as open source.
 
 - Prioritize modularity: Keep the DSP/audio engine cleanly separated from the SwiftUI interface.
 - Performance is critical — audio thread must remain stable with very low latency and CPU impact.
-- Study and appropriately attribute techniques from eqMac’s open-source user-space Null Audio driver implementation where relevant.
+- Study and appropriately attribute relevant techniques from existing open-source audio work.
 - All audio processing must be local. No cloud dependencies for core functionality.
 - Support common sample rates (44.1 kHz to at least 96 kHz) and graceful handling of device/sample-rate changes.
 

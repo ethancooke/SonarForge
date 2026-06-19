@@ -13,12 +13,17 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release-macos:
+    # Only runs once signing is configured (repo variable SIGNING_ENABLED=true
+    # plus the cert/notary secrets). Until then a pushed tag does NOT kick off an
+    # unsigned CI build that could clobber a manually published, notarized release.
+    if: ${{ vars.SIGNING_ENABLED == 'true' }}
     runs-on: macos-15   # Apple Silicon runner (arm64)
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

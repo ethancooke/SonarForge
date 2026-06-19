@@ -1,9 +1,11 @@
 # SonarForge Development Plan
 
-> **Status (2026-06-13): historical roadmap.** Phases 0–5 and most of Phase 6
-> are delivered — the MVP is functionally complete. This document is preserved
-> as the record of *how the build was planned and sequenced* (and of the
-> explicitly-deferred Phase 7 items); it is **not** a list of current work.
+> **Status (2026-06-14): historical roadmap.** Phases 0–6 are essentially
+> delivered — v0.1.0 is signed, notarized, and shipped, with a verified CI
+> release pipeline; only the ongoing Chunk 6.5 beta/hardware-QA work remains.
+> This document is preserved as the record of *how the build was planned and
+> sequenced* (and of the explicitly-deferred Phase 7 items); it is **not** a
+> list of current work.
 > For live status see [STATE.md](STATE.md); for what was actually built and why,
 > see [Documentation/AUDIO_PATH.md](Documentation/AUDIO_PATH.md) and
 > [DECISIONS.md](DECISIONS.md). The per-chunk "Current Status" notes below were

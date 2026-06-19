@@ -70,8 +70,8 @@ public enum AutoEQImporter {
 
     // MARK: - Parametric format
 
-    private static let filterLine =
-        #/Filter\s+\d+\s*:\s*(?<state>ON|OFF)\s+(?<type>[A-Za-z]+)\s+Fc\s+(?<fc>[0-9]+(?:\.[0-9]+)?)\s*Hz\s+Gain\s+(?<gain>-?[0-9]+(?:\.[0-9]+)?)\s*dB(?:\s+Q\s+(?<q>[0-9]+(?:\.[0-9]+)?))?/#
+    // swiftlint:disable:next line_length
+    private static let filterLine = #/Filter\s+\d+\s*:\s*(?<state>ON|OFF)\s+(?<type>[A-Za-z]+)\s+Fc\s+(?<fc>[0-9]+(?:\.[0-9]+)?)\s*Hz\s+Gain\s+(?<gain>-?[0-9]+(?:\.[0-9]+)?)\s*dB(?:\s+Q\s+(?<q>[0-9]+(?:\.[0-9]+)?))?/#
         .ignoresCase()
 
     private static let preampLine =
@@ -163,7 +163,8 @@ public enum AutoEQImporter {
         let bands = reduceToBands(points: points, maxBands: maxGraphicBands)
         let maxBoost = bands.map(\.gain).max() ?? 0
         var warnings = [
-            "GraphicEQ format: \(points.count) points approximated with \(bands.count) parametric bands. Prefer the ParametricEQ file when available.",
+            "GraphicEQ format: \(points.count) points approximated with "
+                + "\(bands.count) parametric bands. Prefer the ParametricEQ file when available.",
         ]
         let preamp = min(0, -maxBoost)
         if preamp < 0 {

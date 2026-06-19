@@ -80,7 +80,7 @@ This document describes the high-level architecture, key technical decisions, mo
 - Separate lightweight FFT path using `vDSP`.
 - Hann (or other) window, configurable size (e.g. 2048 or 4096 points).
 - Log-frequency binning + dB conversion for display.
-- Two views: Pre-EQ (input to processor) and Post-EQ (after processing). Toggleable independently for CPU savings.
+- Two views: Pre-EQ (input to processor) and Post-EQ (after processing), both shown continuously. A single atomic gates the whole analysis cost and idles automatically when the spectrum view is off screen (see `Documentation/AUDIO_PATH.md`).
 - Analysis runs at a reduced rate (e.g. 30–60 fps) and is delivered to UI via a thread-safe ring or Combine/actor.
 
 ### Bypass & A/B
@@ -126,7 +126,7 @@ This document describes the high-level architecture, key technical decisions, mo
   - Large frequency response `Canvas` or custom `FrequencyResponseView` (draws curve + control points).
   - Band list (editable table or cards).
   - Preamp + master fader.
-  - Spectrum overlay toggle (Pre / Post).
+  - Pre + post spectrum overlay (always on).
   - Profile picker + A/B / Bypass controls.
 - **Status Item**: `NSStatusBar` item with popover or menu. Minimal icon that reflects bypass state.
 - **Profile Importer Sheet**: Paste box + file drop for AutoEQ data. Parser lives in a dedicated `AutoEQImporter` (pure function or actor).
@@ -180,7 +180,6 @@ This document describes the high-level architecture, key technical decisions, mo
 ## References
 
 - Apple: "Capturing system audio with Core Audio taps" (developer.apple.com)
-- eqMac driver source (for historical techniques and attribution, even if not directly used)
 - Audio EQ Cookbook (Robert Bristow-Johnson)
 - Accelerate vDSP documentation
 - iqualize (open source CATap-based EQ) as a modern reference implementation for tap usage patterns

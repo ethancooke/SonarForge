@@ -44,7 +44,7 @@ This document records major decisions, their rationale, and current status. It h
 
 **Status**: Primary path locked for MVP. See `ARCHITECTURE.md` (Audio Path section) and `Documentation/AUDIO_PATH.md` (as-built reference + validation record).
 
-**Attribution note**: Techniques and lessons from eqMac’s open-source driver work should still be studied and attributed where relevant, even if not directly copied.
+**Attribution note**: Any third-party technique or open-source code that is used must be attributed clearly in code and in `NOTICE`.
 
 ---
 
@@ -185,6 +185,18 @@ This document records major decisions, their rationale, and current status. It h
 **Alternatives considered**: double-buffered snapshot with atomic index (unsafe reuse without consumer acknowledgment), seqlock (reader-side data race is formally undefined behavior in the Swift/C++ memory model), atomic object references (refcount traffic on the render thread).
 
 **Status**: Locked. Implemented in `DSP/RealtimeParametricEQ.swift`.
+
+---
+
+## D-011: Audio-input entitlement is declared in `project.yml`, not hand-maintained
+
+**Date**: 2026-06-15
+
+**Decision**: `com.apple.security.device.audio-input` lives in the `entitlements.properties` block of `project.yml`, so `xcodegen generate` regenerates `Sources/SonarForge/Resources/Entitlements.entitlements` *with* the key.
+
+**Rationale**: A `path`-only entitlements block makes XcodeGen overwrite that file with an empty `<dict/>` on every regenerate, silently dropping the entitlement. Under the hardened runtime that makes the Core Audio tap deliver zeros in Release builds (Debug masks it). This regression shipped once and recurred after a later `xcodegen generate`. Declaring the key in `project.yml` makes regeneration idempotent; `Scripts/release.sh` also fails the build if the signed bundle lacks the entitlement (defense in depth).
+
+**Status**: Locked. See `project.yml` (`entitlements.properties`) and the guard in `Scripts/release.sh`.
 
 ---
 

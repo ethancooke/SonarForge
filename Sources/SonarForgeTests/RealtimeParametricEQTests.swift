@@ -266,7 +266,8 @@ final class RealtimeParametricEQTests: XCTestCase {
         }
         let elapsed = Date().timeIntervalSince(start)
         let percentOfRealtime = elapsed / Double(seconds) * 100.0
-        print("12-band EQ: \(String(format: "%.3f", elapsed))s for \(seconds)s of 48 kHz stereo → \(String(format: "%.2f", percentOfRealtime))% of realtime")
+        print("12-band EQ: \(String(format: "%.3f", elapsed))s for \(seconds)s "
+            + "of 48 kHz stereo → \(String(format: "%.2f", percentOfRealtime))% of realtime")
 
         // The < 1–2 % chunk target applies to optimized (Release) builds — measured
         // 0.2 % there (see AUDIO_PATH.md). Debug builds carry ~20× overhead from

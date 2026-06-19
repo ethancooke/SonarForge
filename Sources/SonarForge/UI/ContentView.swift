@@ -17,21 +17,34 @@ struct ContentView: View {
         HSplitView {
             // Left / main editor area
             VStack(spacing: 12) {
-                // Chunk 1.1 debug controls: capture/passthrough lifecycle, device
-                // selection, and error surfacing. Will be folded into proper UI later.
-                AudioEngineDebugView()
+                // Engine lifecycle (start/stop/reset) and output device selection.
+                AudioEnginePanel()
                     .padding(.horizontal)
                     .padding(.top, 8)
 
                 // Observation-isolated: Pre/Post/Legend toggles re-render only
-                // this pane, never the band list / sliders / debug panel.
+                // this pane, never the band list, sliders, or engine panel.
                 FrequencyPane(selectedBandID: $selectedBandID)
 
-                // Temporary numeric controls until the full editor exists
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        Text("Current Profile: \(appModel.currentProfile.name)")
+                        Text("Profile")
                             .font(.subheadline)
+                        Menu(appModel.currentProfile.name) {
+                            ForEach(appModel.profileManager.profiles) { profile in
+                                Button {
+                                    appModel.selectProfile(id: profile.id)
+                                } label: {
+                                    if profile.id == appModel.profileManager.activeProfileID {
+                                        Label(profile.name, systemImage: "checkmark")
+                                    } else {
+                                        Text(profile.name)
+                                    }
+                                }
+                            }
+                        }
+                        .fixedSize()
+                        .help("Switch the active EQ profile. Manage and import profiles from the Profiles button in the toolbar.")
                         if appModel.currentProfile.isFactory {
                             Label("Built-in", systemImage: "lock.fill")
                                 .font(.caption)
@@ -55,6 +68,12 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if let notes = appModel.currentProfile.notes {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
 
                     HStack {
                         Button(appModel.isBypassed ? "Bypass (ON)" : "Bypass") {
@@ -63,10 +82,18 @@ struct ContentView: View {
                         .tint(appModel.isBypassed ? .orange : .accentColor)
                         .help("Compare against unprocessed audio. Excludes preamp, output gain, and (later) the EQ.")
 
-                        Button("A / B Swap") {
-                            appModel.swapAB()
+                        Picker("A/B compare", selection: Binding(
+                            get: { appModel.showingB },
+                            set: { showB in if showB != appModel.showingB { appModel.swapAB() } }
+                        )) {
+                            Text("A").tag(false)
+                            Text("B").tag(true)
                         }
-                        .help("Switch between the A and B profiles for quick comparison.")
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Compare two profiles by ear. Pick a profile while on A, "
+                              + "switch to B and pick another, then toggle A/B to compare.")
 
                         Spacer()
 
@@ -93,7 +120,8 @@ struct ContentView: View {
                                 }
                                 .labelsHidden()
                                 .frame(minWidth: 160, maxWidth: 280)
-                                .help("Gain applied before the EQ. Lower this to create headroom — AutoEQ profiles typically use a negative preamp to offset boosted bands.")
+                                .help("Gain applied before the EQ. Lower this to create headroom — "
+                                    + "AutoEQ profiles typically use a negative preamp to offset boosted bands.")
                                 Text(String(format: "%+.1f dB", model.preampDB))
                                     .monospacedDigit()
                                     .frame(width: 64, alignment: .trailing)
@@ -121,14 +149,20 @@ struct ContentView: View {
 
                 Spacer()
             }
-            .frame(minWidth: 520)
+            // Lower than the content's natural width on purpose: when the window
+            // is narrow enough that HSplitView squeezes this pane, a high minWidth
+            // forces the content wider than the pane and it overflows (clips) on
+            // both sides. A lower floor lets the row compress to fit instead.
+            .frame(minWidth: 440)
 
-            // Right sidebar — numeric band editor (Chunk 5.2/5.3). The collapse
-            // lives INSIDE this HSplitView pane: AppKit split panes are
-            // independent layout worlds, so toggling here never re-measures the
-            // left pane, and left-pane toggles never re-measure these rows
-            // (that cross-measurement was the lag — see commit message).
+            // Right sidebar — numeric band editor. The collapse lives INSIDE this
+            // HSplitView pane: AppKit split panes are independent layout worlds,
+            // so toggling here never re-measures the left pane, and left-pane
+            // toggles never re-measure these rows (that cross-measurement was the
+            // lag — see commit message).
             if showBandsPanel {
+            // Fixed-width sidebar: the pane is exactly as wide as the editor needs,
+            // so there's no dead space on the right and the rows aren't stretched.
             VStack(alignment: .leading, spacing: 8) {
                 Text("Bands")
                     .font(.headline)
@@ -147,8 +181,9 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 8)
             }
-            .padding(.horizontal, 8)
-            .frame(minWidth: 300, maxWidth: 360)
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
+            .frame(width: 356)
             } else {
                 // Slim reveal strip so the panel is rediscoverable without the toolbar.
                 VStack {
@@ -201,8 +236,8 @@ struct ContentView: View {
         .sheet(isPresented: $model.showingTroubleshooting) {
             TroubleshootingView()
         }
-        // Chunk 5.5: drop profile files anywhere on the window. Native profile
-        // JSON imports directly; other text files fall back to the AutoEQ parser.
+        // Drop profile files anywhere on the window. Native profile JSON imports
+        // directly; other text files fall back to the AutoEQ parser.
         .dropDestination(for: URL.self) { urls, _ in
             handleDroppedFiles(urls)
             return true
@@ -240,32 +275,25 @@ struct ContentView: View {
 /// Frequency-response header + graph stack, observation-isolated (the same
 /// lesson as SpectrumSection, see AUDIO_PATH.md): Pre/Post/Legend toggles and
 /// 20 Hz spectrum updates re-render only this subtree — never the band list,
-/// gain sliders, or debug panel above it.
+/// gain sliders, or engine panel above it.
 struct FrequencyPane: View {
     @Binding var selectedBandID: UUID?
 
-    // Deliberately observes nothing: the toggles and the legend each read
-    // AppModel in their own leaf views below, so flipping a checkbox cannot
-    // invalidate layout beyond that leaf. (Profiling showed pane-level
-    // observation forced a whole-window sizeThatFits pass per toggle — the
-    // band rows' AppKit-backed fields made that expensive.)
+    // Observes nothing itself (no @Environment) — the spectrum and editor read
+    // AppModel in their own leaf views, so 20 Hz spectrum updates never re-lay
+    // out this whole pane. (See AUDIO_PATH.md on observation isolation.)
     var body: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("Frequency Response")
-                    .font(.headline)
-                Spacer()
-                SpectrumToggles()
-            }
-            .padding(.horizontal)
+            Text("Frequency Response")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
 
-            // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
-            ZStack(alignment: .topTrailing) {
+            // Live pre + post spectrum traces behind the graphical EQ editor.
+            ZStack {
                 SpectrumSection()
                 FrequencyResponseEditor(selectedBandID: $selectedBandID)
                     .padding(6)
-                LegendOverlay()
-                    .padding(12)
             }
             .frame(minHeight: 260)
             .padding(.horizontal)
@@ -273,45 +301,8 @@ struct FrequencyPane: View {
     }
 }
 
-/// Leaf view for the Pre/Post/Legend checkboxes — the only view their state
-/// re-renders.
-struct SpectrumToggles: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        @Bindable var model = appModel
-        HStack {
-            Toggle("Pre", isOn: $model.showPreSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the unprocessed system audio")
-            Toggle("Post", isOn: $model.showPostSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
-            Toggle("Legend", isOn: $model.showSpectrumLegend)
-                .toggleStyle(.checkbox)
-                .help("Show or hide the spectrum and EQ curve legend on the graph.")
-        }
-    }
-}
-
-/// Leaf view for the legend overlay — legend/Pre/Post/band changes re-render
-/// only this corner of the ZStack.
-struct LegendOverlay: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        if appModel.showSpectrumLegend {
-            SpectrumLegend(
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum,
-                hasEQCurve: !appModel.currentProfile.bands.isEmpty
-            )
-        }
-    }
-}
-
-/// Numeric band editor rows (Chunk 5.3 essentials): type, frequency, gain, Q,
-/// delete. Edits flow through AppModel.updateBand → engine + persistence.
+/// Numeric band editor rows: type, frequency, gain, Q, delete. Edits flow
+/// through AppModel.updateBand → engine + persistence.
 struct BandListEditor: View {
     @Environment(AppModel.self) private var appModel
     @Binding var selectedBandID: UUID?
@@ -340,9 +331,16 @@ struct BandListEditor: View {
                         .padding(.vertical, 3)
                         .padding(.horizontal, 6)
                         .background(
-                            selectedBandID == band.id ? Color.accentColor.opacity(0.10) : Color.clear,
+                            selectedBandID == band.id ? BandPalette.color(forFrequency: band.frequency).opacity(0.14) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 5)
                         )
+                        .overlay(alignment: .leading) {
+                            // Color tag tying the row to its graph footprint + handle.
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(BandPalette.color(forFrequency: band.frequency))
+                                .frame(width: 3)
+                                .padding(.vertical, 4)
+                        }
                         .contentShape(Rectangle())
                         .onTapGesture { selectedBandID = band.id }
                 }
@@ -428,9 +426,7 @@ struct SpectrumSection: View {
                 .fill(Color(nsColor: .controlBackgroundColor))
             SpectrumView(
                 preLevels: appModel.preEQLevels,
-                postLevels: appModel.postEQLevels,
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum
+                postLevels: appModel.postEQLevels
             )
             .padding(6)
             if !appModel.isProcessing {
@@ -443,9 +439,9 @@ struct SpectrumSection: View {
     }
 }
 
-/// Temporary Chunk 1.1 debug panel: engine lifecycle, output device picker, and
-/// permission/error guidance. Replaced by real UI in Phase 5.
-struct AudioEngineDebugView: View {
+/// Engine controls: start/stop/reset lifecycle, output device selection, and
+/// permission/error guidance.
+struct AudioEnginePanel: View {
     @Environment(AppModel.self) private var appModel
 
     var body: some View {
@@ -453,18 +449,36 @@ struct AudioEngineDebugView: View {
 
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Circle()
                         .fill(stateColor)
                         .frame(width: 10, height: 10)
                     Text(appModel.engineState.description)
                         .font(.subheadline)
-                        .lineLimit(2)
+                        .lineLimit(1)
+
+                    Image(systemName: "speaker.wave.2")
+                        .foregroundStyle(.secondary)
+                        .help("Output device")
+                    Picker("Output Device", selection: $model.selectedOutputUID) {
+                        Text("System Default").tag(String?.none)
+                        ForEach(appModel.outputDevices) { device in
+                            Text(device.name).tag(Optional(device.uid))
+                        }
+                    }
+                    .labelsHidden()
+                    // Value only (the inline "Output Device" label ate the width and
+                    // collapsed the value); the speaker icon conveys the purpose. Sizes
+                    // to the device name and compresses gracefully on a narrow window.
+                    .frame(minWidth: 110, maxWidth: 260)
+
                     Spacer()
+
                     Button(appModel.isProcessing ? "Stop Engine" : "Start Engine") {
                         appModel.toggleEngine()
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .fixedSize()   // never truncate the primary action; the picker absorbs compression
                     Button {
                         appModel.resetAudioEngine()
                     } label: {
@@ -475,52 +489,10 @@ struct AudioEngineDebugView: View {
                     .disabled(!appModel.isProcessing)
                 }
 
-                HStack {
-                    Picker("Output Device", selection: $model.selectedOutputUID) {
-                        Text("System Default").tag(String?.none)
-                        ForEach(appModel.outputDevices) { device in
-                            Text(device.name).tag(Optional(device.uid))
-                        }
-                    }
-                    .frame(maxWidth: 360)
-
-                    Button {
-                        appModel.refreshOutputDevices()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help("Refresh device list")
-                    .accessibilityLabel("Refresh output device list")
-                }
-
-                HStack {
-                    Text("Profile")
-                    Menu(appModel.currentProfile.name) {
-                        ForEach(appModel.profileManager.profiles) { profile in
-                            Button {
-                                appModel.selectProfile(id: profile.id)
-                            } label: {
-                                if profile.id == appModel.profileManager.activeProfileID {
-                                    Label(profile.name, systemImage: "checkmark")
-                                } else {
-                                    Text(profile.name)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: 200)
-                    .help("Profiles persist across launches (Chunk 4.1). Management UI and AutoEQ import arrive in 4.1.3/4.2.")
-                    if let notes = appModel.currentProfile.notes {
-                        Text(notes)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
                 if case .failed = appModel.engineState {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("The engine could not start. If this is a permission problem, grant SonarForge access under System Audio Recording and retry.")
+                        Text("The engine could not start. If this is a permission problem, "
+                            + "grant SonarForge access under System Audio Recording and retry.")
                             .font(.caption)
                             .foregroundStyle(.red)
                         HStack {
@@ -533,14 +505,16 @@ struct AudioEngineDebugView: View {
                         }
                     }
                 } else if !appModel.isProcessing {
-                    Text("Start the engine while playing audio in another app. macOS will ask for System Audio Recording permission on first start. If you hear silence afterwards, check Privacy & Security and retry.")
+                    Text("Start the engine while playing audio in another app. macOS will ask for "
+                        + "System Audio Recording permission on first start. If you hear silence "
+                        + "afterwards, check Privacy & Security and retry.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             .padding(4)
         } label: {
-            Label("Audio Engine (Chunk 1.1 Debug)", systemImage: "waveform.badge.mic")
+            Label("Audio Engine", systemImage: "waveform.badge.mic")
         }
     }
 

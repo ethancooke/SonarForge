@@ -74,7 +74,11 @@ final class ProfileStore {
                 let data = try Data(contentsOf: url)
                 profiles.append(try decoder.decode(EQProfile.self, from: data))
             } catch {
-                logger.warning("Skipping unreadable profile file \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                logger.warning("""
+                    Skipping unreadable profile file \
+                    \(url.lastPathComponent, privacy: .public): \
+                    \(error.localizedDescription, privacy: .public)
+                    """)
             }
         }
         return profiles
@@ -127,7 +131,11 @@ final class ProfileStore {
                     try delete(id: profile.id)
                     logger.info("Removed obsolete starter profile \(profile.name, privacy: .public)")
                 } catch {
-                    logger.error("Failed to remove obsolete profile \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    logger.error("""
+                        Failed to remove obsolete profile \
+                        \(profile.name, privacy: .public): \
+                        \(error.localizedDescription, privacy: .public)
+                        """)
                 }
             }
 
@@ -136,7 +144,11 @@ final class ProfileStore {
                     try delete(id: profile.id)
                     logger.info("Removed legacy duplicate of factory preset \(profile.name, privacy: .public)")
                 } catch {
-                    logger.error("Failed to remove legacy duplicate \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    logger.error("""
+                        Failed to remove legacy duplicate \
+                        \(profile.name, privacy: .public): \
+                        \(error.localizedDescription, privacy: .public)
+                        """)
                 }
             }
         }
