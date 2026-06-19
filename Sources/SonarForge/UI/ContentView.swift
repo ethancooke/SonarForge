@@ -120,7 +120,8 @@ struct ContentView: View {
                                 }
                                 .labelsHidden()
                                 .frame(minWidth: 160, maxWidth: 280)
-                                .help("Gain applied before the EQ. Lower this to create headroom — AutoEQ profiles typically use a negative preamp to offset boosted bands.")
+                                .help("Gain applied before the EQ. Lower this to create headroom — "
+                                    + "AutoEQ profiles typically use a negative preamp to offset boosted bands.")
                                 Text(String(format: "%+.1f dB", model.preampDB))
                                     .monospacedDigit()
                                     .frame(width: 64, alignment: .trailing)
@@ -148,7 +149,11 @@ struct ContentView: View {
 
                 Spacer()
             }
-            .frame(minWidth: 520)
+            // Lower than the content's natural width on purpose: when the window
+            // is narrow enough that HSplitView squeezes this pane, a high minWidth
+            // forces the content wider than the pane and it overflows (clips) on
+            // both sides. A lower floor lets the row compress to fit instead.
+            .frame(minWidth: 440)
 
             // Right sidebar — numeric band editor. The collapse lives INSIDE this
             // HSplitView pane: AppKit split panes are independent layout worlds,
@@ -156,6 +161,8 @@ struct ContentView: View {
             // toggles never re-measure these rows (that cross-measurement was the
             // lag — see commit message).
             if showBandsPanel {
+            // Fixed-width sidebar: the pane is exactly as wide as the editor needs,
+            // so there's no dead space on the right and the rows aren't stretched.
             VStack(alignment: .leading, spacing: 8) {
                 Text("Bands")
                     .font(.headline)
@@ -174,8 +181,9 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 8)
             }
-            .padding(.horizontal, 8)
-            .frame(minWidth: 300, maxWidth: 360)
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
+            .frame(width: 356)
             } else {
                 // Slim reveal strip so the panel is rediscoverable without the toolbar.
                 VStack {
@@ -271,68 +279,24 @@ struct ContentView: View {
 struct FrequencyPane: View {
     @Binding var selectedBandID: UUID?
 
-    // Deliberately observes nothing: the toggles and the legend each read
-    // AppModel in their own leaf views below, so flipping a checkbox cannot
-    // invalidate layout beyond that leaf. (Profiling showed pane-level
-    // observation forced a whole-window sizeThatFits pass per toggle — the
-    // band rows' AppKit-backed fields made that expensive.)
+    // Observes nothing itself (no @Environment) — the spectrum and editor read
+    // AppModel in their own leaf views, so 20 Hz spectrum updates never re-lay
+    // out this whole pane. (See AUDIO_PATH.md on observation isolation.)
     var body: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("Frequency Response")
-                    .font(.headline)
-                Spacer()
-                SpectrumToggles()
-            }
-            .padding(.horizontal)
+            Text("Frequency Response")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
 
-            // Spectrum traces (3.1) behind the graphical EQ editor (5.2).
-            ZStack(alignment: .topTrailing) {
+            // Live pre + post spectrum traces behind the graphical EQ editor.
+            ZStack {
                 SpectrumSection()
                 FrequencyResponseEditor(selectedBandID: $selectedBandID)
                     .padding(6)
-                LegendOverlay()
-                    .padding(12)
             }
             .frame(minHeight: 260)
             .padding(.horizontal)
-        }
-    }
-}
-
-/// Leaf view for the Pre/Post/Legend checkboxes — the only view their state
-/// re-renders.
-struct SpectrumToggles: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        @Bindable var model = appModel
-        HStack {
-            Toggle("Pre", isOn: $model.showPreSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the unprocessed system audio")
-            Toggle("Post", isOn: $model.showPostSpectrum)
-                .toggleStyle(.checkbox)
-                .help("Show the spectrum of the processed output. Turning both off disables analysis entirely (saves CPU).")
-            Toggle("Legend", isOn: $model.showSpectrumLegend)
-                .toggleStyle(.checkbox)
-                .help("Show or hide the spectrum and EQ curve legend on the graph.")
-        }
-    }
-}
-
-/// Leaf view for the legend overlay — legend/Pre/Post/band changes re-render
-/// only this corner of the ZStack.
-struct LegendOverlay: View {
-    @Environment(AppModel.self) private var appModel
-
-    var body: some View {
-        if appModel.showSpectrumLegend {
-            SpectrumLegend(
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum,
-                hasEQCurve: !appModel.currentProfile.bands.isEmpty
-            )
         }
     }
 }
@@ -367,9 +331,16 @@ struct BandListEditor: View {
                         .padding(.vertical, 3)
                         .padding(.horizontal, 6)
                         .background(
-                            selectedBandID == band.id ? Color.accentColor.opacity(0.10) : Color.clear,
+                            selectedBandID == band.id ? BandPalette.color(forFrequency: band.frequency).opacity(0.14) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 5)
                         )
+                        .overlay(alignment: .leading) {
+                            // Color tag tying the row to its graph footprint + handle.
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(BandPalette.color(forFrequency: band.frequency))
+                                .frame(width: 3)
+                                .padding(.vertical, 4)
+                        }
                         .contentShape(Rectangle())
                         .onTapGesture { selectedBandID = band.id }
                 }
@@ -455,9 +426,7 @@ struct SpectrumSection: View {
                 .fill(Color(nsColor: .controlBackgroundColor))
             SpectrumView(
                 preLevels: appModel.preEQLevels,
-                postLevels: appModel.postEQLevels,
-                showPre: appModel.showPreSpectrum,
-                showPost: appModel.showPostSpectrum
+                postLevels: appModel.postEQLevels
             )
             .padding(6)
             if !appModel.isProcessing {
@@ -488,20 +457,20 @@ struct AudioEnginePanel: View {
                         .font(.subheadline)
                         .lineLimit(1)
 
+                    Image(systemName: "speaker.wave.2")
+                        .foregroundStyle(.secondary)
+                        .help("Output device")
                     Picker("Output Device", selection: $model.selectedOutputUID) {
                         Text("System Default").tag(String?.none)
                         ForEach(appModel.outputDevices) { device in
                             Text(device.name).tag(Optional(device.uid))
                         }
                     }
-                    .frame(minWidth: 240, maxWidth: 360)
-                    Button {
-                        appModel.refreshOutputDevices()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help("Refresh device list")
-                    .accessibilityLabel("Refresh output device list")
+                    .labelsHidden()
+                    // Value only (the inline "Output Device" label ate the width and
+                    // collapsed the value); the speaker icon conveys the purpose. Sizes
+                    // to the device name and compresses gracefully on a narrow window.
+                    .frame(minWidth: 110, maxWidth: 260)
 
                     Spacer()
 
@@ -509,6 +478,7 @@ struct AudioEnginePanel: View {
                         appModel.toggleEngine()
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .fixedSize()   // never truncate the primary action; the picker absorbs compression
                     Button {
                         appModel.resetAudioEngine()
                     } label: {
@@ -521,7 +491,8 @@ struct AudioEnginePanel: View {
 
                 if case .failed = appModel.engineState {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("The engine could not start. If this is a permission problem, grant SonarForge access under System Audio Recording and retry.")
+                        Text("The engine could not start. If this is a permission problem, "
+                            + "grant SonarForge access under System Audio Recording and retry.")
                             .font(.caption)
                             .foregroundStyle(.red)
                         HStack {
@@ -534,7 +505,9 @@ struct AudioEnginePanel: View {
                         }
                     }
                 } else if !appModel.isProcessing {
-                    Text("Start the engine while playing audio in another app. macOS will ask for System Audio Recording permission on first start. If you hear silence afterwards, check Privacy & Security and retry.")
+                    Text("Start the engine while playing audio in another app. macOS will ask for "
+                        + "System Audio Recording permission on first start. If you hear silence "
+                        + "afterwards, check Privacy & Security and retry.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

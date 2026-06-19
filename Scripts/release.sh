@@ -155,4 +155,9 @@ echo "Done:"
 echo "  $APP"
 echo "  $DMG   (primary — drag to /Applications)"
 echo "  $ZIP   (secondary)"
-[[ "$SIGN_IDENTITY" == "-" ]] && echo "NOTE: ad-hoc signed — fine locally; Gatekeeper will block these on other Macs until signed + notarized with a Developer ID."
+# Use a full `if` (not `[[ ]] && echo`): as the script's last command, the
+# bare test returns exit 1 for a real identity, which fails CI (`bash release.sh`
+# with no pipe to mask it). Locally `| tee` hid it; CI surfaced it.
+if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  echo "NOTE: ad-hoc signed — fine locally; Gatekeeper will block these on other Macs until signed + notarized with a Developer ID."
+fi

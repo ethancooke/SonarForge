@@ -30,10 +30,12 @@ struct AboutView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 attribution("AutoEQ & measurement authors",
-                            "Headphone correction profiles are powered by the AutoEQ project (Jaakko Pasanen) and the measurement community, including oratory1990. Imported profiles always display their source.",
+                            "Headphone correction profiles are powered by the AutoEQ project "
+                            + "(Jaakko Pasanen) and the measurement community, including oratory1990. "
+                            + "Imported profiles always display their source.",
                             link: "https://autoeq.app")
                 attribution("eqMac",
-                            "Inspired in part by the open-source work in eqMac (Apache 2.0), particularly its user-space driver explorations. SonarForge uses Apple's driverless Core Audio taps instead.",
+                            "An inspiration for system-wide EQ on macOS. SonarForge shares no code with eqMac (Apache 2.0).",
                             link: "https://github.com/bitgapp/eqMac")
                 attribution("Apple",
                             "Built on Core Audio process taps, Accelerate/vDSP, and Apple's audio sample code.",

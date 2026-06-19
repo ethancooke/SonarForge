@@ -15,6 +15,12 @@ public enum AudioDeviceUtils {
 
     private static let logger = Logger(subsystem: "com.sonarforge.audio", category: "DeviceManagement")
 
+    /// SonarForge's own private aggregate device, created while the engine runs.
+    /// Excluded from the output picker — routing output into our capture device
+    /// makes no sense. Keep these in sync with `SonarForgeAudioEngine`.
+    public static let privateAggregateUID = "com.sonarforge.aggregate"
+    public static let privateAggregateName = "SonarForge"
+
     static func address(_ selector: AudioObjectPropertySelector,
                         scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
@@ -34,8 +40,9 @@ public enum AudioDeviceUtils {
         return deviceID
     }
 
-    /// All devices that have at least one output channel, suitable for the output picker.
-    /// Private aggregate devices (like our own) are not listed by the HAL.
+    /// All devices that have at least one output channel, suitable for the output
+    /// picker. Our own private aggregate is filtered out (the HAL does list it
+    /// while the engine runs, despite the "private" flag).
     public static func allOutputDevices() -> [AudioOutputDevice] {
         var addr = address(kAudioHardwarePropertyDevices)
         var size: UInt32 = 0
@@ -50,13 +57,29 @@ public enum AudioDeviceUtils {
         return deviceIDs.compactMap { id in
             guard outputChannelCount(id) > 0,
                   let uid = deviceUID(id),
-                  let name = deviceName(id) else { return nil }
+                  let name = deviceName(id),
+                  uid != privateAggregateUID, name != privateAggregateName else { return nil }
             return AudioOutputDevice(id: id, uid: uid, name: name)
         }
     }
 
     public static func deviceID(forUID uid: String) -> AudioDeviceID? {
         allOutputDevices().first(where: { $0.uid == uid })?.id
+    }
+
+    /// Invokes `handler` (on `queue`, default main) whenever the set of hardware
+    /// audio devices changes — plugged in, removed, or our aggregate appearing or
+    /// disappearing. Retain the returned block to keep the listener alive.
+    @discardableResult
+    public static func addDeviceListChangeListener(queue: DispatchQueue = .main,
+                                                   _ handler: @escaping () -> Void) -> AudioObjectPropertyListenerBlock {
+        var addr = address(kAudioHardwarePropertyDevices)
+        let block: AudioObjectPropertyListenerBlock = { _, _ in handler() }
+        let status = AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &addr, queue, block)
+        if status != noErr {
+            logger.error("Failed to observe device-list changes (OSStatus: \(status))")
+        }
+        return block
     }
 
     // MARK: - Per-device properties

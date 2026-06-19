@@ -36,5 +36,5 @@ final class DSPTests: XCTestCase {
         }
     }
 
-    // TODO: Add more rigorous known-good tests once we lock in exact RBJ formulas and edge cases.
+    // Rigorous known-good RBJ coefficient cases live in BiquadCoefficientsTests.
 }

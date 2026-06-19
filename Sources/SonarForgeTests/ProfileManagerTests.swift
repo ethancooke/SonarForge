@@ -48,6 +48,26 @@ final class ProfileManagerTests: XCTestCase {
         XCTAssertEqual(second.activeProfile?.name, "Bass Boost")
     }
 
+    func testUserProfileBandEditPersistsAcrossRelaunch() throws {
+        let first = try makeManager()
+        let created = first.create(name: "My EQ")
+        first.setActive(created.id)
+
+        // Mirror AppModel's edit path: mutate the active profile's bands, then
+        // commit via update() (what commitProfileEdit calls).
+        var edited = try XCTUnwrap(first.activeProfile)
+        edited.bands = [EQBand(type: .peaking, frequency: 200, gain: 6, q: 1.2)]
+        first.update(edited)
+        XCTAssertEqual(first.activeProfile?.bands.count, 1)
+
+        // Relaunch over the same store.
+        let second = try makeManager()
+        let reloaded = try XCTUnwrap(second.profiles.first(where: { $0.id == created.id }))
+        XCTAssertEqual(reloaded.bands.count, 1, "edited band must persist across relaunch")
+        XCTAssertEqual(reloaded.bands.first?.frequency, 200)
+        XCTAssertEqual(reloaded.bands.first?.gain, 6)
+    }
+
     func testEmptiedLibraryRecreatesFlatOnLaunch() throws {
         let first = try makeManager()
         let store = try makeStore()

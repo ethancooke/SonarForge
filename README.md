@@ -13,18 +13,18 @@
 </p>
 
 <p align="center">
-  <img src="Assets/sonar-wave-hero.png" alt="SonarForge showing the Sonar Wave preset — a sine-shaped EQ curve over a live spectrum" width="820">
+  <img src="Assets/sonar-wave-hero.png" alt="SonarForge showing the Sonar Wave preset — 16 EQ bands colored by frequency, warm bass to cool treble, over a live spectrum" width="820">
 </p>
 
 SonarForge sits in your Mac's audio path and shapes **everything you hear** — no per-app setup, no virtual devices to wrangle. It pairs a precise multi-band parametric EQ with a live spectrum analyzer and seamless [AutoEQ](https://github.com/jaakkopasanen/AutoEQ) headphone corrections, in a window that feels like it shipped with macOS.
 
-> *Pictured: the built-in **Sonar Wave** preset — a 16-band curve drawn as a sine wave, just for the look of it.*
+> *Pictured: the built-in **Sonar Wave** preset — 16 bands drawn as a sine wave, each colored by where it sits in the spectrum (warm bass → cool treble).*
 
 ## Highlights
 
 - 🎚️ **True system-wide EQ** — driverless capture via Core Audio Taps; processes all system audio at once.
 - 🎧 **AutoEQ in two clicks** — paste or drop an AutoEQ profile; source attribution is preserved and shown.
-- 📈 **Live spectrum** — pre/post FFT traces (Accelerate/vDSP) behind a draggable response curve.
+- 📈 **Live spectrum + color-coded curve** — always-on pre/post FFT traces (Accelerate/vDSP) behind a draggable response curve, with each band colored by its place in the spectrum.
 - 🪶 **Low CPU, artifact-free** — Direct Form II Transposed biquads; ~0.2% of one core for a full band set.
 - 🗂️ **Profiles** — save, import/export, favorites, quick-switch, A/B compare, and global bypass.
 - 🍎 **Native & accessible** — SwiftUI, dark mode, full keyboard + VoiceOver support, menu-bar item.
@@ -90,7 +90,7 @@ Contributions that improve audio quality, stability, or native feel are welcome 
 
 ## Thanks
 
-- [eqMac](https://github.com/bitgapp/eqMac) for open user-space driver explorations (Apache 2.0); SonarForge takes a driverless Core Audio Tap path.
+- [eqMac](https://github.com/bitgapp/eqMac) (Apache 2.0) — prior art for system-wide EQ on macOS.
 - Apple's Core Audio team and public sample code for Audio Taps.
 - The AutoEQ community and headphone measurement experts (oratory1990 et al.).
 

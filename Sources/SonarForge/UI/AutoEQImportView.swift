@@ -149,11 +149,9 @@ struct AutoEQImportView: View {
     /// "Sennheiser HD 600 ParametricEQ" → "Sennheiser HD 600"
     static func suggestedName(fromFileName fileName: String) -> String {
         var name = fileName
-        for suffix in [" ParametricEQ", " GraphicEQ", "ParametricEQ", "GraphicEQ"] {
-            if name.hasSuffix(suffix) {
-                name = String(name.dropLast(suffix.count))
-                break
-            }
+        for suffix in [" ParametricEQ", " GraphicEQ", "ParametricEQ", "GraphicEQ"] where name.hasSuffix(suffix) {
+            name = String(name.dropLast(suffix.count))
+            break
         }
         return name.trimmingCharacters(in: .whitespacesAndNewlines)
     }

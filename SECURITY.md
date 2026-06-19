@@ -9,8 +9,9 @@ Please use **GitHub's private vulnerability reporting** (Security tab →
 "Report a vulnerability") rather than a public issue, especially for anything
 involving the audio capture path, entitlements, or the release pipeline.
 
-You can expect an acknowledgement within a few days. Once fixed, reporters are
-credited in the release notes unless they prefer otherwise.
+Reports are read and taken seriously; as a small, volunteer project there's no
+guaranteed response time. When a fix ships, reporters are credited in the
+release notes unless they prefer otherwise.
 
 ## Scope notes
 
