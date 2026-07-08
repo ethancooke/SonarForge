@@ -200,6 +200,22 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-012: Crossfeed — Complementary-Filter Design, Per-Profile, After the EQ
+
+**Date**: 2026-07-08
+
+**Decision**: Ship headphone crossfeed as its own realtime DSP node (`DSP/Crossfeed.swift`) that runs in the same IO block immediately **after** the EQ and before the gain stage. It uses a complementary first-order split — `outL = HP(L) + (1−b)·LP(L) + b·LP(R)` (and mirror) with a fixed 700 Hz low-pass — rather than reproducing bs2b's specific shelf constants. The strength `b` (0…0.5, surfaced as a 0–100% "amount") and enable flag are stored **per profile** (`EQProfile.crossfeedEnabled` / `crossfeedAmount`), default **off** with a "natural" amount of 0.6 retained for when it's toggled on.
+
+**Rationale**:
+- **Complementary split is provably tone-neutral for mono**: for `L == R`, the sum collapses to `HP(m) + LP(m) = m` for any `b`, so a centered mix is passed through untouched and crossfeed never colors tonal balance. Reproducing bs2b's magic numbers from memory risked a subtly wrong shelf; this design is fully reasoned and unit-tested (mono neutrality, low bleed, high-frequency separation, finiteness).
+- **After the EQ**: crossfeed spatializes the already-corrected signal, and placing it before the gain stage means the post-EQ spectrum tap captures it. It respects bypass (skipped when bypassed) and resets its state on re-engage alongside the EQ.
+- **Per profile**: the ideal crossfeed depends on the headphone/recording, so it belongs with the rest of a profile's tuning. New/old profiles default to disabled (backward-compatible `decodeIfPresent`), so nothing changes for existing users until they opt in.
+- **Click-free**: the effective bleed is ramped per-sample toward its target (≈10 ms), so toggling and slider drags need no separate gain crossfade; a settled-off state is an exact pass-through (bypass honesty), mirroring the EQ/gain zero-cost path.
+
+**Status**: Shipped. See `DSP/Crossfeed.swift`, the IO block in `Audio/AudioEngine.swift`, and `Sources/SonarForgeTests/CrossfeedTests.swift`.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

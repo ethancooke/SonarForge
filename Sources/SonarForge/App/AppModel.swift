@@ -334,6 +334,24 @@ final class AppModel {
         outputGainDB = db   // didSet forwards to the engine
     }
 
+    /// Toggles crossfeed for the current profile: updates the model, applies it
+    /// live on the engine, and persists (crossfeed is saved per profile).
+    func setCrossfeedEnabled(_ enabled: Bool) {
+        guard currentProfile.crossfeedEnabled != enabled else { return }
+        currentProfile.crossfeedEnabled = enabled
+        audioEngine.setCrossfeedEnabled(enabled)
+        commitProfileEdit()
+    }
+
+    /// Sets crossfeed strength (0…1) for the current profile. Pass `persist:
+    /// false` during a continuous slider drag; commit once on gesture end.
+    func setCrossfeedAmount(_ amount: Double, persist: Bool = true) {
+        guard currentProfile.crossfeedAmount != amount else { return }
+        currentProfile.crossfeedAmount = amount
+        audioEngine.setCrossfeedAmount(amount)
+        if persist { commitProfileEdit() }
+    }
+
     func loadProfile(_ profile: EQProfile) {
         currentProfile = profile
         // Remember which profile is loaded in the showing slot (by id).

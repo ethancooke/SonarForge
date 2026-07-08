@@ -82,6 +82,10 @@ private final class MockAudioEngine: AudioEngineProtocol {
     func setBypass(_ bypassed: Bool) {}
     func setPreamp(_ db: Double) {}
     func setOutputGain(_ db: Double) {}
+    private(set) var crossfeedEnabled = false
+    private(set) var crossfeedAmount = Crossfeed.defaultAmount
+    func setCrossfeedEnabled(_ enabled: Bool) { crossfeedEnabled = enabled }
+    func setCrossfeedAmount(_ amount: Double) { crossfeedAmount = amount }
     func loadProfile(_ profile: EQProfile) { loadedProfile = profile }
     func selectOutputDevice(uid: String?) {}
 }

@@ -41,6 +41,13 @@ public protocol AudioEngineProtocol: AnyObject {
     func setBypass(_ bypassed: Bool)
     func setPreamp(_ db: Double)
     func setOutputGain(_ db: Double)
+
+    /// Enables/disables headphone crossfeed live (independent of a full profile
+    /// reload). Ramped on the render thread, so it is click-free.
+    func setCrossfeedEnabled(_ enabled: Bool)
+    /// Sets crossfeed strength (0…1). Ramped on the render thread.
+    func setCrossfeedAmount(_ amount: Double)
+
     func loadProfile(_ profile: EQProfile)
 
     /// Selects the output device by UID. Pass nil to follow the system default output.

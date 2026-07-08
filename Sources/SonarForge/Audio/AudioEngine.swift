@@ -107,9 +107,16 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     /// (single-producer contract of its command ring); consumer side runs in the
     /// IO block.
     private let eq = RealtimeParametricEQ()
+    /// Headphone crossfeed (see DECISIONS.md D-012). Producer side driven from
+    /// `controlQueue`; consumer side runs in the IO block after the EQ.
+    private let crossfeed = Crossfeed()
     /// Last loaded profile bands; re-applied after every engine (re)start so
     /// device/sample-rate changes recompute coefficients at the new rate.
     private var currentBands: [EQBand] = []
+    /// Crossfeed settings for the loaded profile; re-applied on every (re)start
+    /// so the effect survives device/sample-rate changes.
+    private var currentCrossfeedEnabled = false
+    private var currentCrossfeedAmount = Crossfeed.defaultAmount
     private var currentSampleRate: Double = 48000
 
     /// Spectrum analysis (Chunk 3.1): realtime taps feed lock-free rings; FFT
@@ -166,11 +173,34 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         logger.debug("Output gain set to \(clamped) dB")
     }
 
+    func setCrossfeedEnabled(_ enabled: Bool) {
+        controlQueue.async {
+            self.currentCrossfeedEnabled = enabled
+            self.crossfeed.setEnabled(enabled)
+            self.logger.info("Crossfeed \(enabled ? "enabled" : "disabled", privacy: .public)")
+        }
+    }
+
+    func setCrossfeedAmount(_ amount: Double) {
+        let clamped = min(max(amount, 0), 1)
+        controlQueue.async {
+            self.currentCrossfeedAmount = clamped
+            self.crossfeed.setAmount(clamped)
+            self.logger.debug("Crossfeed amount set to \(clamped)")
+        }
+    }
+
     func loadProfile(_ profile: EQProfile) {
         controlQueue.async {
             self.currentBands = profile.bands
             let applied = self.eq.apply(bands: profile.bands, sampleRate: self.currentSampleRate)
-            self.logger.info("Profile loaded: \(profile.name, privacy: .public) (\(applied) bands @ \(self.currentSampleRate) Hz)")
+            self.currentCrossfeedEnabled = profile.crossfeedEnabled
+            self.currentCrossfeedAmount = profile.crossfeedAmount
+            self.crossfeed.setAmount(profile.crossfeedAmount)
+            self.crossfeed.setEnabled(profile.crossfeedEnabled)
+            let xfeed = profile.crossfeedEnabled ? "on" : "off"
+            let rate = self.currentSampleRate
+            self.logger.info("Profile loaded: \(profile.name, privacy: .public) (\(applied) bands @ \(rate) Hz, crossfeed \(xfeed, privacy: .public))")
         }
     }
 
@@ -261,6 +291,13 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             eq.apply(bands: currentBands, sampleRate: outputRate)
             eq.requestStateReset()
 
+            // 5b-ii. (Re)prepare crossfeed at the actual output rate, clear its
+            //        filter state, and re-publish the loaded profile's settings.
+            crossfeed.prepare(sampleRate: outputRate)
+            crossfeed.reset()
+            crossfeed.setAmount(currentCrossfeedAmount)
+            crossfeed.setEnabled(currentCrossfeedEnabled)
+
             // 5c. Spectrum analysis runs while the engine runs (its CPU cost is
             //     gated separately by the `enabled` atomic the IO block reads).
             analyzer.start(sampleRate: outputRate)
@@ -270,7 +307,7 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             try check(
                 AudioDeviceCreateIOProcIDWithBlock(
                     &newProcID, newAggregateID, nil,
-                    Self.makeIOBlock(context: renderContext, eq: eq, analyzer: analyzer)),
+                    Self.makeIOBlock(context: renderContext, eq: eq, crossfeed: crossfeed, analyzer: analyzer)),
                 "AudioDeviceCreateIOProcIDWithBlock")
             ioProcID = newProcID
             try check(AudioDeviceStart(newAggregateID, newProcID), "AudioDeviceStart")
@@ -372,7 +409,12 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     ///
     /// Realtime rules: no allocations, no locks, no ObjC messaging. The EQ drains its
     /// lock-free command ring here; spectrum taps write into lock-free rings.
-    private static func makeIOBlock(context: RenderContext, eq: RealtimeParametricEQ, analyzer: SpectrumAnalyzer) -> AudioDeviceIOBlock {
+    private static func makeIOBlock(
+        context: RenderContext,
+        eq: RealtimeParametricEQ,
+        crossfeed: Crossfeed,
+        analyzer: SpectrumAnalyzer
+    ) -> AudioDeviceIOBlock {
         return { _, inInputData, _, outOutputData, _ in
             let inABL = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inInputData))
             let outABL = UnsafeMutableAudioBufferListPointer(outOutputData)
@@ -443,8 +485,12 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
                     // Re-engaging: clear stale filter history. The gain smoother's
                     // crossfade masks the transition.
                     eq.resetState()
+                    crossfeed.reset()
                 }
                 eq.processStereoInterleaved(stereo, frameCount: stereoFrames)
+                // Crossfeed sits after the EQ (spatialize the corrected signal)
+                // and before the gain stage, so the post-EQ spectrum tap sees it.
+                crossfeed.processStereoInterleaved(stereo, frameCount: stereoFrames)
             }
             context.wasBypassed = isBypassed
 

@@ -32,8 +32,9 @@ function_body_length:
 
 type_body_length:
   # AudioEngine is one deliberately cohesive realtime class; its lock-free
-  # invariants don't split cleanly, so allow a little headroom.
-  warning: 450
+  # invariants don't split cleanly, so allow a little headroom (grew again when
+  # the crossfeed DSP stage was wired into the same IO path).
+  warning: 480
   error: 700
 
 file_length:

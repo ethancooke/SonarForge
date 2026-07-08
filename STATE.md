@@ -22,7 +22,7 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 
 **Headline facts**
 - Audio: tap → private aggregate → HAL IOProc; ~0% CPU running with EQ + spectrum + editor live; 35-min soak clean; Netflix browser DRM captured fine. Output picker filters the app's own aggregate and auto-refreshes via a Core Audio device-list listener (v0.1.2).
-- DSP: 16-band DF2T cascade, 0.29% of realtime for 12 bands (optimized build); 93 unit tests across DSP/profiles/importer/spectrum/A/B, all passing.
+- DSP: 16-band DF2T cascade, 0.29% of realtime for 12 bands (optimized build); optional per-profile headphone **crossfeed** stage (complementary-filter, tone-neutral for mono; runs after the EQ — see D-012); 98 unit tests across DSP/profiles/importer/spectrum/A/B/crossfeed, all passing.
 - Profiles persist as plain JSON; AutoEQ parametric + GraphicEQ import with mandatory attribution; favorites ordering + ⌘1–9/⌘B quick switch; 11 factory presets including the artistic **Sonar Wave**.
 - Editor: response curve over always-on pre/post spectrum; spectral band colors (warm bass → cool treble on footprint, handle, and band row, live while dragging); summed response drawn neutral on top; draggable handles (live audio, persist-on-release), ⌥-drag Q, arrow-key nudging, numeric band rows, axis labels.
 
@@ -31,7 +31,7 @@ The MVP feature set is **functionally complete**. All work below is listening-va
 ## Where Things Live
 
 - `Sources/SonarForge/Audio/` — `AudioEngine` (tap + aggregate + IOProc, gain smoothing, watchdog, device listeners), `SpectrumAnalyzer`, `AudioDeviceUtils`, `AudioEngineProtocol` (UI↔engine boundary, D-004).
-- `Sources/SonarForge/DSP/` — `BiquadCoefficients` (clamped RBJ + analytic response), `RealtimeParametricEQ` (SPSC command ring, D-010), `SpectrumProcessor`, `SampleRing`, `EQResponseCurve`, `GainMath`, `BiquadFilter` (offline/test).
+- `Sources/SonarForge/DSP/` — `BiquadCoefficients` (clamped RBJ + analytic response), `RealtimeParametricEQ` (SPSC command ring, D-010), `Crossfeed` (per-profile headphone crossfeed, D-012), `SpectrumProcessor`, `SampleRing`, `EQResponseCurve`, `GainMath`, `BiquadFilter` (offline/test).
 - `Sources/SonarForge/Profiles/` — `ProfileStore` (JSON-per-profile, atomic writes), `ProfileManager` (@Observable CRUD + favorites order), `AutoEQImporter` (pure parser).
 - `Sources/SonarForge/App/` — `AppModel` (A/B slot state, profile selection, engine coordination).
 - `Sources/SonarForge/UI/` — `ContentView` (layout + `BandListEditor` + `AudioEnginePanel`), `FrequencyResponseEditor`, `BandPalette` (spectral band coloring), `SpectrumView`/`SpectrumSection` (observation-isolated — see perf lesson in AUDIO_PATH.md), `ProfileLibraryView`, `AutoEQImportView`, `MenuBarContent`.

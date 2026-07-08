@@ -144,6 +144,51 @@ struct ContentView: View {
                         }
                         .padding(4)
                     }
+
+                    GroupBox("Crossfeed") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Toggle(isOn: Binding(
+                                get: { appModel.currentProfile.crossfeedEnabled },
+                                set: { appModel.setCrossfeedEnabled($0) }
+                            )) {
+                                Text("Enable crossfeed")
+                            }
+                            .help("Blends each channel's lower frequencies into the opposite ear, "
+                                + "like speakers in a room — pulls hard-panned mixes out of your head. "
+                                + "Highs keep full stereo separation. Saved per profile.")
+
+                            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                                GridRow {
+                                    Text("Amount")
+                                        .gridColumnAlignment(.trailing)
+                                        .foregroundStyle(appModel.currentProfile.crossfeedEnabled ? .primary : .secondary)
+                                    Slider(
+                                        value: Binding(
+                                            get: { appModel.currentProfile.crossfeedAmount },
+                                            set: { appModel.setCrossfeedAmount($0, persist: false) }
+                                        ),
+                                        in: 0...1,
+                                        step: 0.01,
+                                        onEditingChanged: { editing in
+                                            if !editing { appModel.commitProfileEdit() }
+                                        }
+                                    )
+                                    .labelsHidden()
+                                    .frame(minWidth: 160, maxWidth: 280)
+                                    .disabled(!appModel.currentProfile.crossfeedEnabled)
+                                    .accessibilityLabel("Crossfeed amount")
+                                    .help("Wider = more blend (more speaker-like). "
+                                        + "The default sits at a natural, moderate position.")
+                                    Text("\(Int((appModel.currentProfile.crossfeedAmount * 100).rounded()))%")
+                                        .monospacedDigit()
+                                        .frame(width: 64, alignment: .trailing)
+                                        .foregroundStyle(appModel.currentProfile.crossfeedEnabled ? .primary : .secondary)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                        }
+                        .padding(4)
+                    }
                 }
                 .padding(.horizontal)
 

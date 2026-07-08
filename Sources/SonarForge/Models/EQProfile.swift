@@ -24,6 +24,11 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
     public var name: String
     public var preamp: Double          // dB, applied before the band filters
     public var bands: [EQBand]
+    /// Headphone crossfeed: mixes each channel's lows into the opposite ear for
+    /// an "out-of-head" feel. Off by default; `crossfeedAmount` holds the chosen
+    /// strength even while disabled so toggling on restores it.
+    public var crossfeedEnabled: Bool
+    public var crossfeedAmount: Double // 0…1, mapped to the DSP bleed range
     public var isFavorite: Bool
     public var sourceAttribution: String?   // e.g. "AutoEQ / oratory1990 - HD 600"
     public var notes: String?
@@ -37,6 +42,8 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
         name: String,
         preamp: Double = 0.0,
         bands: [EQBand] = [],
+        crossfeedEnabled: Bool = false,
+        crossfeedAmount: Double = Crossfeed.defaultAmount,
         isFavorite: Bool = false,
         sourceAttribution: String? = nil,
         notes: String? = nil,
@@ -46,6 +53,8 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
         self.name = name
         self.preamp = preamp
         self.bands = bands
+        self.crossfeedEnabled = crossfeedEnabled
+        self.crossfeedAmount = crossfeedAmount
         self.isFavorite = isFavorite
         self.sourceAttribution = sourceAttribution
         self.notes = notes
@@ -183,12 +192,13 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
     public func differsFromFactoryDefault() -> Bool {
         guard isFactory, let canonical = Self.canonicalFactory(id: id) else { return false }
         if preamp != canonical.preamp || notes != canonical.notes { return true }
+        if crossfeedEnabled != canonical.crossfeedEnabled || crossfeedAmount != canonical.crossfeedAmount { return true }
         guard bands.count == canonical.bands.count else { return true }
         return !zip(bands, canonical.bands).allSatisfy { $0.hasSameParameters(as: $1) }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, preamp, bands, isFavorite, sourceAttribution, notes, isFactory
+        case id, name, preamp, bands, crossfeedEnabled, crossfeedAmount, isFavorite, sourceAttribution, notes, isFactory
     }
 
     public init(from decoder: Decoder) throws {
@@ -197,6 +207,9 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
         name = try container.decode(String.self, forKey: .name)
         preamp = try container.decode(Double.self, forKey: .preamp)
         bands = try container.decode([EQBand].self, forKey: .bands)
+        // Backward compatible: profiles saved before crossfeed lack these keys.
+        crossfeedEnabled = try container.decodeIfPresent(Bool.self, forKey: .crossfeedEnabled) ?? false
+        crossfeedAmount = try container.decodeIfPresent(Double.self, forKey: .crossfeedAmount) ?? Crossfeed.defaultAmount
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         sourceAttribution = try container.decodeIfPresent(String.self, forKey: .sourceAttribution)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
@@ -209,6 +222,8 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
         try container.encode(name, forKey: .name)
         try container.encode(preamp, forKey: .preamp)
         try container.encode(bands, forKey: .bands)
+        try container.encode(crossfeedEnabled, forKey: .crossfeedEnabled)
+        try container.encode(crossfeedAmount, forKey: .crossfeedAmount)
         try container.encode(isFavorite, forKey: .isFavorite)
         try container.encodeIfPresent(sourceAttribution, forKey: .sourceAttribution)
         try container.encodeIfPresent(notes, forKey: .notes)
