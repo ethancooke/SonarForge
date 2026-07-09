@@ -32,6 +32,7 @@
 		63A90C4D61CE82AE8AE352E5 /* AutoEQImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C30D0B7632518843FE771F /* AutoEQImporter.swift */; };
 		64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */; };
 		6B79F6459E8CB9BFF78EA72D /* AutoEQImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */; };
+		7C5F870E46187BCE3DB74D4E /* SpectrumFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */; };
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
 		A2E632393FFF24292D159231 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = ABC755F571079F1637B8CFDA /* Atomics */; };
 		A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456E5263CDB3F894E35017DF /* RealtimeParametricEQ.swift */; };
@@ -111,6 +112,7 @@
 		DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonarForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD39AF0246080F495EEFF95A /* Visualizations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Visualizations.swift; sourceTree = "<group>"; };
 		E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
+		EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumFeed.swift; sourceTree = "<group>"; };
 		F4D93BD8BDDAADD313218127 /* BandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandPalette.swift; sourceTree = "<group>"; };
 		FD188809AD7AF330F6644F14 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -164,6 +166,7 @@
 			isa = PBXGroup;
 			children = (
 				D8099D566442C0E0A256CF89 /* PermissionHelper.swift */,
+				EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -429,6 +432,7 @@
 				FD3A77C27B71EB1982C31356 /* ShortcutsHelpView.swift in Sources */,
 				F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */,
 				56D9E34C510F936DB35D5F89 /* SpectrumAnalyzer.swift in Sources */,
+				7C5F870E46187BCE3DB74D4E /* SpectrumFeed.swift in Sources */,
 				AD66B15122B18DA5FC8D1FC9 /* SpectrumProcessor.swift in Sources */,
 				4870BA5F135F68B61E24EDB2 /* SpectrumView.swift in Sources */,
 				4EA0CFDEFCB10052BFD3C09E /* TroubleshootingView.swift in Sources */,

@@ -60,8 +60,14 @@ final class AppModel {
     // MARK: - Spectrum (Chunk 3.1)
 
     // Display bins (dBFS, log-spaced 20 Hz–20 kHz), updated ~20 Hz while enabled.
+    // Used by SwiftUI Canvas path (frequency-response overlay). Standalone
+    // visualizers (bars / LED / spectrogram / Reactor) poll `spectrumFeed`
+    // instead so they keep animating during main-thread UI tracking.
     var preEQLevels: [Float] = []
     var postEQLevels: [Float] = []
+
+    /// Thread-safe latest bins for display-link visualizers (not observable).
+    @ObservationIgnored let spectrumFeed = SpectrumFeed()
 
     /// Set by the spectrum view's appear/disappear (Chunk 6.2 CPU saver):
     /// analysis is display-only, so when the main window is closed (menu-bar
@@ -75,6 +81,7 @@ final class AppModel {
         let enabled = spectrumViewVisible
         audioEngine.setSpectrumEnabled(enabled)
         if !enabled {
+            spectrumFeed.clear()
             preEQLevels = []
             postEQLevels = []
         }
@@ -138,8 +145,11 @@ final class AppModel {
                     }
                 }
             }
+            // Publish to the feed immediately (any thread) so display-link
+            // visualizers never wait on the main actor / SwiftUI body cycle.
+            guard let self else { return }
+            self.spectrumFeed.publish(pre: pre, post: post)
             Task { @MainActor in
-                guard let self else { return }
                 self.preEQLevels = pre
                 self.postEQLevels = post
             }
@@ -343,13 +353,17 @@ final class AppModel {
         commitProfileEdit()
     }
 
-    /// Sets crossfeed strength (0…1) for the current profile. Pass `persist:
-    /// false` during a continuous slider drag; commit once on gesture end.
+    /// Sets crossfeed strength (0…1). Pass `persist: false` during a continuous
+    /// slider drag so we only push the engine (no `currentProfile` write) —
+    /// mutating the profile every tick re-rendered the whole main window and
+    /// starved the spectrum visualizers. Commit once on gesture end.
     func setCrossfeedAmount(_ amount: Double, persist: Bool = true) {
-        guard currentProfile.crossfeedAmount != amount else { return }
-        currentProfile.crossfeedAmount = amount
-        audioEngine.setCrossfeedAmount(amount)
-        if persist { commitProfileEdit() }
+        let clamped = min(max(amount, 0), 1)
+        audioEngine.setCrossfeedAmount(clamped)
+        guard persist else { return }
+        guard currentProfile.crossfeedAmount != clamped else { return }
+        currentProfile.crossfeedAmount = clamped
+        commitProfileEdit()
     }
 
     func loadProfile(_ profile: EQProfile) {

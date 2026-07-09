@@ -121,6 +121,33 @@ includes gain as required by the Chunk 1.2 deliverables.
   never inside it, or resize animations redo the biquad math every frame.
   Measured (Debug, audio playing): Pre/Legend toggles ~72 ms, panel collapse
   ~35 ms.
+- **Visualizer perf (2026-07-08)**: Canvas modes and Reactor must stay cheap
+  enough that band edits / panel toggles / gain sliders remain snappy while a
+  visualizer is live. Lessons:
+  - **Main-thread freeze**: `MTKView.draw(in:)` and SwiftUI `Canvas` both
+    depend on the main run loop. Any button/slider tracking stalls them even
+    when the control does not touch audio — felt as "the visual pauses when I
+    click anything." Fix: a thread-safe `SpectrumFeed` published from the
+    analyzer callback (before the MainActor hop), plus **CVDisplayLink**
+    renderers that poll the feed on a dedicated queue.
+  - **Inactive-but-visible**: do **not** pause on `willResignActive`. Keep
+    animating while the window is on-screen (another app may be frontmost);
+    pause only when hidden / miniaturized / fully occluded. Bars/LED also run
+    a 30 Hz fallback timer because `CVDisplayLink` is often throttled for
+    non-frontmost apps (Metal/Reactor is less affected).
+  - **Slider-drag isolation**: continuous controls (crossfeed amount, gain)
+    must not rewrite `currentProfile` / re-render ContentView every tick —
+    that main-thread body work starved bars/LED presents. Crossfeed amount
+    uses local `@State` + engine-only updates during drag; profile commit on
+    gesture end. Gain/crossfeed live in leaf panels (`GainStagingPanel` /
+    `CrossfeedPanel`).
+  - **Reactor**: `CAMetalLayer` + off-main CVDisplayLink (not `MTKView`);
+    feedback targets capped at a 720 px long edge; ~30 fps pacing. Present
+    still fills the full layer.
+  - **Bars / LED / Spectrogram**: `NSView` + CVDisplayLink (+ fallback timer)
+    rasterize to a capped-resolution `CGImage` on a background queue and set
+    `layer.contents` **off the main thread** (actions disabled). Spectrogram
+    keeps a scrolling BGRA buffer (not thousands of Canvas rects).
 - **Enablement**: both pre and post traces are always shown — there are no
   user-facing toggles. A single relaxed atomic still gates the whole cost,
   driven by view visibility (below): when the spectrum view is off screen the

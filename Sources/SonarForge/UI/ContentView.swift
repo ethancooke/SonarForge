@@ -110,85 +110,10 @@ struct ContentView: View {
                         .help("Switch to the neutral Flat profile")
                     }
 
-                    GroupBox("Gain Staging") {
-                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
-                            GridRow {
-                                Text("Preamp (pre-EQ)")
-                                    .gridColumnAlignment(.trailing)
-                                Slider(value: $model.preampDB, in: -12...12, step: 0.1) {
-                                    Text("Preamp")
-                                }
-                                .labelsHidden()
-                                .frame(minWidth: 160, maxWidth: 280)
-                                .help("Gain applied before the EQ. Lower this to create headroom — "
-                                    + "AutoEQ profiles typically use a negative preamp to offset boosted bands.")
-                                Text(String(format: "%+.1f dB", model.preampDB))
-                                    .monospacedDigit()
-                                    .frame(width: 64, alignment: .trailing)
-                                    .accessibilityHidden(true)
-                            }
-                            GridRow {
-                                Text("Output Gain (master)")
-                                    .gridColumnAlignment(.trailing)
-                                Slider(value: $model.outputGainDB, in: -12...12, step: 0.1) {
-                                    Text("Output Gain")
-                                }
-                                .labelsHidden()
-                                .frame(minWidth: 160, maxWidth: 280)
-                                .help("Master volume trim applied after the EQ, before the output device.")
-                                Text(String(format: "%+.1f dB", model.outputGainDB))
-                                    .monospacedDigit()
-                                    .frame(width: 64, alignment: .trailing)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                        .padding(4)
-                    }
-
-                    GroupBox("Crossfeed") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Toggle(isOn: Binding(
-                                get: { appModel.currentProfile.crossfeedEnabled },
-                                set: { appModel.setCrossfeedEnabled($0) }
-                            )) {
-                                Text("Enable crossfeed")
-                            }
-                            .help("Blends each channel's lower frequencies into the opposite ear, "
-                                + "like speakers in a room — pulls hard-panned mixes out of your head. "
-                                + "Highs keep full stereo separation. Saved per profile.")
-
-                            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
-                                GridRow {
-                                    Text("Amount")
-                                        .gridColumnAlignment(.trailing)
-                                        .foregroundStyle(appModel.currentProfile.crossfeedEnabled ? .primary : .secondary)
-                                    Slider(
-                                        value: Binding(
-                                            get: { appModel.currentProfile.crossfeedAmount },
-                                            set: { appModel.setCrossfeedAmount($0, persist: false) }
-                                        ),
-                                        in: 0...1,
-                                        step: 0.01,
-                                        onEditingChanged: { editing in
-                                            if !editing { appModel.commitProfileEdit() }
-                                        }
-                                    )
-                                    .labelsHidden()
-                                    .frame(minWidth: 160, maxWidth: 280)
-                                    .disabled(!appModel.currentProfile.crossfeedEnabled)
-                                    .accessibilityLabel("Crossfeed amount")
-                                    .help("Wider = more blend (more speaker-like). "
-                                        + "The default sits at a natural, moderate position.")
-                                    Text("\(Int((appModel.currentProfile.crossfeedAmount * 100).rounded()))%")
-                                        .monospacedDigit()
-                                        .frame(width: 64, alignment: .trailing)
-                                        .foregroundStyle(appModel.currentProfile.crossfeedEnabled ? .primary : .secondary)
-                                        .accessibilityHidden(true)
-                                }
-                            }
-                        }
-                        .padding(4)
-                    }
+                    // Isolated leaves: slider drags only re-render these panels,
+                    // not ContentView + FrequencyPane (which froze bars/LED).
+                    GainStagingPanel()
+                    CrossfeedPanel()
                 }
                 .padding(.horizontal)
 
@@ -317,6 +242,117 @@ struct ContentView: View {
     }
 }
 
+/// Gain sliders in their own observation leaf so dragging preamp/output does
+/// not re-evaluate ContentView (profile chrome, visualizer host, band list).
+struct GainStagingPanel: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        @Bindable var model = appModel
+        GroupBox("Gain Staging") {
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                GridRow {
+                    Text("Preamp (pre-EQ)")
+                        .gridColumnAlignment(.trailing)
+                    Slider(value: $model.preampDB, in: -12...12, step: 0.1) {
+                        Text("Preamp")
+                    }
+                    .labelsHidden()
+                    .frame(minWidth: 160, maxWidth: 280)
+                    .help("Gain applied before the EQ. Lower this to create headroom — "
+                        + "AutoEQ profiles typically use a negative preamp to offset boosted bands.")
+                    Text(String(format: "%+.1f dB", model.preampDB))
+                        .monospacedDigit()
+                        .frame(width: 64, alignment: .trailing)
+                        .accessibilityHidden(true)
+                }
+                GridRow {
+                    Text("Output Gain (master)")
+                        .gridColumnAlignment(.trailing)
+                    Slider(value: $model.outputGainDB, in: -12...12, step: 0.1) {
+                        Text("Output Gain")
+                    }
+                    .labelsHidden()
+                    .frame(minWidth: 160, maxWidth: 280)
+                    .help("Master volume trim applied after the EQ, before the output device.")
+                    Text(String(format: "%+.1f dB", model.outputGainDB))
+                        .monospacedDigit()
+                        .frame(width: 64, alignment: .trailing)
+                        .accessibilityHidden(true)
+                }
+            }
+            .padding(4)
+        }
+    }
+}
+
+/// Crossfeed controls. Amount uses local `@State` while dragging so continuous
+/// updates only hit the audio engine — not `currentProfile` / the whole window.
+struct CrossfeedPanel: View {
+    @Environment(AppModel.self) private var appModel
+    @State private var amount: Double = 0
+    @State private var isDragging = false
+
+    var body: some View {
+        let enabled = appModel.currentProfile.crossfeedEnabled
+        GroupBox("Crossfeed") {
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { appModel.currentProfile.crossfeedEnabled },
+                    set: { appModel.setCrossfeedEnabled($0) }
+                )) {
+                    Text("Enable crossfeed")
+                }
+                .help("Blends each channel's lower frequencies into the opposite ear, "
+                    + "like speakers in a room — pulls hard-panned mixes out of your head. "
+                    + "Highs keep full stereo separation. Saved per profile.")
+
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                    GridRow {
+                        Text("Amount")
+                            .gridColumnAlignment(.trailing)
+                            .foregroundStyle(enabled ? .primary : .secondary)
+                        Slider(
+                            value: $amount,
+                            in: 0...1,
+                            step: 0.01,
+                            onEditingChanged: { editing in
+                                isDragging = editing
+                                if !editing {
+                                    appModel.setCrossfeedAmount(amount, persist: true)
+                                }
+                            }
+                        )
+                        .labelsHidden()
+                        .frame(minWidth: 160, maxWidth: 280)
+                        .disabled(!enabled)
+                        .accessibilityLabel("Crossfeed amount")
+                        .help("Wider = more blend (more speaker-like). "
+                            + "The default sits at a natural, moderate position.")
+                        .onChange(of: amount) { _, newValue in
+                            // Live DSP only while dragging / scrubbing — no profile write.
+                            appModel.setCrossfeedAmount(newValue, persist: false)
+                        }
+                        Text("\(Int((amount * 100).rounded()))%")
+                            .monospacedDigit()
+                            .frame(width: 64, alignment: .trailing)
+                            .foregroundStyle(enabled ? .primary : .secondary)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .padding(4)
+        }
+        .onAppear { amount = appModel.currentProfile.crossfeedAmount }
+        .onChange(of: appModel.currentProfile.id) { _, _ in
+            amount = appModel.currentProfile.crossfeedAmount
+        }
+        .onChange(of: appModel.currentProfile.crossfeedAmount) { _, newValue in
+            if !isDragging { amount = newValue }
+        }
+    }
+}
+
 /// Frequency-response header + graph stack, observation-isolated (the same
 /// lesson as SpectrumSection, see AUDIO_PATH.md): Pre/Post/Legend toggles and
 /// 20 Hz spectrum updates re-render only this subtree — never the band list,
@@ -330,7 +366,6 @@ struct FrequencyPane: View {
     @AppStorage("visualizationStyle") private var styleRaw = VisualizationStyle.curve.rawValue
 
     var body: some View {
-        @Bindable var model = appModel
         let style = VisualizationStyle(rawValue: styleRaw) ?? .curve
 
         VStack(spacing: 12) {
