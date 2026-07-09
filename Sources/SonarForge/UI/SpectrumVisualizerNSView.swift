@@ -67,6 +67,18 @@ final class SpectrumVisualizerNSView: NSView {
     private var particles: [Particle] = []
     private static let maxParticles = 400
 
+    // Matrix rain — one stream per frequency column; glyphs are note/Hz/dB tokens.
+    private struct MatrixStream {
+        var headY: Float          // top of bright head, top-origin (0 = top)
+        var speed: Float          // cells per second (scaled)
+        var trail: [String]       // newest glyph at index 0 (head)
+        var tick: Int             // advances glyph choice with audio
+        var binIndex: Int
+    }
+    private var matrixStreams: [MatrixStream] = []
+    private var matrixCellH: Float = 14
+    private var matrixFrame: Int = 0
+
     // Cross-thread state (main writes size/feed/mode/paused; render queue reads).
     private let stateLock = NSLock()
     private var pixelSize: CGSize = .zero
@@ -139,6 +151,8 @@ final class SpectrumVisualizerNSView: NSView {
             self.phosphorW = 0
             self.phosphorH = 0
             self.particles.removeAll(keepingCapacity: true)
+            self.matrixStreams.removeAll(keepingCapacity: true)
+            self.matrixFrame = 0
             self.peaks.removeAll(keepingCapacity: true)
             self.levels.removeAll(keepingCapacity: true)
             self.lastSpectrumGeneration = 0
@@ -163,7 +177,7 @@ final class SpectrumVisualizerNSView: NSView {
 
     private func applyModeAppearance(_ mode: SpectrumVisualizerMode) {
         let darkModes: Set<SpectrumVisualizerMode> = [
-            .spectrogram, .vectorscope, .crt, .particles, .polar,
+            .spectrogram, .vectorscope, .crt, .particles, .polar, .matrix,
         ]
         layer?.backgroundColor = darkModes.contains(mode)
             ? NSColor.black.withAlphaComponent(0.30).cgColor
@@ -435,7 +449,8 @@ final class SpectrumVisualizerNSView: NSView {
         case .crt:
             _ = waveform?.copySamples(into: &waveSamples)
             return drawCRT(size: size)
-        case .bars, .mirroredBars, .ghostBars, .polar, .ledBars, .spectrogram, .particles, .miniBars:
+        case .bars, .mirroredBars, .ghostBars, .polar, .ledBars, .spectrogram,
+             .particles, .matrix, .miniBars:
             break
         }
 
@@ -468,6 +483,8 @@ final class SpectrumVisualizerNSView: NSView {
             return drawSpectrogram(size: size, spectrumChanged: spectrumChanged)
         case .particles:
             return drawParticles(size: size, spectrumChanged: spectrumChanged)
+        case .matrix:
+            return drawMatrixRain(size: size, spectrumChanged: spectrumChanged)
         default:
             return nil
         }
@@ -771,6 +788,208 @@ final class SpectrumVisualizerNSView: NSView {
             let a = 255
             phosphorPixels[idx] = UInt32(b) | (UInt32(g) << 8) | (UInt32(r) << 16) | (UInt32(a) << 24)
         }
+    }
+
+    // MARK: Matrix rain (audio-token streams)
+
+    /// Digital-rain columns map to spectrum bins. Glyphs are not pure noise:
+    /// each stream prefers the **note name** for that bin’s frequency, the
+    /// bin’s **dB** digits, and compact **Hz** tokens — so loud bands rain
+    /// faster/brighter with meaningful characters.
+    private func drawMatrixRain(size: CGSize, spectrumChanged: Bool) -> CGImage? {
+        let w = Float(size.width)
+        let h = Float(size.height)
+        guard w > 8, h > 8, levels.count > 1 else { return nil }
+
+        let binCount = levels.count
+        let cellH: Float = max(11, min(16, h / 36))
+        matrixCellH = cellH
+        let colCount = min(binCount, max(8, Int(w / (cellH * 0.95))))
+        let cellW = w / Float(colCount)
+
+        // Rebuild streams if column count changed (resize / first frame).
+        if matrixStreams.count != colCount {
+            var fresh: [MatrixStream] = []
+            fresh.reserveCapacity(colCount)
+            for c in 0..<colCount {
+                let bin = Self.matrixBin(column: c, columns: colCount, bins: binCount)
+                fresh.append(MatrixStream(
+                    headY: Float.random(in: -h...0),
+                    speed: Float.random(in: 8...18),
+                    trail: [],
+                    tick: Int.random(in: 0...40),
+                    binIndex: bin
+                ))
+            }
+            matrixStreams = fresh
+        }
+
+        matrixFrame &+= 1
+        let dt = Float(Self.minFrameInterval)
+
+        for c in matrixStreams.indices {
+            advanceMatrixStream(
+                at: c,
+                colCount: colCount,
+                binCount: binCount,
+                cellH: cellH,
+                height: h,
+                dt: dt,
+                spectrumChanged: spectrumChanged
+            )
+        }
+
+        return withContext(size: size) { ctx, cw, ch in
+            self.paintMatrixRain(ctx: ctx, width: cw, height: ch, cellW: cellW, cellH: cellH)
+        }
+    }
+
+    private static func matrixBin(column: Int, columns: Int, bins: Int) -> Int {
+        let raw = Int((Float(column) + 0.5) / Float(columns) * Float(bins))
+        return min(max(raw, 0), bins - 1)
+    }
+
+    private func advanceMatrixStream(at c: Int, colCount: Int, binCount: Int,
+                                     cellH: Float, height: Float, dt: Float,
+                                     spectrumChanged: Bool) {
+        var s = matrixStreams[c]
+        s.binIndex = Self.matrixBin(column: c, columns: colCount, bins: binCount)
+        let energy = VizScale.normFloat(levels[s.binIndex])
+        let targetSpeed = 6 + energy * 42
+        s.speed += (targetSpeed - s.speed) * 0.2
+        s.headY += s.speed * cellH * dt
+
+        let desiredLen = max(4, min(22, Int(4 + energy * 18)))
+        while s.trail.count < desiredLen {
+            s.trail.append(Self.matrixGlyph(
+                bin: s.binIndex, binCount: binCount,
+                db: levels[s.binIndex], energy: energy, tick: s.tick))
+            s.tick &+= 1
+        }
+        if spectrumChanged || matrixFrame % 2 == 0 {
+            if energy > 0.05 || s.trail.isEmpty {
+                let g = Self.matrixGlyph(
+                    bin: s.binIndex, binCount: binCount,
+                    db: levels[s.binIndex], energy: energy, tick: s.tick)
+                if s.trail.isEmpty {
+                    s.trail.append(g)
+                } else {
+                    s.trail[0] = g
+                }
+                s.tick &+= 1
+                if energy > 0.12 && matrixFrame % 3 == c % 3 {
+                    s.trail.insert(g, at: 0)
+                    if s.trail.count > desiredLen {
+                        s.trail.removeLast(s.trail.count - desiredLen)
+                    }
+                }
+            }
+        }
+        if s.trail.count > desiredLen {
+            s.trail.removeLast(s.trail.count - desiredLen)
+        }
+        if s.headY - Float(s.trail.count) * cellH > height + cellH {
+            s.headY = Float.random(in: (-height * 0.5)...0)
+            s.trail.removeAll(keepingCapacity: true)
+            s.speed = 8 + energy * 20
+        }
+        if energy < 0.04 && s.trail.count > 6 {
+            s.trail = Array(s.trail.prefix(5))
+        }
+        matrixStreams[c] = s
+    }
+
+    private func paintMatrixRain(ctx: CGContext, width: CGFloat, height: CGFloat,
+                                 cellW: Float, cellH: Float) {
+        ctx.setFillColor(NSColor.black.cgColor)
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+
+        let fontSize = CGFloat(cellH) * 0.85
+        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .medium)
+        let hF = Float(height)
+
+        for (c, s) in matrixStreams.enumerated() {
+            let energyF = s.binIndex < levels.count
+                ? VizScale.normFloat(levels[s.binIndex]) : Float(0)
+            let energy = CGFloat(energyF)
+            let x = CGFloat(c) * CGFloat(cellW) + CGFloat(cellW) * 0.15
+            for (ti, glyph) in s.trail.enumerated() {
+                let topY = s.headY - Float(ti) * cellH
+                guard topY > -cellH, topY < hF + cellH else { continue }
+                let cgY = height - CGFloat(topY) - CGFloat(cellH)
+                let trailCount = max(s.trail.count, 1)
+                let fade = max(CGFloat(0), 1 - CGFloat(ti) / CGFloat(trailCount))
+                let isHead = ti == 0
+                let alpha: CGFloat
+                if isHead {
+                    alpha = 0.55 + 0.45 * energy
+                } else {
+                    alpha = 0.12 + 0.55 * fade * (0.35 + energy)
+                }
+                let color: NSColor
+                if isHead {
+                    color = NSColor(calibratedRed: 0.75, green: 1.0, blue: 0.75, alpha: alpha)
+                } else {
+                    color = NSColor(calibratedRed: 0.05, green: 0.9, blue: 0.25, alpha: alpha)
+                }
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: color,
+                ]
+                let ns = NSAttributedString(string: glyph, attributes: attrs)
+                let line = CTLineCreateWithAttributedString(ns)
+                ctx.saveGState()
+                ctx.textPosition = CGPoint(x: x, y: cgY)
+                CTLineDraw(line, ctx)
+                ctx.restoreGState()
+            }
+        }
+
+        drawCenteredLabel(ctx, "Matrix Rain · note / Hz / dB tokens from the live spectrum",
+                          rect: CGRect(x: 4, y: 4, width: width - 8, height: 12),
+                          style: (9, NSColor.green.withAlphaComponent(0.45), false))
+    }
+
+    /// Pick a display token for a bin: note name, frequency, or dB magnitude.
+    private static func matrixGlyph(bin: Int, binCount: Int, db: Float, energy: Float, tick: Int) -> String {
+        let hz = logBinFrequency(index: bin, count: binCount)
+        let note = noteName(forHz: hz)
+        let hzTok: String
+        if hz >= 1000 {
+            hzTok = String(format: "%.1fk", hz / 1000)
+        } else {
+            hzTok = String(format: "%.0f", hz)
+        }
+        let dbClamped = min(max(db, -99), 0)
+        let dbTok = String(format: "%.0f", abs(dbClamped))
+        var pool: [String] = [note, note, hzTok, dbTok]
+        if energy > 0.25 {
+            pool.append(contentsOf: [note, "♪", hzTok])
+        }
+        if energy > 0.55 {
+            pool.append(contentsOf: ["dB", "Hz", note])
+        }
+        if energy < 0.08 {
+            pool = [note, "·", "0"]
+        }
+        return pool[tick % pool.count]
+    }
+
+    private static func logBinFrequency(index: Int, count: Int,
+                                        fMin: Float = 20, fMax: Float = 20_000) -> Float {
+        guard count > 1 else { return fMin }
+        let t = Float(index) / Float(count - 1)
+        return fMin * pow(fMax / fMin, t)
+    }
+
+    private static func noteName(forHz hz: Float) -> String {
+        guard hz > 1 else { return "—" }
+        let midi = 69 + 12 * log2(Double(hz) / 440)
+        let n = Int(midi.rounded())
+        let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+        let name = names[((n % 12) + 12) % 12]
+        let octave = n / 12 - 1
+        return "\(name)\(octave)"
     }
 
     /// Classic mirrored media-player bars: grow up and down from a center line.

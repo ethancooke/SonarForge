@@ -20,6 +20,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
     case correlation
     case vuMeters
     case particles
+    case matrix
     case reactor
 
     var id: String { rawValue }
@@ -39,6 +40,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .correlation:   "Correlation"
         case .vuMeters:      "VU / PPM"
         case .particles:     "Particles"
+        case .matrix:        "Matrix Rain"
         case .reactor:       "Reactor"
         }
     }
@@ -58,6 +60,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .correlation:   "arrow.left.arrow.right"
         case .vuMeters:      "gauge.with.dots.needle.33percent"
         case .particles:     "sparkles"
+        case .matrix:        "text.alignleft"
         case .reactor:       "hurricane"
         }
     }
@@ -70,7 +73,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
             return false
         case .curve, .bars, .mirroredBars, .ghostBars, .ledBars, .spectrogram,
              .oscilloscope, .crt, .vectorscope, .correlation, .vuMeters,
-             .particles, .reactor:
+             .particles, .matrix, .reactor:
             return true
         }
     }
@@ -105,6 +108,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .correlation:  return .correlation
         case .vuMeters:     return .vuMeters
         case .particles:    return .particles
+        case .matrix:       return .matrix
         case .reactor, .curve: return nil
         }
     }
@@ -225,6 +229,7 @@ enum SpectrumVisualizerMode {
     case correlation
     case vuMeters
     case particles
+    case matrix
     case miniBars
 }
 
