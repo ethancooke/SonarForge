@@ -240,6 +240,18 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-016: "Reactor" — a Metal GPU Visualizer with a Runtime-Compiled Shader
+
+**Date**: 2026-07-08
+
+**Decision**: The `reactor` visualization is a Geiss/MilkDrop-inspired GPU effect rendered by an `MTKView` (bridged via `NSViewRepresentable`), not the CPU `Canvas` used by the other modes. It's a per-pixel *feedback* shader — each frame warps/zooms/rotates the previous frame's texture (ping-pong `rgba16Float` targets) and adds a spectrum-driven radial ring, all driven by smoothed bass/mid/treble derived from the existing spectrum bins. The shader (MSL) is **compiled at runtime** via `device.makeLibrary(source:)` from an embedded string, rather than shipping a `.metal` file.
+
+**Rationale**: A per-pixel feedback loop at 60 fps is a GPU job — CPU `Canvas` can't do it. The renderer owns its own `MTKView` draw loop, fully decoupled from the SwiftUI/`@Observable` path (so it can't destabilize the other modes), and smooths band energies internally so motion stays fluid between the ~20 Hz data updates. Runtime shader compilation was chosen because this Xcode (26.x) makes the offline Metal toolchain a separately-downloadable component the machine/CI may not have; runtime compilation uses the Metal framework's own compiler, so the build needs no toolchain and there's no `.metal` asset to manage — at the cost of a one-time compile when the view first appears (guarded: any failure logs and leaves the renderer inert, never crashes). Being GPU/display-link driven it throttles when the app isn't frontmost, which is acceptable for a full-screen "watch it" visual (unlike the glanceable spectrum). Only bass/mid/treble + spectrum bins feed it today; a raw PCM waveform tap and real MilkDrop preset support (projectM) are possible later.
+
+**Status**: Shipped. See `UI/ReactorView.swift` (renderer + embedded shader) and the `.reactor` case in `UI/Visualizations.swift` / `FrequencyPane`.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

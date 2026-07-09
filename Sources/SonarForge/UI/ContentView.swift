@@ -390,6 +390,7 @@ struct FrequencyPane: View {
         case .bars:        SpectrumBarsView()
         case .ledBars:     LEDBarsView()
         case .spectrogram: SpectrogramView()
+        case .reactor:     ReactorContainer()
         case .curve:       EmptyView()   // handled above
         }
     }

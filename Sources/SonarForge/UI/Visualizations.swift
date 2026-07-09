@@ -8,6 +8,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
     case bars
     case ledBars
     case spectrogram
+    case reactor
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .bars:        "Spectrum Bars"
         case .ledBars:     "LED Meters"
         case .spectrogram: "Spectrogram"
+        case .reactor:     "Reactor"
         }
     }
 
@@ -26,6 +28,7 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .bars:        "chart.bar.fill"
         case .ledBars:     "rectangle.split.3x1.fill"
         case .spectrogram: "square.grid.3x3.fill"
+        case .reactor:     "hurricane"
         }
     }
 }
