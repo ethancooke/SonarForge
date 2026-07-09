@@ -2,17 +2,21 @@ import SwiftUI
 import AppKit
 
 /// Ways to visualize the playing audio in the main display pane.
+///
+/// Hidden styles (`isListedInMenu == false`) keep their raw values and draw
+/// code so saved preferences / future re-enable work; they simply omit from
+/// the picker. If AppStorage still holds a hidden style, UI falls back to bars.
 enum VisualizationStyle: String, CaseIterable, Identifiable {
     case curve
     case bars
     case mirroredBars
     case ghostBars
-    case polar
+    case polar          // hidden — decorative; same bins as bars
     case ledBars
     case spectrogram
     case oscilloscope
     case crt
-    case vectorscope
+    case vectorscope    // listed — stereo width / mono (crossfeed companion)
     case correlation
     case vuMeters
     case particles
@@ -58,9 +62,33 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Styles that make sense in the pop-out window (no band editor).
+    /// Shown in the visualization menu / pop-out picker.
+    var isListedInMenu: Bool {
+        switch self {
+        case .polar:
+            // Same log-spectrum data as bars, just radial — low EQ utility.
+            return false
+        case .curve, .bars, .mirroredBars, .ghostBars, .ledBars, .spectrogram,
+             .oscilloscope, .crt, .vectorscope, .correlation, .vuMeters,
+             .particles, .reactor:
+            return true
+        }
+    }
+
+    /// Styles listed in the main and pop-out pickers.
+    static var menuCases: [VisualizationStyle] {
+        allCases.filter(\.isListedInMenu)
+    }
+
+    /// Pop-out (no band editor).
     static var popoutCases: [VisualizationStyle] {
-        allCases.filter { $0 != .curve }
+        menuCases.filter { $0 != .curve }
+    }
+
+    /// Map a stored (possibly hidden) preference to something the UI can show.
+    static func resolved(_ raw: String) -> VisualizationStyle {
+        let style = VisualizationStyle(rawValue: raw) ?? .curve
+        return style.isListedInMenu ? style : .bars
     }
 
     var visualizerMode: SpectrumVisualizerMode? {
@@ -147,18 +175,24 @@ struct VisualizerStage: View {
 
     @ViewBuilder
     private var visualizer: some View {
-        Group {
+        // Separate branches + stable `.id` so CPU NSViews fully dismantle before
+        // Metal Reactor mounts (particles → reactor was a problem path).
+        switch style {
+        case .reactor:
+            ReactorContainer()
+                .id("reactor")
+        case .curve:
+            SpectrumView(preLevels: appModel.preEQLevels, postLevels: appModel.postEQLevels)
+                .padding(6)
+                .id("curve-spectrum")
+        default:
             if let mode = style.visualizerMode {
                 SpectrumModeView(mode: mode, label: style.displayName)
-            } else if style == .reactor {
-                ReactorContainer()
+                    .id(mode)
             } else {
-                SpectrumView(preLevels: appModel.preEQLevels, postLevels: appModel.postEQLevels)
-                    .padding(6)
+                EmptyView()
             }
         }
-        // Identity by style so bar-family switches always remount cleanly.
-        .id(style)
     }
 }
 

@@ -16,7 +16,7 @@ struct VisualizerPopoutView: View {
     @State private var isFullScreen = false
 
     var body: some View {
-        let style = VisualizationStyle(rawValue: styleRaw) ?? .bars
+        let style = VisualizationStyle.resolved(styleRaw)
         // Curve is editor-only; map to bars for the pop-out stage.
         let displayStyle = style == .curve ? VisualizationStyle.bars : style
 
@@ -84,8 +84,8 @@ struct VisualizerPopoutView: View {
             isFullScreen = false
         }
         .onAppear {
-            // If the main window had "curve" selected, land on a real visual.
-            if style == .curve {
+            // Curve / hidden styles → a real listed visual.
+            if style == .curve || !style.isListedInMenu {
                 styleRaw = VisualizationStyle.bars.rawValue
             }
             appModel.visualizerPopoutVisible = true

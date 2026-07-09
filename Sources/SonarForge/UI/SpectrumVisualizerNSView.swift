@@ -189,6 +189,12 @@ final class SpectrumVisualizerNSView: NSView {
     func stop() {
         stateLock.lock(); forcePaused = true; stateLock.unlock()
         stopDrivers()
+        // Clear presented frame so a remounted sibling (e.g. Reactor) never
+        // briefly shows the last particles/bars frame underneath.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer?.contents = nil
+        CATransaction.commit()
     }
 
     override func layout() {
@@ -205,7 +211,12 @@ final class SpectrumVisualizerNSView: NSView {
         super.viewDidMoveToWindow()
         if window != nil {
             updatePixelSize()
-            startDrivers()
+            stateLock.lock()
+            let forced = forcePaused
+            stateLock.unlock()
+            if !forced {
+                startDrivers()
+            }
         } else {
             stopDrivers()
         }
@@ -895,16 +906,23 @@ final class SpectrumVisualizerNSView: NSView {
     }
 
     // MARK: Vectorscope / goniometer (Mid = L+R vertical, Side = L−R horizontal)
+    //
+    // For an EQ app with crossfeed: shows *stereo image width* and mono energy
+    // of the post-EQ signal. Vertical smear = mono/center; horizontal spread =
+    // wide stereo (crossfeed should pull energy toward the vertical).
 
     private func drawVectorscope(size: CGSize) -> CGImage? {
         let n = min(waveLeft.count, waveRight.count)
         guard n > 8 else { return nil }
         return withContext(size: size) { ctx, w, h in
-            let side = min(w, h)
-            let origin = CGPoint(x: (w - side) * 0.5, y: (h - side) * 0.5)
+            // Leave room for the legend under the plot.
+            let legendH: CGFloat = min(52, h * 0.16)
+            let plotH = h - legendH - 8
+            let side = min(w * 0.92, plotH)
+            let origin = CGPoint(x: (w - side) * 0.5, y: legendH + (plotH - side) * 0.5)
             let cx = origin.x + side * 0.5
             let cy = origin.y + side * 0.5
-            let radius = side * 0.42
+            let radius = side * 0.40
 
             // Background disc + axes.
             ctx.setFillColor(NSColor.black.withAlphaComponent(0.15).cgColor)
@@ -927,9 +945,15 @@ final class SpectrumVisualizerNSView: NSView {
             ctx.strokeEllipse(in: CGRect(x: cx - radius, y: cy - radius,
                                          width: radius * 2, height: radius * 2))
 
-            // Labels.
-            drawLabel(ctx, "M", at: CGPoint(x: cx + 4, y: cy + radius - 14), color: .secondaryLabelColor)
-            drawLabel(ctx, "S", at: CGPoint(x: cx + radius - 14, y: cy + 4), color: .secondaryLabelColor)
+            // Axis labels (what the shape means).
+            drawLabel(ctx, "MONO", at: CGPoint(x: cx - 18, y: cy + radius + 2),
+                      color: .secondaryLabelColor)
+            drawLabel(ctx, "WIDE", at: CGPoint(x: cx + radius - 28, y: cy + 4),
+                      color: .secondaryLabelColor)
+            drawLabel(ctx, "L", at: CGPoint(x: cx - d - 14, y: cy + d - 4),
+                      color: .tertiaryLabelColor)
+            drawLabel(ctx, "R", at: CGPoint(x: cx + d + 4, y: cy + d - 4),
+                      color: .tertiaryLabelColor)
 
             // Plot Mid/Side points (downsample for speed).
             let step = max(1, n / 512)
@@ -951,11 +975,21 @@ final class SpectrumVisualizerNSView: NSView {
                                            width: dot, height: dot))
             }
 
-            // Live correlation chip.
+            // Correlation + plain-language width read for EQ/crossfeed use.
             let corr = waveSnapshot.correlation
-            let label = String(format: "r %+0.2f", corr)
-            drawLabel(ctx, label, at: CGPoint(x: origin.x + 8, y: origin.y + 8),
-                      color: .labelColor)
+            let widthWord: String
+            if corr > 0.75 { widthWord = "narrow / mono-compatible" }
+            else if corr > 0.35 { widthWord = "moderate stereo" }
+            else if corr > -0.1 { widthWord = "wide image" }
+            else { widthWord = "phasey / out-of-phase" }
+
+            drawCenteredLabel(ctx, String(format: "Correlation  %+.2f  ·  %@", corr, widthWord),
+                              rect: CGRect(x: 8, y: 4, width: w - 16, height: 16),
+                              style: (11, .labelColor, true))
+            drawCenteredLabel(ctx,
+                              "Vertical = shared L+R (mono)   ·   Horizontal = L−R (width)   ·   Crossfeed pulls toward mono",
+                              rect: CGRect(x: 8, y: 22, width: w - 16, height: 14),
+                              style: (10, .secondaryLabelColor, false))
         }
     }
 

@@ -36,6 +36,8 @@ struct ReactorView: NSViewRepresentable {
 
     func updateNSView(_ nsView: ReactorMetalView, context: Context) {
         nsView.feed = feed
+        // Re-arm if we were attached after start() ran window-less.
+        nsView.ensureRunning()
     }
 
     static func dismantleNSView(_ nsView: ReactorMetalView, coordinator: ()) {
@@ -192,21 +194,49 @@ final class ReactorMetalView: NSView {
         super.viewDidMoveToWindow()
         if window != nil {
             updateDrawableSizeFromBounds()
-            startDisplayLink()
+            // Critical: `start()` often runs from makeNSView *before* we have a
+            // window, which would mark us visibility-paused forever. Always
+            // re-evaluate when attached so switches like particles → Reactor work.
+            stateLock.lock()
+            let forced = forcePaused
+            stateLock.unlock()
+            refreshVisibilityPause()
+            if !forced {
+                startDisplayLink()
+            }
         } else {
             stopDisplayLink()
         }
     }
 
     func start() {
-        stateLock.lock(); forcePaused = false; stateLock.unlock()
-        refreshVisibilityPause()
-        startDisplayLink()
+        stateLock.lock()
+        forcePaused = false
+        stateLock.unlock()
+        // Only arm the display link once hosted; otherwise visibility pause
+        // latches true (no window) and the visual never draws.
+        if window != nil {
+            refreshVisibilityPause()
+            startDisplayLink()
+        }
     }
 
     func stop() {
-        stateLock.lock(); forcePaused = true; stateLock.unlock()
+        stateLock.lock()
+        forcePaused = true
+        stateLock.unlock()
         stopDisplayLink()
+    }
+
+    /// Idempotent: call from updateNSView after SwiftUI attaches the view.
+    func ensureRunning() {
+        stateLock.lock()
+        let forced = forcePaused
+        stateLock.unlock()
+        guard !forced, window != nil else { return }
+        refreshVisibilityPause()
+        updateDrawableSizeFromBounds()
+        startDisplayLink()
     }
 
     private var isPaused: Bool {

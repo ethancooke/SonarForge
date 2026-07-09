@@ -367,7 +367,7 @@ struct FrequencyPane: View {
     @AppStorage("visualizationStyle") private var styleRaw = VisualizationStyle.curve.rawValue
 
     var body: some View {
-        let style = VisualizationStyle(rawValue: styleRaw) ?? .curve
+        let style = VisualizationStyle.resolved(styleRaw)
 
         VStack(spacing: 12) {
             HStack {
@@ -375,7 +375,7 @@ struct FrequencyPane: View {
                     .font(.headline)
                 Spacer()
                 Picker("Visualization", selection: $styleRaw) {
-                    ForEach(VisualizationStyle.allCases) { option in
+                    ForEach(VisualizationStyle.menuCases) { option in
                         Label(option.displayName, systemImage: option.systemImage).tag(option.rawValue)
                     }
                 }
@@ -399,8 +399,19 @@ struct FrequencyPane: View {
         }
         // Enables analysis (capture + FFT + waveform) whenever the main
         // visualization pane is on screen. Pop-out window has its own flag.
-        .onAppear { appModel.spectrumViewVisible = true }
+        .onAppear {
+            migrateHiddenVisualizationStyle()
+            appModel.spectrumViewVisible = true
+        }
         .onDisappear { appModel.spectrumViewVisible = false }
+        .onChange(of: styleRaw) { _, _ in migrateHiddenVisualizationStyle() }
+    }
+
+    /// If AppStorage still points at a tucked-away style, snap to bars.
+    private func migrateHiddenVisualizationStyle() {
+        if let stored = VisualizationStyle(rawValue: styleRaw), !stored.isListedInMenu {
+            styleRaw = VisualizationStyle.bars.rawValue
+        }
     }
 
     @ViewBuilder
