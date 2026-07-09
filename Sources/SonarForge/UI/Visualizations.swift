@@ -120,6 +120,9 @@ struct SpectrumModeView: View {
         SpectrumVisualizerRepresentable(mode: mode,
                                         spectrumFeed: appModel.spectrumFeed,
                                         waveformFeed: appModel.waveformFeed)
+            // Force a fresh representable identity when the mode changes so
+            // SwiftUI doesn't reuse an NSView still drawing the previous style.
+            .id(mode)
             .accessibilityLabel(label)
     }
 }
@@ -144,14 +147,18 @@ struct VisualizerStage: View {
 
     @ViewBuilder
     private var visualizer: some View {
-        if let mode = style.visualizerMode {
-            SpectrumModeView(mode: mode, label: style.displayName)
-        } else if style == .reactor {
-            ReactorContainer()
-        } else {
-            SpectrumView(preLevels: appModel.preEQLevels, postLevels: appModel.postEQLevels)
-                .padding(6)
+        Group {
+            if let mode = style.visualizerMode {
+                SpectrumModeView(mode: mode, label: style.displayName)
+            } else if style == .reactor {
+                ReactorContainer()
+            } else {
+                SpectrumView(preLevels: appModel.preEQLevels, postLevels: appModel.postEQLevels)
+                    .padding(6)
+            }
         }
+        // Identity by style so bar-family switches always remount cleanly.
+        .id(style)
     }
 }
 
@@ -201,6 +208,7 @@ struct SpectrumVisualizerRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SpectrumVisualizerNSView, context: Context) {
+        nsView.setMode(mode)
         nsView.spectrumFeed = spectrumFeed
         nsView.waveformFeed = waveformFeed
     }

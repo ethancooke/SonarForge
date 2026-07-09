@@ -14,7 +14,9 @@ import QuartzCore
 /// when another app is frontmost). Only stop when the window is miniaturized,
 /// fully occluded, the app is hidden, or this view leaves the hierarchy.
 final class SpectrumVisualizerNSView: NSView {
-    private let mode: SpectrumVisualizerMode
+    /// Current draw mode. Mutable so SwiftUI can switch bar/scope styles without
+    /// recreating the NSView (updateNSView reuses the same instance).
+    private var mode: SpectrumVisualizerMode
     private let renderQueue: DispatchQueue = {
         let q = DispatchQueue(label: "com.sonarforge.viz.render", qos: .userInteractive)
         q.setSpecific(key: SpectrumVisualizerNSView.renderQueueKey, value: 1)
@@ -65,12 +67,14 @@ final class SpectrumVisualizerNSView: NSView {
     private var particles: [Particle] = []
     private static let maxParticles = 400
 
-    // Cross-thread state (main writes size/feed/paused; render queue reads).
+    // Cross-thread state (main writes size/feed/mode/paused; render queue reads).
     private let stateLock = NSLock()
     private var pixelSize: CGSize = .zero
     private var forcePaused = false   // explicit stop() / dismantle
     private var _spectrumFeed: SpectrumFeed?
     private var _waveformFeed: WaveformFeed?
+    /// Snapshot of `mode` for the render queue (written under stateLock).
+    private var renderMode: SpectrumVisualizerMode
 
     var spectrumFeed: SpectrumFeed? {
         get { stateLock.lock(); defer { stateLock.unlock() }; return _spectrumFeed }
@@ -99,22 +103,71 @@ final class SpectrumVisualizerNSView: NSView {
 
     init(mode: SpectrumVisualizerMode) {
         self.mode = mode
+        self.renderMode = mode
         super.init(frame: .zero)
         wantsLayer = true
         let host = CALayer()
         host.contentsGravity = .resize
-        let darkModes: Set<SpectrumVisualizerMode> = [.spectrogram, .vectorscope, .crt, .particles, .polar]
-        host.backgroundColor = darkModes.contains(mode)
-            ? NSColor.black.withAlphaComponent(0.30).cgColor
-            : NSColor.clear.cgColor
         // Avoid implicit fade animations when swapping frame images.
         host.actions = [
             "contents": NSNull(),
             "contentsScale": NSNull(),
         ]
         layer = host
-        peakFallPerFrame = mode == .ledBars ? 1.6 : 2.0
+        applyModeAppearance(mode)
         installActivityObservers()
+    }
+
+    /// Called from `updateNSView` when the SwiftUI style picker changes. Resets
+    /// mode-local state so leftover ghost trails / phosphor don't flash.
+    func setMode(_ newMode: SpectrumVisualizerMode) {
+        stateLock.lock()
+        let old = mode
+        guard old != newMode else {
+            stateLock.unlock()
+            return
+        }
+        mode = newMode
+        renderMode = newMode
+        stateLock.unlock()
+
+        // Clear mode-specific buffers on the render queue to avoid races.
+        renderQueue.async { [weak self] in
+            guard let self else { return }
+            self.ghostHistory.removeAll(keepingCapacity: true)
+            self.phosphorPixels.removeAll(keepingCapacity: true)
+            self.phosphorW = 0
+            self.phosphorH = 0
+            self.particles.removeAll(keepingCapacity: true)
+            self.peaks.removeAll(keepingCapacity: true)
+            self.levels.removeAll(keepingCapacity: true)
+            self.lastSpectrumGeneration = 0
+            self.waveSamples.removeAll(keepingCapacity: true)
+            self.waveLeft.removeAll(keepingCapacity: true)
+            self.waveRight.removeAll(keepingCapacity: true)
+            self.vuLeft = 0; self.vuRight = 0
+            self.ppmLeft = 0; self.ppmRight = 0
+            self.corrSmoothed = 0
+            self.spectroPixels.removeAll(keepingCapacity: true)
+            self.spectroBins = 0
+            self.spectroColumns = 0
+            self.peakFallPerFrame = newMode == .ledBars ? 1.6 : 2.0
+        }
+        applyModeAppearance(newMode)
+        // Drop the last presented frame so we don't keep showing the old style.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer?.contents = nil
+        CATransaction.commit()
+    }
+
+    private func applyModeAppearance(_ mode: SpectrumVisualizerMode) {
+        let darkModes: Set<SpectrumVisualizerMode> = [
+            .spectrogram, .vectorscope, .crt, .particles, .polar,
+        ]
+        layer?.backgroundColor = darkModes.contains(mode)
+            ? NSColor.black.withAlphaComponent(0.30).cgColor
+            : NSColor.clear.cgColor
     }
 
     required init?(coder: NSCoder) {
@@ -278,6 +331,7 @@ final class SpectrumVisualizerNSView: NSView {
         let spectrum = _spectrumFeed
         let waveform = _waveformFeed
         let visible = cachedWindowVisible
+        let activeMode = renderMode
         stateLock.unlock()
         guard !forced, visible else { return }
 
@@ -294,7 +348,8 @@ final class SpectrumVisualizerNSView: NSView {
                                 height: max(2, size.height * scale))
         }
 
-        guard let image = rasterize(size: rasterSize, spectrum: spectrum, waveform: waveform) else { return }
+        guard let image = rasterize(size: rasterSize, mode: activeMode,
+                                    spectrum: spectrum, waveform: waveform) else { return }
         // Present off the main thread. Pure `contents` swaps with actions
         // disabled do not need the main run loop — critical during slider
         // tracking when main is busy and a main-queue present would freeze.
@@ -338,7 +393,8 @@ final class SpectrumVisualizerNSView: NSView {
 
     // MARK: Rasterize (render queue)
 
-    private func rasterize(size: CGSize, spectrum: SpectrumFeed?, waveform: WaveformFeed?) -> CGImage? {
+    private func rasterize(size: CGSize, mode: SpectrumVisualizerMode,
+                           spectrum: SpectrumFeed?, waveform: WaveformFeed?) -> CGImage? {
         guard size.width > 2, size.height > 2 else { return nil }
 
         switch mode {
