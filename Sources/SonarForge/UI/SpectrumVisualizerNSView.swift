@@ -1142,9 +1142,12 @@ final class SpectrumVisualizerNSView: NSView {
 
     // MARK: Vectorscope / goniometer (Mid = L+R vertical, Side = L−R horizontal)
     //
-    // Hard L pan → energy on the L diagonal; center → vertical; hard R → R
-    // diagonal. A left-to-right sweep slides the yellow centroid along that
-    // path. Correlation alone is a poor pan meter — use the balance bar.
+    // Coordinate meaning (Mid/Side, not raw L on X / R on Y):
+    //   Vertical (↑↓)  = Mid  = (L+R)/2   →  shared / mono energy
+    //   Horizontal (↔) = Side = (L−R)/2   →  stereo width / difference
+    //   Distance from center ≈ loudness (auto-scaled to the window peak)
+    //   L diagonal ≈ hard left mono; R diagonal ≈ hard right mono
+    //   Vertical line ≈ centered mono; horizontal smear ≈ wide stereo
 
     private static func midSideCentroid(left: [Float], right: [Float]) -> (mid: Float, side: Float)? {
         let n = min(left.count, right.count)
@@ -1169,20 +1172,29 @@ final class SpectrumVisualizerNSView: NSView {
         let n = min(waveLeft.count, waveRight.count)
         guard n > 8 else { return nil }
         return withContext(size: size) { ctx, w, h in
-            let topH: CGFloat = min(56, h * 0.18)
-            let balH: CGFloat = min(28, h * 0.09)
-            let plotH = h - topH - balH - 12
-            let sideLen = min(w * 0.88, plotH)
-            let origin = CGPoint(x: (w - sideLen) * 0.5, y: balH + 8 + (plotH - sideLen) * 0.5)
-            let cx = origin.x + sideLen * 0.5
-            let cy = origin.y + sideLen * 0.5
-            let radius = sideLen * 0.40
+            // Layout (CG y grows up): bottom status, middle plot, top balance.
+            let pad: CGFloat = 10
+            let statusH: CGFloat = min(40, h * 0.14)
+            let balH: CGFloat = min(22, h * 0.08)
+            let plotTop = h - pad - balH - 6
+            let plotBottom = pad + statusH + 6
+            let plotH = max(40, plotTop - plotBottom)
+            let sideLen = min(w - pad * 2, plotH)
+            let cx = w * 0.5
+            let cy = plotBottom + plotH * 0.5
+            let radius = sideLen * 0.38
 
-            ctx.setFillColor(NSColor.black.withAlphaComponent(0.2).cgColor)
+            // Balance bar at top of view.
+            drawBalanceBar(ctx, balance: balanceSmoothed,
+                           in: CGRect(x: w * 0.12, y: h - pad - balH, width: w * 0.76, height: balH))
+
+            // Plot disc.
+            ctx.setFillColor(NSColor.black.withAlphaComponent(0.22).cgColor)
             ctx.fillEllipse(in: CGRect(x: cx - radius, y: cy - radius,
                                        width: radius * 2, height: radius * 2))
             ctx.setStrokeColor(NSColor.secondaryLabelColor.withAlphaComponent(0.4).cgColor)
             ctx.setLineWidth(1)
+            // Mid axis (vertical) + Side axis (horizontal).
             ctx.move(to: CGPoint(x: cx, y: cy - radius))
             ctx.addLine(to: CGPoint(x: cx, y: cy + radius))
             ctx.move(to: CGPoint(x: cx - radius, y: cy))
@@ -1196,11 +1208,14 @@ final class SpectrumVisualizerNSView: NSView {
             ctx.strokeEllipse(in: CGRect(x: cx - radius, y: cy - radius,
                                          width: radius * 2, height: radius * 2))
 
-            drawLabel(ctx, "MONO", at: CGPoint(x: cx - 16, y: cy + radius + 2),
+            // Axis captions outside the circle (no overlap with cloud).
+            drawLabel(ctx, "Mid ↑", at: CGPoint(x: cx + 6, y: cy + radius + 2),
                       color: .secondaryLabelColor)
-            drawLabel(ctx, "L", at: CGPoint(x: cx - d - 14, y: cy + d - 2),
+            drawLabel(ctx, "Side →", at: CGPoint(x: cx + radius + 4, y: cy - 5),
+                      color: .secondaryLabelColor)
+            drawLabel(ctx, "L", at: CGPoint(x: cx - d - 12, y: cy + d + 2),
                       color: .systemOrange)
-            drawLabel(ctx, "R", at: CGPoint(x: cx + d + 4, y: cy + d - 2),
+            drawLabel(ctx, "R", at: CGPoint(x: cx + d + 4, y: cy + d + 2),
                       color: .systemTeal)
 
             var peak: Float = 0.05
@@ -1210,7 +1225,7 @@ final class SpectrumVisualizerNSView: NSView {
             }
             let inv = 1 / peak
             let dot: CGFloat = max(1.0, sideLen / 450)
-            ctx.setFillColor(NSColor.controlAccentColor.withAlphaComponent(0.35).cgColor)
+            ctx.setFillColor(NSColor.controlAccentColor.withAlphaComponent(0.32).cgColor)
             for i in stride(from: 0, to: n, by: step) {
                 let l = waveLeft[i] * inv
                 let r = waveRight[i] * inv
@@ -1233,7 +1248,7 @@ final class SpectrumVisualizerNSView: NSView {
                     else { path.addLine(to: CGPoint(x: x, y: y)) }
                 }
                 ctx.addPath(path)
-                ctx.setStrokeColor(NSColor.systemYellow.withAlphaComponent(0.85).cgColor)
+                ctx.setStrokeColor(NSColor.systemYellow.withAlphaComponent(0.9).cgColor)
                 ctx.setLineWidth(max(2, sideLen / 180))
                 ctx.setLineJoin(.round)
                 ctx.setLineCap(.round)
@@ -1249,25 +1264,22 @@ final class SpectrumVisualizerNSView: NSView {
                 ctx.fillEllipse(in: CGRect(x: x - rr, y: y - rr, width: rr * 2, height: rr * 2))
             }
 
-            drawBalanceBar(ctx, balance: balanceSmoothed,
-                           in: CGRect(x: w * 0.1, y: 6, width: w * 0.8, height: balH - 4))
-
             let bal = balanceSmoothed
             let panWord: String
             if bal < -0.45 { panWord = "LEFT" }
-            else if bal < -0.12 { panWord = "left-of-center" }
+            else if bal < -0.12 { panWord = "left" }
             else if bal <= 0.12 { panWord = "CENTER" }
-            else if bal <= 0.45 { panWord = "right-of-center" }
+            else if bal <= 0.45 { panWord = "right" }
             else { panWord = "RIGHT" }
 
+            // Status strip at bottom only (two short lines, fixed slots).
             drawCenteredLabel(ctx,
-                              String(format: "Balance %+.2f · %@   ·   corr %+.2f",
-                                     bal, panWord, corrSmoothed),
-                              rect: CGRect(x: 8, y: h - topH + 4, width: w - 16, height: 16),
-                              style: (12, .labelColor, true))
+                              String(format: "Balance %+.2f · %@ · corr %+.2f", bal, panWord, corrSmoothed),
+                              rect: CGRect(x: pad, y: pad + 16, width: w - pad * 2, height: 14),
+                              style: (11, .labelColor, true))
             drawCenteredLabel(ctx,
-                              "Yellow path tracks L↔R pans · Cloud = Mid/Side samples · Hard pan follows L/R diagonals",
-                              rect: CGRect(x: 8, y: h - topH + 22, width: w - 16, height: 14),
+                              "↑ Mid (mono) · → Side (width) · yellow = pan path · farther from center = louder",
+                              rect: CGRect(x: pad, y: pad, width: w - pad * 2, height: 14),
                               style: (10, .secondaryLabelColor, false))
         }
     }
@@ -1282,13 +1294,13 @@ final class SpectrumVisualizerNSView: NSView {
         ctx.move(to: CGPoint(x: midX, y: rect.minY))
         ctx.addLine(to: CGPoint(x: midX, y: rect.maxY))
         ctx.strokePath()
-        drawLabel(ctx, "L", at: CGPoint(x: rect.minX + 4, y: rect.midY - 6), color: .systemOrange)
-        drawLabel(ctx, "R", at: CGPoint(x: rect.maxX - 14, y: rect.midY - 6), color: .systemTeal)
+        drawLabel(ctx, "L", at: CGPoint(x: rect.minX + 4, y: rect.midY - 5), color: .systemOrange)
+        drawLabel(ctx, "R", at: CGPoint(x: rect.maxX - 12, y: rect.midY - 5), color: .systemTeal)
 
         let t = CGFloat((balance + 1) * 0.5)
         let nx = rect.minX + rect.width * min(max(t, 0), 1)
         ctx.setFillColor(NSColor.systemYellow.cgColor)
-        ctx.fill(CGRect(x: nx - 3, y: rect.minY - 2, width: 6, height: rect.height + 4))
+        ctx.fill(CGRect(x: nx - 3, y: rect.minY - 1, width: 6, height: rect.height + 2))
     }
 
     // MARK: Correlation + balance (stereo image)
@@ -1297,54 +1309,79 @@ final class SpectrumVisualizerNSView: NSView {
         return withContext(size: size) { ctx, w, h in
             let r = corrSmoothed
             let bal = balanceSmoothed
+            let pad: CGFloat = 12
 
-            let barH = min(32, h * 0.09)
-            let barW = w * 0.82
-            let barX = (w - barW) * 0.5
-            let corrY = h * 0.42
-            let balY = h * 0.62
-
-            drawCenteredLabel(ctx, "Phase correlation (L vs R waveform shape)",
-                              rect: CGRect(x: 0, y: corrY + barH + 6, width: w, height: 14),
-                              style: (11, .secondaryLabelColor, false))
-            ctx.setFillColor(NSColor.secondaryLabelColor.withAlphaComponent(0.12).cgColor)
-            ctx.fill(CGRect(x: barX, y: corrY, width: barW, height: barH))
-            func xCorr(_ v: Float) -> CGFloat {
-                barX + barW * CGFloat((v + 1) * 0.5)
+            // Fixed vertical bands (top → bottom in view space). Avoids stacked
+            // captions colliding when the pane is short.
+            // CG y: band bottom = h - topOffset - bandHeight
+            func bandRect(top: CGFloat, height: CGFloat) -> CGRect {
+                CGRect(x: pad, y: h - top - height, width: w - pad * 2, height: height)
             }
-            ctx.setFillColor(NSColor.systemRed.withAlphaComponent(0.18).cgColor)
-            ctx.fill(CGRect(x: barX, y: corrY, width: xCorr(-0.5) - barX, height: barH))
-            ctx.setFillColor(NSColor.systemYellow.withAlphaComponent(0.14).cgColor)
-            ctx.fill(CGRect(x: xCorr(-0.5), y: corrY, width: xCorr(0.25) - xCorr(-0.5), height: barH))
-            ctx.setFillColor(NSColor.systemGreen.withAlphaComponent(0.14).cgColor)
-            ctx.fill(CGRect(x: xCorr(0.25), y: corrY, width: barX + barW - xCorr(0.25), height: barH))
-            ctx.setStrokeColor(NSColor.labelColor.withAlphaComponent(0.4).cgColor)
-            ctx.setLineWidth(1)
-            ctx.move(to: CGPoint(x: xCorr(0), y: corrY - 4))
-            ctx.addLine(to: CGPoint(x: xCorr(0), y: corrY + barH + 4))
-            ctx.strokePath()
-            ctx.setFillColor(NSColor.controlAccentColor.cgColor)
-            ctx.fill(CGRect(x: xCorr(r) - 2, y: corrY - 3, width: 4, height: barH + 6))
+
+            let titleH: CGFloat = 18
+            let valueH: CGFloat = min(36, h * 0.12)
+            let barH: CGFloat = min(26, h * 0.08)
+            let captionH: CGFloat = 16
+            let gap: CGFloat = 8
+
+            var top: CGFloat = pad
+
+            // Section 1 — Correlation
+            drawCenteredLabel(ctx, "Correlation (waveform shape L vs R)",
+                              rect: bandRect(top: top, height: titleH),
+                              style: (12, .secondaryLabelColor, false))
+            top += titleH + 2
+
+            let corrValRect = bandRect(top: top, height: valueH)
+            drawCenteredLabel(ctx, String(format: "%+.2f", r),
+                              rect: corrValRect,
+                              style: (min(32, valueH * 0.9), .labelColor, true))
+            top += valueH + 2
 
             let corrHint: String
-            if r > 0.7 { corrHint = "Same shape / in phase (mono-compatible)" }
+            if r > 0.7 { corrHint = "Same shape / in phase" }
             else if r > 0.25 { corrHint = "Mostly similar L & R" }
-            else if r > -0.25 { corrHint = "Different L & R content (or hard-panned)" }
+            else if r > -0.25 { corrHint = "Different content or hard-panned" }
             else if r > -0.7 { corrHint = "Out-of-phase risk" }
             else { corrHint = "Severe inversion" }
-
-            drawCenteredLabel(ctx, String(format: "corr  %+.2f", r),
-                              rect: CGRect(x: 0, y: corrY - 36, width: w, height: 28),
-                              style: (min(34, h * 0.1), .labelColor, true))
             drawCenteredLabel(ctx, corrHint,
-                              rect: CGRect(x: 16, y: corrY - 52, width: w - 32, height: 16),
+                              rect: bandRect(top: top, height: captionH),
                               style: (11, .secondaryLabelColor, false))
+            top += captionH + 4
 
-            drawCenteredLabel(ctx, "L / R balance (follows pans left ↔ right)",
-                              rect: CGRect(x: 0, y: balY + barH + 6, width: w, height: 14),
-                              style: (11, .secondaryLabelColor, false))
-            drawBalanceBar(ctx, balance: bal,
-                           in: CGRect(x: barX, y: balY, width: barW, height: barH))
+            let corrBar = bandRect(top: top, height: barH)
+            ctx.setFillColor(NSColor.secondaryLabelColor.withAlphaComponent(0.12).cgColor)
+            ctx.fill(corrBar)
+            func xCorr(_ v: Float) -> CGFloat {
+                corrBar.minX + corrBar.width * CGFloat((v + 1) * 0.5)
+            }
+            ctx.setFillColor(NSColor.systemRed.withAlphaComponent(0.18).cgColor)
+            ctx.fill(CGRect(x: corrBar.minX, y: corrBar.minY,
+                            width: xCorr(-0.5) - corrBar.minX, height: corrBar.height))
+            ctx.setFillColor(NSColor.systemYellow.withAlphaComponent(0.14).cgColor)
+            ctx.fill(CGRect(x: xCorr(-0.5), y: corrBar.minY,
+                            width: xCorr(0.25) - xCorr(-0.5), height: corrBar.height))
+            ctx.setFillColor(NSColor.systemGreen.withAlphaComponent(0.14).cgColor)
+            ctx.fill(CGRect(x: xCorr(0.25), y: corrBar.minY,
+                            width: corrBar.maxX - xCorr(0.25), height: corrBar.height))
+            ctx.setStrokeColor(NSColor.labelColor.withAlphaComponent(0.4).cgColor)
+            ctx.setLineWidth(1)
+            ctx.move(to: CGPoint(x: xCorr(0), y: corrBar.minY - 2))
+            ctx.addLine(to: CGPoint(x: xCorr(0), y: corrBar.maxY + 2))
+            ctx.strokePath()
+            ctx.setFillColor(NSColor.controlAccentColor.cgColor)
+            ctx.fill(CGRect(x: xCorr(r) - 2, y: corrBar.minY - 2, width: 4, height: corrBar.height + 4))
+            top += barH + 2
+            drawCenteredLabel(ctx, "−1  out of phase          0          +1  mono",
+                              rect: bandRect(top: top, height: captionH),
+                              style: (10, .tertiaryLabelColor, false))
+            top += captionH + gap + 6
+
+            // Section 2 — Balance
+            drawCenteredLabel(ctx, "Balance (left ↔ right pan)",
+                              rect: bandRect(top: top, height: titleH),
+                              style: (12, .secondaryLabelColor, false))
+            top += titleH + 2
 
             let panWord: String
             if bal < -0.45 { panWord = "Hard LEFT" }
@@ -1353,14 +1390,26 @@ final class SpectrumVisualizerNSView: NSView {
             else if bal <= 0.45 { panWord = "Right of center" }
             else { panWord = "Hard RIGHT" }
 
-            drawCenteredLabel(ctx, String(format: "balance  %+.2f  ·  %@", bal, panWord),
-                              rect: CGRect(x: 0, y: balY - 30, width: w, height: 24),
-                              style: (min(28, h * 0.08), .labelColor, true))
+            drawCenteredLabel(ctx, String(format: "%+.2f  ·  %@", bal, panWord),
+                              rect: bandRect(top: top, height: valueH),
+                              style: (min(28, valueH * 0.85), .labelColor, true))
+            top += valueH + 4
 
-            drawCenteredLabel(ctx,
-                              "Tip: a mono sound panning L→R moves balance; correlation may dip when one ear is silent",
-                              rect: CGRect(x: 16, y: 10, width: w - 32, height: 28),
-                              style: (11, .tertiaryLabelColor, false))
+            let balBar = bandRect(top: top, height: barH)
+            drawBalanceBar(ctx, balance: bal, in: balBar)
+            top += barH + 2
+            drawCenteredLabel(ctx, "L                    center                    R",
+                              rect: bandRect(top: top, height: captionH),
+                              style: (10, .tertiaryLabelColor, false))
+
+            // Footer tip only if room remains.
+            let footerTop = top + captionH + gap
+            if footerTop + 28 < h - pad {
+                drawCenteredLabel(ctx,
+                                  "Pans move balance. Correlation is shape similarity, not pan position.",
+                                  rect: bandRect(top: footerTop, height: 28),
+                                  style: (10, .tertiaryLabelColor, false))
+            }
         }
     }
 
