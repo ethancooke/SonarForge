@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-07-09 — **v0.2.0** cut (tag `v0.2.0`). Since v0.1.2: per-profile headphone **crossfeed**, spectrum FFT sized per sample rate (low-frequency fix), full **visualization suite** (spectrum modes, PCM scope/meters, Reactor Metal visual), **pop-out visualizer** with fullscreen, menu-bar mini spectrum, and visualizer performance/mode-switch fixes. Signed + notarized `.dmg` via CI (`push vX.Y.Z` → draft release). Repo still **private**; remaining: private→public flip, ongoing beta + hardware QA (6.5), optional deferred extras.
+**Last Updated**: 2026-07-09 — **[v0.2.0 shipped](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.0)** (signed + notarized `.dmg`). Since v0.1.2: per-profile headphone **crossfeed**, spectrum FFT sized per sample rate (low-frequency fix), full **visualization suite** (spectrum modes, PCM scope/meters, Reactor Metal visual), **pop-out visualizer** with fullscreen, menu-bar mini spectrum, and visualizer performance/mode-switch fixes. Signed + notarized `.dmg` via CI (`push vX.Y.Z` → draft release). Repo still **private**; remaining: private→public flip, ongoing beta + hardware QA (6.5), optional deferred extras.
 
 ---
 

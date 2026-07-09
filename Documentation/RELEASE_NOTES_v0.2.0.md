@@ -49,11 +49,8 @@ notarized — opens with a single confirmation, no Gatekeeper workaround. A
 
 ## Checksums
 
-Filled automatically from CI artifacts after the draft is published (or attach
-from the release assets):
-
-- `SonarForge-0.2.0.dmg` — `shasum -a 256`: _(from `.dmg.sha256` asset)_
-- `SonarForge-0.2.0.zip` — `shasum -a 256`: _(from `.zip.sha256` asset)_
+- `SonarForge-0.2.0.dmg` — `shasum -a 256`: `25a916439033e84a847c5583f4ad6dda216e82e3d59c6dab7a2216b683f34d11`
+- `SonarForge-0.2.0.zip` — `shasum -a 256`: `6fc4b4bb7f8e41591788d324681d211c58b817b4fcaf3542ba17f3d86f42c062`
 
 ## Attribution
 
