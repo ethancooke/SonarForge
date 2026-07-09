@@ -29,10 +29,13 @@ public protocol AudioEngineProtocol: AnyObject {
     var state: AudioEngineState { get }
     var onStateChange: ((AudioEngineState) -> Void)? { get set }
 
-    /// Spectrum snapshots (preEQ dB bins, postEQ dB bins), ~30 Hz while enabled
+    /// Spectrum snapshots (preEQ dB bins, postEQ dB bins), ~20 Hz while enabled
     /// and running. Called on a background queue.
     var onSpectrum: (([Float], [Float]) -> Void)? { get set }
-    /// Enables/disables spectrum capture + analysis entirely (CPU saver).
+    /// Post-EQ PCM snapshot (mono + stereo + levels + correlation), ~20 Hz.
+    /// Called on a background queue.
+    var onWaveform: ((WaveformSnapshot) -> Void)? { get set }
+    /// Enables/disables spectrum + waveform capture + analysis entirely (CPU saver).
     func setSpectrumEnabled(_ enabled: Bool)
 
     func start()

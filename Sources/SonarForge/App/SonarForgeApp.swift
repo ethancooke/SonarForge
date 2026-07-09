@@ -52,6 +52,13 @@ struct SonarForgeApp: App {
                 }
             }
 
+            CommandGroup(after: .windowList) {
+                Button("Visualizer") {
+                    openWindow(id: "visualizer")
+                }
+                .keyboardShortcut("v", modifiers: [.command, .shift])
+            }
+
             CommandGroup(replacing: .appInfo) {
                 Button("About SonarForge") {
                     openWindow(id: "about")
@@ -63,6 +70,16 @@ struct SonarForgeApp: App {
             AboutView()
         }
         .windowResizability(.contentSize)
+
+        // Detached visualizer (D-014 follow-up): pop-out + fullscreen watch mode.
+        // Freeform resizability so system fullscreen (green button / our control)
+        // works — `.contentSize` often leaves the window unable to go fullscreen.
+        Window("Visualizer", id: "visualizer") {
+            VisualizerPopoutView()
+                .environment(appModel)
+        }
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 900, height: 520)
 
         // Status item / menu bar extra
         MenuBarExtra {

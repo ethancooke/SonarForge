@@ -75,6 +75,7 @@ private final class MockAudioEngine: AudioEngineProtocol {
     var state: AudioEngineState = .idle
     var onStateChange: ((AudioEngineState) -> Void)?
     var onSpectrum: (([Float], [Float]) -> Void)?
+    var onWaveform: ((WaveformSnapshot) -> Void)?
     private(set) var loadedProfile: EQProfile?
     func setSpectrumEnabled(_ enabled: Bool) {}
     func start() {}

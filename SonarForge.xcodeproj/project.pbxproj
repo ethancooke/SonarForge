@@ -12,6 +12,7 @@
 		14F738F5D84AC95D58AA6719 /* AppModelABTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB8D081F359BAFB24CA6A02 /* AppModelABTests.swift */; };
 		1B3739ED6941444235BB0046 /* SampleRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE046EC9864374774D2FBEB9 /* SampleRing.swift */; };
 		1B62CE36C6F414FB2B0F7F7A /* SpectrumTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBAE9C3D9EC16D38EEDB2F89 /* SpectrumTests.swift */; };
+		1CEE39EBE6B6AB2059D4B194 /* VisualizerPopoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F415297CAF10F3698CE2F71D /* VisualizerPopoutView.swift */; };
 		1E3D4E73C2289640DC028248 /* EQResponseCurve.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F1DD883C795C0ED627950D3 /* EQResponseCurve.swift */; };
 		20871B31F7F27F19254070AB /* RealtimeParametricEQTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95AE30DD128476018F5B8CED /* RealtimeParametricEQTests.swift */; };
 		20A108E17A148E1A68DFB265 /* BandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4D93BD8BDDAADD313218127 /* BandPalette.swift */; };
@@ -34,6 +35,7 @@
 		6B79F6459E8CB9BFF78EA72D /* AutoEQImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */; };
 		7C5F870E46187BCE3DB74D4E /* SpectrumFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */; };
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
+		95193F89824C78BA2BD7EDF3 /* WaveformFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CC945EF6EC8DF11E6152FE /* WaveformFeed.swift */; };
 		A2E632393FFF24292D159231 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = ABC755F571079F1637B8CFDA /* Atomics */; };
 		A5BFD00CDF3AB3DA0EEA1FA2 /* RealtimeParametricEQ.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456E5263CDB3F894E35017DF /* RealtimeParametricEQ.swift */; };
 		A710B075274D8221DFB9C763 /* DSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6387B054AE633CFEAECA2128 /* DSPTests.swift */; };
@@ -51,6 +53,7 @@
 		CF8EA1D601F146C7C193B81B /* Crossfeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44369809954BFBBD9C90A63A /* Crossfeed.swift */; };
 		DD051DE86C67560999445641 /* EQResponseCurveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC8C17EFA098F61680B6AF5 /* EQResponseCurveTests.swift */; };
 		DDC16348F7CB8328A6388699 /* CrossfeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440B9F844019AB37A0946FB3 /* CrossfeedTests.swift */; };
+		E90A5CE3C9A19B9D9A43D566 /* SpectrumVisualizerNSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0F9FF768482E10E0D0DF7EC /* SpectrumVisualizerNSView.swift */; };
 		F64C79FF15C5766BD21A009D /* SonarForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0FECA9BB33357B21A23EB /* SonarForgeApp.swift */; };
 		FD3A77C27B71EB1982C31356 /* ShortcutsHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6D3B15E242E4852446AA86 /* ShortcutsHelpView.swift */; };
 /* End PBXBuildFile section */
@@ -103,6 +106,7 @@
 		BBC0EB11DA5A48559A073BD6 /* BiquadCoefficients.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadCoefficients.swift; sourceTree = "<group>"; };
 		BC3FDF85B616A1CCA57F47A0 /* GainMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMathTests.swift; sourceTree = "<group>"; };
 		C08443F9720725E1952FAFE9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		C0F9FF768482E10E0D0DF7EC /* SpectrumVisualizerNSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumVisualizerNSView.swift; sourceTree = "<group>"; };
 		C4A544CF2249DD575F76E6EC /* ProfileManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileManagerTests.swift; sourceTree = "<group>"; };
 		CE046EC9864374774D2FBEB9 /* SampleRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleRing.swift; sourceTree = "<group>"; };
 		D366D632708ECC2ADB2DA5DE /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
@@ -113,6 +117,8 @@
 		DD39AF0246080F495EEFF95A /* Visualizations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Visualizations.swift; sourceTree = "<group>"; };
 		E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
 		EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumFeed.swift; sourceTree = "<group>"; };
+		F0CC945EF6EC8DF11E6152FE /* WaveformFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformFeed.swift; sourceTree = "<group>"; };
+		F415297CAF10F3698CE2F71D /* VisualizerPopoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerPopoutView.swift; sourceTree = "<group>"; };
 		F4D93BD8BDDAADD313218127 /* BandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandPalette.swift; sourceTree = "<group>"; };
 		FD188809AD7AF330F6644F14 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -167,6 +173,7 @@
 			children = (
 				D8099D566442C0E0A256CF89 /* PermissionHelper.swift */,
 				EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */,
+				F0CC945EF6EC8DF11E6152FE /* WaveformFeed.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -193,8 +200,10 @@
 				2C89B08963690F527B3A3874 /* ReactorView.swift */,
 				5E6D3B15E242E4852446AA86 /* ShortcutsHelpView.swift */,
 				1357741D992348B0FA020780 /* SpectrumView.swift */,
+				C0F9FF768482E10E0D0DF7EC /* SpectrumVisualizerNSView.swift */,
 				59CD6F596D10BC7A11A7E4A9 /* TroubleshootingView.swift */,
 				DD39AF0246080F495EEFF95A /* Visualizations.swift */,
+				F415297CAF10F3698CE2F71D /* VisualizerPopoutView.swift */,
 				FD188809AD7AF330F6644F14 /* WelcomeView.swift */,
 			);
 			path = UI;
@@ -435,8 +444,11 @@
 				7C5F870E46187BCE3DB74D4E /* SpectrumFeed.swift in Sources */,
 				AD66B15122B18DA5FC8D1FC9 /* SpectrumProcessor.swift in Sources */,
 				4870BA5F135F68B61E24EDB2 /* SpectrumView.swift in Sources */,
+				E90A5CE3C9A19B9D9A43D566 /* SpectrumVisualizerNSView.swift in Sources */,
 				4EA0CFDEFCB10052BFD3C09E /* TroubleshootingView.swift in Sources */,
 				38BB9F07AA43A25AFA7B6295 /* Visualizations.swift in Sources */,
+				1CEE39EBE6B6AB2059D4B194 /* VisualizerPopoutView.swift in Sources */,
+				95193F89824C78BA2BD7EDF3 /* WaveformFeed.swift in Sources */,
 				B5F91C39291C870DCB0C37C0 /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

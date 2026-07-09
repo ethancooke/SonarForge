@@ -68,20 +68,25 @@ final class AppModel {
 
     /// Thread-safe latest bins for display-link visualizers (not observable).
     @ObservationIgnored let spectrumFeed = SpectrumFeed()
+    /// Thread-safe post-EQ PCM window for the oscilloscope (not observable).
+    @ObservationIgnored let waveformFeed = WaveformFeed()
 
-    /// Set by the spectrum view's appear/disappear (Chunk 6.2 CPU saver):
-    /// analysis is display-only, so when the main window is closed (menu-bar
-    /// use) capture + FFT + redraw all stop. Pre and post traces are always
-    /// shown when the window is open (no per-trace toggle).
+    /// Main-window frequency pane is on screen (Chunk 6.2 CPU saver).
     var spectrumViewVisible: Bool = false {
+        didSet { updateSpectrumEnabled() }
+    }
+    /// Pop-out visualizer window is open — keeps analysis alive even if the
+    /// main window is closed (menu-bar-only use with a detached visualizer).
+    var visualizerPopoutVisible: Bool = false {
         didSet { updateSpectrumEnabled() }
     }
 
     private func updateSpectrumEnabled() {
-        let enabled = spectrumViewVisible
+        let enabled = spectrumViewVisible || visualizerPopoutVisible
         audioEngine.setSpectrumEnabled(enabled)
         if !enabled {
             spectrumFeed.clear()
+            waveformFeed.clear()
             preEQLevels = []
             postEQLevels = []
         }
@@ -153,6 +158,9 @@ final class AppModel {
                 self.preEQLevels = pre
                 self.postEQLevels = post
             }
+        }
+        self.audioEngine.onWaveform = { [weak self] snapshot in
+            self?.waveformFeed.publish(snapshot)
         }
         updateSpectrumEnabled()
         refreshOutputDevices()

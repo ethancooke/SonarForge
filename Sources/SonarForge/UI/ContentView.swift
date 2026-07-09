@@ -363,6 +363,7 @@ struct FrequencyPane: View {
     // 20 Hz spectrum updates still re-render only the leaf renderer, never this
     // whole pane. (See AUDIO_PATH.md on observation isolation.)
     @Environment(AppModel.self) private var appModel
+    @Environment(\.openWindow) private var openWindow
     @AppStorage("visualizationStyle") private var styleRaw = VisualizationStyle.curve.rawValue
 
     var body: some View {
@@ -382,6 +383,13 @@ struct FrequencyPane: View {
                 .labelsHidden()
                 .fixedSize()
                 .help("Choose how to visualize the playing audio")
+
+                Button {
+                    openWindow(id: "visualizer")
+                } label: {
+                    Label("Pop Out", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+                .help("Open a detached visualizer window (supports fullscreen)")
             }
             .padding(.horizontal)
 
@@ -389,9 +397,8 @@ struct FrequencyPane: View {
                 .frame(minHeight: 260)
                 .padding(.horizontal)
         }
-        // Enables analysis (capture + FFT) whenever any visualization is on
-        // screen — all modes consume the same spectrum bins. Curve mode's
-        // SpectrumSection no longer toggles this itself.
+        // Enables analysis (capture + FFT + waveform) whenever the main
+        // visualization pane is on screen. Pop-out window has its own flag.
         .onAppear { appModel.spectrumViewVisible = true }
         .onDisappear { appModel.spectrumViewVisible = false }
     }
@@ -406,27 +413,7 @@ struct FrequencyPane: View {
                     .padding(6)
             }
         } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-                visualizer(for: style)
-                    .padding(6)
-                if !appModel.isProcessing {
-                    Text("Start the engine to see the visualizer")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func visualizer(for style: VisualizationStyle) -> some View {
-        switch style {
-        case .bars:        SpectrumBarsView()
-        case .ledBars:     LEDBarsView()
-        case .spectrogram: SpectrogramView()
-        case .reactor:     ReactorContainer()
-        case .curve:       EmptyView()   // handled above
+            VisualizerStage(style: style)
         }
     }
 }

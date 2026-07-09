@@ -36,14 +36,30 @@ final class SampleRing {
     /// writes as many frames as fit. Returns silently when full.
     @inline(__always)
     func writeMonoFromInterleavedStereo(_ samples: UnsafePointer<Float32>, frames: Int) {
+        writeChannelFromInterleavedStereo(samples, frames: frames, channel: -1)
+    }
+
+    /// Realtime-safe: copies one channel of interleaved stereo (`channel` 0 = L,
+    /// 1 = R). Pass `channel: -1` for mono mixdown ((L+R)/2).
+    @inline(__always)
+    func writeChannelFromInterleavedStereo(_ samples: UnsafePointer<Float32>,
+                                           frames: Int,
+                                           channel: Int) {
         let currentTail = tail.load(ordering: .relaxed)
         let currentHead = head.load(ordering: .acquiring)
         let free = capacity - (currentTail - currentHead)
         let count = min(frames, free)
         guard count > 0 else { return }
 
-        for i in 0..<count {
-            buffer[(currentTail + i) & mask] = (samples[i * 2] + samples[i * 2 + 1]) * 0.5
+        if channel < 0 {
+            for i in 0..<count {
+                buffer[(currentTail + i) & mask] = (samples[i * 2] + samples[i * 2 + 1]) * 0.5
+            }
+        } else {
+            let ch = channel & 1
+            for i in 0..<count {
+                buffer[(currentTail + i) & mask] = samples[i * 2 + ch]
+            }
         }
         tail.store(currentTail + count, ordering: .releasing)
     }

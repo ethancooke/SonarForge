@@ -100,12 +100,20 @@ includes gain as required by the Chunk 1.2 deliverables.
 - **Realtime taps**: pre-EQ (raw system mix, post-copy) and post (post-EQ,
   post-gain — what reaches the hardware). One relaxed atomic read gates all
   cost; when enabled, the block mixes the stereo buffer to mono into two
-  lock-free SPSC `SampleRing`s (drops when full — analysis is best-effort and
-  never touches playback correctness).
+  lock-free SPSC `SampleRing`s for FFT (drops when full — analysis is
+  best-effort and never touches playback correctness). Post also writes a
+  **separate** waveform ring (so FFT drain never starves the oscilloscope).
 - **Analysis**: a 20 Hz `DispatchSourceTimer` on a utility queue drains the
-  rings into rolling 4096-sample windows and runs `SpectrumProcessor`
+  rings into rolling FFT windows and runs `SpectrumProcessor`
   (Hann window → vDSP real DFT → power → dBFS calibrated so a full-scale sine
   reads 0 dB → max-power reduction into 64 log-spaced bins, 20 Hz–20 kHz).
+  The same tick publishes a post-EQ `WaveformSnapshot` via `onWaveform` →
+  `WaveformFeed`: mono + stereo L/R windows (~1024 samples, rising
+  zero-crossing aligned), peak/RMS levels, and L/R correlation for
+  oscilloscope, vectorscope, VU/PPM, and correlation meter.
+- **Pop-out visualizer**: `visualizerPopoutVisible` keeps capture/analysis
+  enabled when the detached Visualizer window is open even if the main
+  window is closed (menu-bar use).
 - **Delivery**: snapshot callback → AppModel hops to the main actor →
   `SpectrumSection`/`SpectrumView` (Canvas polylines). The spectrum view is
   observation-isolated: level updates re-evaluate only that view. (Lesson

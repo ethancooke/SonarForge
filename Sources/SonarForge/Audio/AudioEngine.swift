@@ -127,6 +127,11 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         set { analyzer.onSnapshot = newValue }
     }
 
+    var onWaveform: ((WaveformSnapshot) -> Void)? {
+        get { analyzer.onWaveform }
+        set { analyzer.onWaveform = newValue }
+    }
+
     func setSpectrumEnabled(_ enabled: Bool) {
         analyzer.enabled.store(enabled, ordering: .relaxed)
         logger.info("Spectrum analysis \(enabled ? "enabled" : "disabled", privacy: .public)")
