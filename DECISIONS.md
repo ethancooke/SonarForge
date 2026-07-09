@@ -216,6 +216,30 @@ This document records major decisions, their rationale, and current status. It h
 
 ---
 
+## D-013: Spectrum FFT Window Sized Per Sample Rate (Low-Frequency Fix)
+
+**Date**: 2026-07-08
+
+**Decision**: The spectrum analyzer picks its FFT size from the sample rate — the nearest power of two to `sampleRate / 2.93` (≈ a 0.34 s window), clamped to 4096…65536 — instead of a fixed 4096. Rings and scratch are preallocated for the 65536 maximum so nothing reallocates while audio runs; the DFT setup, window length, and reduction all key off the per-start size.
+
+**Rationale**: With a fixed 4096-point FFT the low end lacked the frequency resolution to fill the 64 log-spaced display bins over 20 Hz–20 kHz. FFT resolution is `sampleRate / fftSize`, so at 48 kHz (~11.7 Hz/bin) roughly the first 14 display bins (20–80 Hz) were fed by only ~6 FFT bins, and at **96 kHz (~23.4 Hz/bin) everything below ~80 Hz collapsed onto ~3 FFT bins** — a flat, content-independent line, exactly the "solid line below 80 Hz no matter the music" a user reported on a 96 kHz machine. Sizing the window to a constant duration keeps ~2.9 Hz/bin at every rate (16384 @ 48 kHz, 32768 @ 96 kHz), so the low bins map to distinct FFT bins. Rounding to the *nearest* power of two (not up) keeps 48 kHz at 16384 rather than overshooting to 32768 and doubling window latency. Cost is trivial: analysis runs off the realtime thread at 20 Hz. Tradeoff: a longer window (~0.34 s) means the low end integrates a bit more slowly — desirable for bass, and the update rate is unchanged.
+
+**Status**: Shipped. See `Audio/SpectrumAnalyzer.swift` (`fftSize(forSampleRate:)`) and `AdaptiveFFTSizeTests` in `Sources/SonarForgeTests/SpectrumTests.swift`.
+
+---
+
+## D-014: Selectable Visualizations Driven by the Existing Spectrum Bins
+
+**Date**: 2026-07-08
+
+**Decision**: The main display pane offers a `VisualizationStyle` picker — `curve` (the existing frequency-response editor, default), `bars`, `ledBars`, `spectrogram` — persisted app-wide via `@AppStorage` (a display preference, not per profile). All modes render from the analyzer's existing ~20 Hz post-EQ display bins; no new audio-capture path was added. Renderers are `Canvas`-based leaf views that read `AppModel.postEQLevels` directly, keeping the 20 Hz updates observation-isolated to the renderer (the enclosing `FrequencyPane` reads only `isProcessing`). `FrequencyPane` owns the `spectrumViewVisible` enable/disable so analysis stays on across mode switches.
+
+**Rationale**: Bars (peak-hold), LED meters (green/amber/red segments + peak cap), and a scrolling spectrogram are all functions of the magnitude spectrum we already compute, so they cost nothing extra on the realtime path and reuse the D-013 low-frequency fix. Oscilloscope and stereo VU meters were deliberately deferred — they need new time-domain / per-channel capture plumbing — so they are out of this iteration. Keeping the selection in `@AppStorage` (not the profile) matches how it's used: a viewing preference independent of the loaded EQ.
+
+**Status**: Shipped (in-window mode switcher). A pop-out/full-window visualizer and the deferred oscilloscope/VU modes are natural follow-ups. See `UI/Visualizations.swift` and `FrequencyPane` in `UI/ContentView.swift`.
+
+---
+
 ## How to Record New Decisions
 
 1. Add a new entry here with a sequential ID (D-007, etc.).

@@ -20,6 +20,7 @@
 		2BF2931666C012DBF49C1489 /* ProfileManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A544CF2249DD575F76E6EC /* ProfileManagerTests.swift */; };
 		2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EBD07360AEA963D10746CDF /* EQProfile.swift */; };
 		30EC85B212AFCDC7217D564C /* AudioEngineProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */; };
+		38BB9F07AA43A25AFA7B6295 /* Visualizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD39AF0246080F495EEFF95A /* Visualizations.swift */; };
 		39D9C806C5A8FC49176097A5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C4EC3B766CAA38B91E0159 /* ContentView.swift */; };
 		4870BA5F135F68B61E24EDB2 /* SpectrumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1357741D992348B0FA020780 /* SpectrumView.swift */; };
 		491BDA25C271C196067CF4D7 /* PermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8099D566442C0E0A256CF89 /* PermissionHelper.swift */; };
@@ -106,6 +107,7 @@
 		DB83238E8FBD998998A46D5D /* AudioDeviceUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceUtils.swift; sourceTree = "<group>"; };
 		DBAE9C3D9EC16D38EEDB2F89 /* SpectrumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumTests.swift; sourceTree = "<group>"; };
 		DC3C4953AE7ED21D5CF42587 /* SonarForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonarForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD39AF0246080F495EEFF95A /* Visualizations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Visualizations.swift; sourceTree = "<group>"; };
 		E7DFA9FCF8D81DB6EB672A8E /* BiquadFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadFilter.swift; sourceTree = "<group>"; };
 		F4D93BD8BDDAADD313218127 /* BandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandPalette.swift; sourceTree = "<group>"; };
 		FD188809AD7AF330F6644F14 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
@@ -186,6 +188,7 @@
 				5E6D3B15E242E4852446AA86 /* ShortcutsHelpView.swift */,
 				1357741D992348B0FA020780 /* SpectrumView.swift */,
 				59CD6F596D10BC7A11A7E4A9 /* TroubleshootingView.swift */,
+				DD39AF0246080F495EEFF95A /* Visualizations.swift */,
 				FD188809AD7AF330F6644F14 /* WelcomeView.swift */,
 			);
 			path = UI;
@@ -425,6 +428,7 @@
 				AD66B15122B18DA5FC8D1FC9 /* SpectrumProcessor.swift in Sources */,
 				4870BA5F135F68B61E24EDB2 /* SpectrumView.swift in Sources */,
 				4EA0CFDEFCB10052BFD3C09E /* TroubleshootingView.swift in Sources */,
+				38BB9F07AA43A25AFA7B6295 /* Visualizations.swift in Sources */,
 				B5F91C39291C870DCB0C37C0 /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -164,3 +164,91 @@ final class SpectrumProcessorTests: XCTestCase {
         XCTAssertGreaterThan(bassDelta, midDelta, "post trace rises in the bass vs pre")
     }
 }
+
+/// Adaptive FFT sizing (D-013): the window scales with sample rate so the low
+/// end keeps real resolution instead of collapsing to a flat line.
+final class AdaptiveFFTSizeTests: XCTestCase {
+
+    func testFFTSizeMapping() {
+        // 48/44.1 kHz → 16384, 88.2/96 kHz → 32768, 192 kHz → 65536.
+        XCTAssertEqual(SpectrumAnalyzer.fftSize(forSampleRate: 44100), 16384)
+        XCTAssertEqual(SpectrumAnalyzer.fftSize(forSampleRate: 48000), 16384)
+        XCTAssertEqual(SpectrumAnalyzer.fftSize(forSampleRate: 88200), 32768)
+        XCTAssertEqual(SpectrumAnalyzer.fftSize(forSampleRate: 96000), 32768)
+        XCTAssertEqual(SpectrumAnalyzer.fftSize(forSampleRate: 192000), 65536)
+    }
+
+    func testFFTSizeAlwaysPowerOfTwoAndClamped() {
+        for sr in stride(from: 8000.0, through: 384000.0, by: 1000.0) {
+            let size = SpectrumAnalyzer.fftSize(forSampleRate: sr)
+            XCTAssertTrue(size & (size - 1) == 0, "\(size) not a power of two at \(sr) Hz")
+            XCTAssertGreaterThanOrEqual(size, SpectrumAnalyzer.minFFTSize)
+            XCTAssertLessThanOrEqual(size, SpectrumAnalyzer.maxFFTSize)
+        }
+    }
+
+    /// The regression this fixes: at 96 kHz a fixed 4096-point FFT starved the
+    /// sub-100 Hz display bins, so a 40 Hz and a 60 Hz tone landed on the *same*
+    /// display bin (a flat line). With the adaptive size they resolve to
+    /// distinct bins near their true frequencies.
+    func testLowFrequencyTonesResolveAt96k() throws {
+        let fs = 96000.0
+        let size = SpectrumAnalyzer.fftSize(forSampleRate: fs)
+        let processor = try XCTUnwrap(SpectrumProcessor(fftSize: size, sampleRate: fs, binCount: 64))
+
+        func peakBin(forTone frequency: Double) -> Int {
+            let samples = (0..<size).map { Float(0.5 * sin(2.0 * .pi * frequency * Double($0) / fs)) }
+            let bins = processor.process(samples)
+            return bins.indices.max(by: { bins[$0] < bins[$1] })!
+        }
+
+        let bin40 = peakBin(forTone: 40)
+        let bin60 = peakBin(forTone: 60)
+
+        XCTAssertNotEqual(bin40, bin60, "40 Hz and 60 Hz collapsed onto the same display bin")
+        XCTAssertEqual(Double(processor.binCenterFrequencies[bin40]), 40, accuracy: 12,
+                       "40 Hz tone peaked far from 40 Hz")
+        XCTAssertEqual(Double(processor.binCenterFrequencies[bin60]), 60, accuracy: 12,
+                       "60 Hz tone peaked far from 60 Hz")
+    }
+
+    /// Deterministic white noise so every FFT bin carries energy; then two
+    /// adjacent display bins are *exactly* equal only when they were forced to
+    /// read the same FFT bin (the plateau that looks like a flat line).
+    private func whiteNoise(count: Int) -> [Float] {
+        var state: UInt64 = 0x1234_5678_9abc_def0
+        return (0..<count).map { _ in
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return Float(Int32(truncatingIfNeeded: state >> 33)) / Float(Int32.max) * 0.5
+        }
+    }
+
+    /// Counts adjacent, identical-valued display-bin pairs whose centers fall
+    /// below `maxHz` — i.e. the width of the low-frequency plateau.
+    private func lowPlateauPairs(fftSize: Int, sampleRate: Double, maxHz: Float = 80) throws -> Int {
+        let processor = try XCTUnwrap(SpectrumProcessor(fftSize: fftSize, sampleRate: sampleRate, binCount: 64))
+        let bins = processor.process(whiteNoise(count: fftSize))
+        let centers = processor.binCenterFrequencies
+        var pairs = 0
+        for i in 0..<(bins.count - 1) where centers[i] < maxHz && centers[i + 1] < maxHz {
+            if bins[i] == bins[i + 1] { pairs += 1 }
+        }
+        return pairs
+    }
+
+    /// The regression: a fixed 4096-point FFT at 96 kHz forces many sub-80 Hz
+    /// display bins onto the same FFT bin, producing a flat plateau. The
+    /// sample-rate-adaptive window eliminates it.
+    func testAdaptiveSizeRemovesLowFrequencyPlateau() throws {
+        let fs = 96000.0
+        let baseline = try lowPlateauPairs(fftSize: 4096, sampleRate: fs)
+        let adaptive = try lowPlateauPairs(fftSize: SpectrumAnalyzer.fftSize(forSampleRate: fs), sampleRate: fs)
+
+        // Baseline forces a wide plateau; the adaptive window leaves only a few
+        // residual pairs in the extreme sub-30 Hz corner (inherent — display
+        // bins there are narrower than even ~2.9 Hz FFT spacing).
+        XCTAssertGreaterThanOrEqual(baseline, 5, "baseline 4096 FFT should show a wide low-frequency plateau at 96 kHz")
+        XCTAssertLessThanOrEqual(adaptive, 3, "adaptive window should collapse only the extreme low corner")
+        XCTAssertLessThanOrEqual(adaptive * 2, baseline, "adaptive window should at least halve the plateau")
+    }
+}

@@ -323,25 +323,74 @@ struct ContentView: View {
 /// gain sliders, or engine panel above it.
 struct FrequencyPane: View {
     @Binding var selectedBandID: UUID?
+    // Reads only `isProcessing` (changes rarely) — not the level arrays — so the
+    // 20 Hz spectrum updates still re-render only the leaf renderer, never this
+    // whole pane. (See AUDIO_PATH.md on observation isolation.)
+    @Environment(AppModel.self) private var appModel
+    @AppStorage("visualizationStyle") private var styleRaw = VisualizationStyle.curve.rawValue
 
-    // Observes nothing itself (no @Environment) — the spectrum and editor read
-    // AppModel in their own leaf views, so 20 Hz spectrum updates never re-lay
-    // out this whole pane. (See AUDIO_PATH.md on observation isolation.)
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Frequency Response")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+        @Bindable var model = appModel
+        let style = VisualizationStyle(rawValue: styleRaw) ?? .curve
 
+        VStack(spacing: 12) {
+            HStack {
+                Text(style.displayName)
+                    .font(.headline)
+                Spacer()
+                Picker("Visualization", selection: $styleRaw) {
+                    ForEach(VisualizationStyle.allCases) { option in
+                        Label(option.displayName, systemImage: option.systemImage).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
+                .help("Choose how to visualize the playing audio")
+            }
+            .padding(.horizontal)
+
+            content(for: style)
+                .frame(minHeight: 260)
+                .padding(.horizontal)
+        }
+        // Enables analysis (capture + FFT) whenever any visualization is on
+        // screen — all modes consume the same spectrum bins. Curve mode's
+        // SpectrumSection no longer toggles this itself.
+        .onAppear { appModel.spectrumViewVisible = true }
+        .onDisappear { appModel.spectrumViewVisible = false }
+    }
+
+    @ViewBuilder
+    private func content(for style: VisualizationStyle) -> some View {
+        if style == .curve {
             // Live pre + post spectrum traces behind the graphical EQ editor.
             ZStack {
                 SpectrumSection()
                 FrequencyResponseEditor(selectedBandID: $selectedBandID)
                     .padding(6)
             }
-            .frame(minHeight: 260)
-            .padding(.horizontal)
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                visualizer(for: style)
+                    .padding(6)
+                if !appModel.isProcessing {
+                    Text("Start the engine to see the visualizer")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func visualizer(for style: VisualizationStyle) -> some View {
+        switch style {
+        case .bars:        SpectrumBarsView()
+        case .ledBars:     LEDBarsView()
+        case .spectrogram: SpectrogramView()
+        case .curve:       EmptyView()   // handled above
         }
     }
 }
@@ -479,8 +528,9 @@ struct SpectrumSection: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .onAppear { appModel.spectrumViewVisible = true }
-        .onDisappear { appModel.spectrumViewVisible = false }
+        // Analysis enable/disable is owned by the enclosing FrequencyPane so it
+        // stays on across visualization-mode switches (this view unmounts when
+        // a non-curve mode is selected).
     }
 }
 

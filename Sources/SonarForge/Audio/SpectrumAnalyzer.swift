@@ -15,7 +15,28 @@ import os.log
 final class SpectrumAnalyzer {
 
     static let updateRate = 20.0   // Hz — plenty for a line spectrum; halves UI redraw cost
-    static let fftSize = 4096
+
+    /// Target FFT bin spacing. The FFT window is sized per sample rate to hold
+    /// this resolution (~0.34 s window), so the low end has enough bins to fill
+    /// the log-spaced display at any rate — a fixed 4096-point FFT starved
+    /// everything below ~80 Hz into a flat line, badly so at 96 kHz (D-013).
+    static let targetHzPerBin = 2.93
+    static let minFFTSize = 4096
+    /// Upper bound (supports up to ~192 kHz at target resolution); also the
+    /// preallocated ring/scratch size, so nothing reallocates while audio runs.
+    static let maxFFTSize = 65536
+
+    /// Nearest power-of-two FFT size for a sample rate, clamped to the supported
+    /// range. Rounds to *nearest* (not up) so 48 kHz lands on 16384 rather than
+    /// overshooting to 32768 and doubling the window latency.
+    static func fftSize(forSampleRate sampleRate: Double) -> Int {
+        let target = Int((max(sampleRate, 1) / targetHzPerBin).rounded())
+        var pow2 = 1
+        while pow2 < target { pow2 <<= 1 }
+        let lower = pow2 >> 1
+        let nearest = (lower >= 1 && (target - lower) < (pow2 - target)) ? lower : pow2
+        return max(minFFTSize, min(maxFFTSize, nearest))
+    }
 
     /// Written from any thread (UI toggle), read by the realtime block.
     let enabled = ManagedAtomic<Bool>(false)
@@ -24,8 +45,8 @@ final class SpectrumAnalyzer {
     var onSnapshot: (([Float], [Float]) -> Void)?
 
     private let logger = Logger(subsystem: "com.sonarforge.audio", category: "Spectrum")
-    private let preRing = SampleRing(capacity: 16384)
-    private let postRing = SampleRing(capacity: 16384)
+    private let preRing = SampleRing(capacity: maxFFTSize)
+    private let postRing = SampleRing(capacity: maxFFTSize)
     private let queue = DispatchQueue(label: "com.sonarforge.audio.spectrum", qos: .utility)
 
     // Analysis-queue state.
@@ -33,7 +54,9 @@ final class SpectrumAnalyzer {
     private var processor: SpectrumProcessor?
     private var preWindow = [Float]()
     private var postWindow = [Float]()
-    private var scratch = [Float](repeating: 0, count: fftSize)
+    private var scratch = [Float](repeating: 0, count: maxFFTSize)
+    /// FFT window length for the current sample rate (set in `start`).
+    private var currentFFTSize = minFFTSize
 
     // MARK: - Realtime side
 
@@ -51,7 +74,9 @@ final class SpectrumAnalyzer {
 
     func start(sampleRate: Double) {
         queue.async {
-            self.processor = SpectrumProcessor(fftSize: Self.fftSize, sampleRate: sampleRate)
+            let size = Self.fftSize(forSampleRate: sampleRate)
+            self.currentFFTSize = size
+            self.processor = SpectrumProcessor(fftSize: size, sampleRate: sampleRate)
             self.preWindow.removeAll(keepingCapacity: true)
             self.postWindow.removeAll(keepingCapacity: true)
 
@@ -61,7 +86,7 @@ final class SpectrumAnalyzer {
             timer.resume()
             self.timer?.cancel()
             self.timer = timer
-            self.logger.info("Spectrum analysis started (\(Self.fftSize)-point FFT @ \(sampleRate) Hz, \(Self.updateRate) Hz updates)")
+            self.logger.info("Spectrum analysis started (\(size)-point FFT @ \(sampleRate) Hz, \(Self.updateRate) Hz updates)")
         }
     }
 
@@ -81,24 +106,26 @@ final class SpectrumAnalyzer {
         drain(ring: preRing, into: &preWindow)
         drain(ring: postRing, into: &postWindow)
 
-        guard preWindow.count >= Self.fftSize || postWindow.count >= Self.fftSize else { return }
-        let pre = preWindow.count >= Self.fftSize
-            ? processor.process(Array(preWindow.suffix(Self.fftSize)))
+        let size = currentFFTSize
+        guard preWindow.count >= size || postWindow.count >= size else { return }
+        let pre = preWindow.count >= size
+            ? processor.process(Array(preWindow.suffix(size)))
             : [Float](repeating: SpectrumProcessor.floorDB, count: processor.binCount)
-        let post = postWindow.count >= Self.fftSize
-            ? processor.process(Array(postWindow.suffix(Self.fftSize)))
+        let post = postWindow.count >= size
+            ? processor.process(Array(postWindow.suffix(size)))
             : [Float](repeating: SpectrumProcessor.floorDB, count: processor.binCount)
         onSnapshot?(pre, post)
     }
 
     private func drain(ring: SampleRing, into window: inout [Float]) {
+        let size = currentFFTSize
         let read = scratch.withUnsafeMutableBufferPointer { ptr in
-            ring.read(into: ptr.baseAddress!, maxCount: Self.fftSize)
+            ring.read(into: ptr.baseAddress!, maxCount: size)
         }
         guard read > 0 else { return }
         window.append(contentsOf: scratch[0..<read])
-        if window.count > Self.fftSize {
-            window.removeFirst(window.count - Self.fftSize)
+        if window.count > size {
+            window.removeFirst(window.count - size)
         }
     }
 }

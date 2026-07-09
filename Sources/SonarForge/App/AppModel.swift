@@ -59,7 +59,7 @@ final class AppModel {
 
     // MARK: - Spectrum (Chunk 3.1)
 
-    // Display bins (dBFS, log-spaced 20 Hz–20 kHz), updated ~30 Hz while enabled.
+    // Display bins (dBFS, log-spaced 20 Hz–20 kHz), updated ~20 Hz while enabled.
     var preEQLevels: [Float] = []
     var postEQLevels: [Float] = []
 
@@ -378,15 +378,6 @@ final class AppModel {
             bProfileID = currentProfile.id
         } else {
             aProfileID = currentProfile.id
-        }
-    }
-
-    // Called by the audio engine (on a background queue) when spectrum updates arrive
-    func didReceiveSpectrum(pre: [Float], post: [Float]) {
-        // Dispatch to main for @Observable
-        Task { @MainActor in
-            self.preEQLevels = pre
-            self.postEQLevels = post
         }
     }
 }
