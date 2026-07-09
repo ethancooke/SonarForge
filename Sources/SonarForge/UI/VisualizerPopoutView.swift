@@ -16,15 +16,24 @@ struct VisualizerPopoutView: View {
     @State private var isFullScreen = false
 
     var body: some View {
+        @Bindable var model = appModel
         let style = VisualizationStyle.resolved(styleRaw)
         // Curve is editor-only; map to bars for the pop-out stage.
         let displayStyle = style == .curve ? VisualizationStyle.bars : style
+        let vizOn = model.visualizationsEnabled
 
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Text(displayStyle.displayName)
+                Text(vizOn ? displayStyle.displayName : "Visualizations Off")
                     .font(.headline)
                 Spacer()
+                Toggle(isOn: $model.visualizationsEnabled) {
+                    Label(vizOn ? "On" : "Off", systemImage: vizOn ? "eye" : "eye.slash")
+                }
+                .toggleStyle(.button)
+                .labelsHidden()
+                .help("Master switch for spectrum analysis and visualizers (saves CPU/battery when off)")
+
                 Picker("Visualization", selection: $styleRaw) {
                     ForEach(VisualizationStyle.popoutCases) { option in
                         Label(option.displayName, systemImage: option.systemImage)
@@ -34,6 +43,7 @@ struct VisualizerPopoutView: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .fixedSize()
+                .disabled(!vizOn)
                 .help("Choose how to visualize the playing audio")
 
                 Button {
@@ -61,10 +71,31 @@ struct VisualizerPopoutView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
-            VisualizerStage(style: displayStyle)
-                .padding(.horizontal, isFullScreen ? 0 : 12)
-                .padding(.bottom, isFullScreen ? 0 : 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Group {
+                if vizOn {
+                    VisualizerStage(style: displayStyle)
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .controlBackgroundColor))
+                        VStack(spacing: 8) {
+                            Image(systemName: "eye.slash")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text("Visualizations are off")
+                                .font(.headline)
+                            Text("EQ audio still runs. Turn visualizations on to resume spectrum analysis.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, isFullScreen ? 0 : 12)
+            .padding(.bottom, isFullScreen ? 0 : 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 480, minHeight: 280)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

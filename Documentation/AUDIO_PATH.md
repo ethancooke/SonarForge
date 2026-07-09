@@ -114,6 +114,11 @@ includes gain as required by the Chunk 1.2 deliverables.
 - **Pop-out visualizer**: `visualizerPopoutVisible` keeps capture/analysis
   enabled when the detached Visualizer window is open even if the main
   window is closed (menu-bar use).
+- **Master visualizations toggle** (`AppModel.visualizationsEnabled`,
+  persisted): when off, FFT + PCM capture stop regardless of which windows
+  are open — UI still shows the EQ editor, but no spectrum/visualizer work
+  runs (CPU/battery saver). Re-enabling restores analysis if a display is
+  visible.
 - **Delivery**: snapshot callback → AppModel hops to the main actor →
   `SpectrumSection`/`SpectrumView` (Canvas polylines). The spectrum view is
   observation-isolated: level updates re-evaluate only that view. (Lesson

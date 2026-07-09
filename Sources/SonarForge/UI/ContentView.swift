@@ -367,13 +367,27 @@ struct FrequencyPane: View {
     @AppStorage("visualizationStyle") private var styleRaw = VisualizationStyle.curve.rawValue
 
     var body: some View {
+        @Bindable var model = appModel
         let style = VisualizationStyle.resolved(styleRaw)
+        let vizOn = model.visualizationsEnabled
 
         VStack(spacing: 12) {
             HStack {
-                Text(style.displayName)
+                Text(vizOn ? style.displayName : "Visualizations Off")
                     .font(.headline)
                 Spacer()
+                Toggle(isOn: $model.visualizationsEnabled) {
+                    Label(
+                        vizOn ? "Visualizations On" : "Visualizations Off",
+                        systemImage: vizOn ? "eye" : "eye.slash"
+                    )
+                }
+                .toggleStyle(.button)
+                .labelsHidden()
+                .help(vizOn
+                      ? "Turn off spectrum analysis and all visualizers to save CPU and battery. EQ audio is unaffected."
+                      : "Turn on spectrum analysis and visualizers.")
+
                 Picker("Visualization", selection: $styleRaw) {
                     ForEach(VisualizationStyle.menuCases) { option in
                         Label(option.displayName, systemImage: option.systemImage).tag(option.rawValue)
@@ -382,6 +396,7 @@ struct FrequencyPane: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .fixedSize()
+                .disabled(!vizOn)
                 .help("Choose how to visualize the playing audio")
 
                 Button {
@@ -389,16 +404,17 @@ struct FrequencyPane: View {
                 } label: {
                     Label("Pop Out", systemImage: "rectangle.portrait.and.arrow.right")
                 }
+                .disabled(!vizOn)
                 .help("Open a detached visualizer window (supports fullscreen)")
             }
             .padding(.horizontal)
 
-            content(for: style)
+            content(for: style, visualizationsEnabled: vizOn)
                 .frame(minHeight: 260)
                 .padding(.horizontal)
         }
-        // Enables analysis (capture + FFT + waveform) whenever the main
-        // visualization pane is on screen. Pop-out window has its own flag.
+        // Visibility only requests analysis; AppModel also requires
+        // visualizationsEnabled (master battery/CPU switch).
         .onAppear {
             migrateHiddenVisualizationStyle()
             appModel.spectrumViewVisible = true
@@ -415,8 +431,23 @@ struct FrequencyPane: View {
     }
 
     @ViewBuilder
-    private func content(for style: VisualizationStyle) -> some View {
-        if style == .curve {
+    private func content(for style: VisualizationStyle, visualizationsEnabled: Bool) -> some View {
+        if !visualizationsEnabled {
+            // EQ editor only — no spectrum overlay, no display-link visualizers.
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                FrequencyResponseEditor(selectedBandID: $selectedBandID)
+                    .padding(6)
+                VStack {
+                    Spacer()
+                    Text("Visualizations off · EQ still active")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 10)
+                }
+            }
+        } else if style == .curve {
             // Live pre + post spectrum traces behind the graphical EQ editor.
             ZStack {
                 SpectrumSection()

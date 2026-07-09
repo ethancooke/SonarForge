@@ -31,9 +31,14 @@ struct MenuBarContent: View {
             ))
             .disabled(!appModel.isProcessing)
 
-            // Live post-EQ spectrum strip (enables analysis while the panel is open).
-            MenuBarMiniMeter()
-                .padding(.vertical, 2)
+            Toggle("Visualizations", isOn: $model.visualizationsEnabled)
+                .help("Spectrum analysis and visualizers. Off saves CPU and battery; EQ is unchanged.")
+
+            // Live post-EQ spectrum strip (only while analysis is allowed).
+            if model.visualizationsEnabled {
+                MenuBarMiniMeter()
+                    .padding(.vertical, 2)
+            }
 
             HStack(spacing: 8) {
                 Button("Open Main Window") {
@@ -44,6 +49,7 @@ struct MenuBarContent: View {
                     openWindow(id: "visualizer")
                     NSApp.activate(ignoringOtherApps: true)
                 }
+                .disabled(!model.visualizationsEnabled)
             }
 
             Divider()

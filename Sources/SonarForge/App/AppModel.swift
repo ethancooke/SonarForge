@@ -71,6 +71,23 @@ final class AppModel {
     /// Thread-safe post-EQ PCM window for the oscilloscope (not observable).
     @ObservationIgnored let waveformFeed = WaveformFeed()
 
+    private static let visualizationsEnabledKey = "visualizationsEnabled"
+
+    /// Master switch for spectrum/PCM analysis and all visualizers (persisted).
+    /// When off, FFT + waveform capture stop entirely — EQ audio is unaffected.
+    var visualizationsEnabled: Bool = {
+        if UserDefaults.standard.object(forKey: visualizationsEnabledKey) == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: visualizationsEnabledKey)
+    }() {
+        didSet {
+            guard oldValue != visualizationsEnabled else { return }
+            UserDefaults.standard.set(visualizationsEnabled, forKey: Self.visualizationsEnabledKey)
+            updateSpectrumEnabled()
+        }
+    }
+
     /// Main-window frequency pane is on screen (Chunk 6.2 CPU saver).
     var spectrumViewVisible: Bool = false {
         didSet { updateSpectrumEnabled() }
@@ -86,7 +103,10 @@ final class AppModel {
     }
 
     private func updateSpectrumEnabled() {
-        let enabled = spectrumViewVisible || visualizerPopoutVisible || menuBarVisualizerVisible
+        // Visibility alone is not enough: the user can fully disable visualizers
+        // to save CPU/battery while still running the EQ.
+        let displayOpen = spectrumViewVisible || visualizerPopoutVisible || menuBarVisualizerVisible
+        let enabled = visualizationsEnabled && displayOpen
         audioEngine.setSpectrumEnabled(enabled)
         if !enabled {
             spectrumFeed.clear()
