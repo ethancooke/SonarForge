@@ -6,12 +6,16 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
     case curve
     case bars
     case mirroredBars
+    case ghostBars
+    case polar
     case ledBars
     case spectrogram
     case oscilloscope
+    case crt
     case vectorscope
     case correlation
     case vuMeters
+    case particles
     case reactor
 
     var id: String { rawValue }
@@ -21,12 +25,16 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .curve:         "Frequency Response"
         case .bars:          "Spectrum Bars"
         case .mirroredBars:  "Mirrored Bars"
+        case .ghostBars:     "Ghost Bars"
+        case .polar:         "Polar Spectrum"
         case .ledBars:       "LED Meters"
         case .spectrogram:   "Spectrogram"
         case .oscilloscope:  "Oscilloscope"
+        case .crt:           "CRT Scope"
         case .vectorscope:   "Vectorscope"
         case .correlation:   "Correlation"
         case .vuMeters:      "VU / PPM"
+        case .particles:     "Particles"
         case .reactor:       "Reactor"
         }
     }
@@ -36,12 +44,16 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
         case .curve:         "waveform.path"
         case .bars:          "chart.bar.fill"
         case .mirroredBars:  "arrow.left.and.right"
+        case .ghostBars:     "chart.bar.xaxis"
+        case .polar:         "circle.circle"
         case .ledBars:       "rectangle.split.3x1.fill"
         case .spectrogram:   "square.grid.3x3.fill"
         case .oscilloscope:  "waveform"
+        case .crt:           "tv"
         case .vectorscope:   "circle.grid.cross"
         case .correlation:   "arrow.left.arrow.right"
         case .vuMeters:      "gauge.with.dots.needle.33percent"
+        case .particles:     "sparkles"
         case .reactor:       "hurricane"
         }
     }
@@ -49,6 +61,24 @@ enum VisualizationStyle: String, CaseIterable, Identifiable {
     /// Styles that make sense in the pop-out window (no band editor).
     static var popoutCases: [VisualizationStyle] {
         allCases.filter { $0 != .curve }
+    }
+
+    var visualizerMode: SpectrumVisualizerMode? {
+        switch self {
+        case .bars:         return .bars
+        case .mirroredBars: return .mirroredBars
+        case .ghostBars:    return .ghostBars
+        case .polar:        return .polar
+        case .ledBars:      return .ledBars
+        case .spectrogram:  return .spectrogram
+        case .oscilloscope: return .oscilloscope
+        case .crt:          return .crt
+        case .vectorscope:  return .vectorscope
+        case .correlation:  return .correlation
+        case .vuMeters:     return .vuMeters
+        case .particles:    return .particles
+        case .reactor, .curve: return nil
+        }
     }
 }
 
@@ -80,83 +110,17 @@ enum VizScale {
 
 // MARK: - SwiftUI hosts
 
-struct SpectrumBarsView: View {
+/// Generic spectrum/PCM visualizer host keyed by mode.
+struct SpectrumModeView: View {
+    let mode: SpectrumVisualizerMode
+    let label: String
     @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .bars,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("Spectrum bars visualization")
-    }
-}
 
-struct MirroredBarsView: View {
-    @Environment(AppModel.self) private var appModel
     var body: some View {
-        SpectrumVisualizerRepresentable(mode: .mirroredBars,
+        SpectrumVisualizerRepresentable(mode: mode,
                                         spectrumFeed: appModel.spectrumFeed,
                                         waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("Mirrored spectrum bars visualization")
-    }
-}
-
-struct LEDBarsView: View {
-    @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .ledBars,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("LED meter visualization")
-    }
-}
-
-struct SpectrogramView: View {
-    @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .spectrogram,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("Spectrogram visualization")
-    }
-}
-
-struct OscilloscopeView: View {
-    @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .oscilloscope,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("Oscilloscope visualization")
-    }
-}
-
-struct VectorscopeView: View {
-    @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .vectorscope,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("Stereo vectorscope visualization")
-    }
-}
-
-struct CorrelationMeterView: View {
-    @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .correlation,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("Phase correlation meter")
-    }
-}
-
-struct VUMetersView: View {
-    @Environment(AppModel.self) private var appModel
-    var body: some View {
-        SpectrumVisualizerRepresentable(mode: .vuMeters,
-                                        spectrumFeed: appModel.spectrumFeed,
-                                        waveformFeed: appModel.waveformFeed)
-            .accessibilityLabel("VU and PPM meters")
+            .accessibilityLabel(label)
     }
 }
 
@@ -180,35 +144,50 @@ struct VisualizerStage: View {
 
     @ViewBuilder
     private var visualizer: some View {
-        switch style {
-        case .bars:         SpectrumBarsView()
-        case .mirroredBars: MirroredBarsView()
-        case .ledBars:      LEDBarsView()
-        case .spectrogram:  SpectrogramView()
-        case .oscilloscope: OscilloscopeView()
-        case .vectorscope:  VectorscopeView()
-        case .correlation:  CorrelationMeterView()
-        case .vuMeters:     VUMetersView()
-        case .reactor:      ReactorContainer()
-        case .curve:
+        if let mode = style.visualizerMode {
+            SpectrumModeView(mode: mode, label: style.displayName)
+        } else if style == .reactor {
+            ReactorContainer()
+        } else {
             SpectrumView(preLevels: appModel.preEQLevels, postLevels: appModel.postEQLevels)
                 .padding(6)
         }
     }
 }
 
+/// Compact spectrum strip for the menu-bar panel.
+struct MenuBarMiniMeter: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        SpectrumVisualizerRepresentable(mode: .miniBars,
+                                        spectrumFeed: appModel.spectrumFeed,
+                                        waveformFeed: appModel.waveformFeed)
+            .frame(height: 40)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .accessibilityLabel("Menu bar spectrum meter")
+            .onAppear { appModel.menuBarVisualizerVisible = true }
+            .onDisappear { appModel.menuBarVisualizerVisible = false }
+    }
+}
+
 enum SpectrumVisualizerMode {
     case bars
     case mirroredBars
+    case ghostBars
+    case polar
     case ledBars
     case spectrogram
     case oscilloscope
+    case crt
     case vectorscope
     case correlation
     case vuMeters
+    case particles
+    case miniBars
 }
 
-private struct SpectrumVisualizerRepresentable: NSViewRepresentable {
+struct SpectrumVisualizerRepresentable: NSViewRepresentable {
     let mode: SpectrumVisualizerMode
     let spectrumFeed: SpectrumFeed
     let waveformFeed: WaveformFeed

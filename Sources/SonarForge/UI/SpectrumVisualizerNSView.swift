@@ -44,6 +44,27 @@ final class SpectrumVisualizerNSView: NSView {
     private var spectroColumns = 0
     private static let spectroMaxColumns = 240
 
+    // Ghost-bar trail history (newest last).
+    private var ghostHistory: [[Float]] = []
+    private static let ghostMaxFrames = 12
+
+    // CRT phosphor (BGRA pixels, same size as last raster).
+    private var phosphorPixels: [UInt32] = []
+    private var phosphorW = 0
+    private var phosphorH = 0
+
+    // Particles.
+    private struct Particle {
+        var x: Float
+        var y: Float
+        var vx: Float
+        var vy: Float
+        var life: Float
+        var hue: Float
+    }
+    private var particles: [Particle] = []
+    private static let maxParticles = 400
+
     // Cross-thread state (main writes size/feed/paused; render queue reads).
     private let stateLock = NSLock()
     private var pixelSize: CGSize = .zero
@@ -82,8 +103,9 @@ final class SpectrumVisualizerNSView: NSView {
         wantsLayer = true
         let host = CALayer()
         host.contentsGravity = .resize
-        host.backgroundColor = mode == .spectrogram || mode == .vectorscope
-            ? NSColor.black.withAlphaComponent(0.25).cgColor
+        let darkModes: Set<SpectrumVisualizerMode> = [.spectrogram, .vectorscope, .crt, .particles, .polar]
+        host.backgroundColor = darkModes.contains(mode)
+            ? NSColor.black.withAlphaComponent(0.30).cgColor
             : NSColor.clear.cgColor
         // Avoid implicit fade animations when swapping frame images.
         host.actions = [
@@ -343,7 +365,10 @@ final class SpectrumVisualizerNSView: NSView {
                 updateMeterBallistics(snap)
             }
             return drawVUMeters(size: size)
-        case .bars, .mirroredBars, .ledBars, .spectrogram:
+        case .crt:
+            _ = waveform?.copySamples(into: &waveSamples)
+            return drawCRT(size: size)
+        case .bars, .mirroredBars, .ghostBars, .polar, .ledBars, .spectrogram, .particles, .miniBars:
             break
         }
 
@@ -352,18 +377,30 @@ final class SpectrumVisualizerNSView: NSView {
         let spectrumChanged = gen != lastSpectrumGeneration
         if spectrumChanged {
             lastSpectrumGeneration = gen
+            if mode == .ghostBars {
+                ghostHistory.append(levels)
+                if ghostHistory.count > Self.ghostMaxFrames {
+                    ghostHistory.removeFirst(ghostHistory.count - Self.ghostMaxFrames)
+                }
+            }
         }
         updatePeaks(spectrumChanged: spectrumChanged)
 
         switch mode {
-        case .bars:
-            return drawBars(size: size)
+        case .bars, .miniBars:
+            return drawBars(size: size, mini: mode == .miniBars)
         case .mirroredBars:
             return drawMirroredBars(size: size)
+        case .ghostBars:
+            return drawGhostBars(size: size)
+        case .polar:
+            return drawPolar(size: size)
         case .ledBars:
             return drawLED(size: size)
         case .spectrogram:
             return drawSpectrogram(size: size, spectrumChanged: spectrumChanged)
+        case .particles:
+            return drawParticles(size: size, spectrumChanged: spectrumChanged)
         default:
             return nil
         }
@@ -413,11 +450,11 @@ final class SpectrumVisualizerNSView: NSView {
 
     // MARK: Bars
 
-    private func drawBars(size: CGSize) -> CGImage? {
+    private func drawBars(size: CGSize, mini: Bool = false) -> CGImage? {
         guard levels.count > 1 else { return nil }
         return withContext(size: size) { ctx, w, h in
             let n = levels.count
-            let gapFinal: CGFloat = n > 48 ? max(1, w * 0.002) : max(2, w * 0.004)
+            let gapFinal: CGFloat = mini ? max(0.5, w * 0.003) : (n > 48 ? max(1, w * 0.002) : max(2, w * 0.004))
             let barWidth = max(1, (w - gapFinal * CGFloat(n - 1)) / CGFloat(n))
 
             let accent = NSColor.controlAccentColor
@@ -434,12 +471,238 @@ final class SpectrumVisualizerNSView: NSView {
             fillAccentGradient(ctx: ctx, accent: accent, w: w, h: h)
             ctx.resetClip()
 
-            ctx.setFillColor(NSColor.labelColor.withAlphaComponent(0.85).cgColor)
+            if !mini {
+                ctx.setFillColor(NSColor.labelColor.withAlphaComponent(0.85).cgColor)
+                for i in 0..<min(n, peaks.count) {
+                    let x = CGFloat(i) * (barWidth + gapFinal)
+                    let capY = CGFloat(VizScale.normFloat(peaks[i])) * h
+                    ctx.fill(CGRect(x: x, y: max(0, capY - 2), width: barWidth, height: 2))
+                }
+            }
+        }
+    }
+
+    private func drawGhostBars(size: CGSize) -> CGImage? {
+        guard levels.count > 1 else { return nil }
+        return withContext(size: size) { ctx, w, h in
+            let n = levels.count
+            let gapFinal: CGFloat = n > 48 ? max(1, w * 0.002) : max(2, w * 0.004)
+            let barWidth = max(1, (w - gapFinal * CGFloat(n - 1)) / CGFloat(n))
+            let frames = ghostHistory
+            let count = max(frames.count, 1)
+            for (fi, frame) in frames.enumerated() {
+                let age = CGFloat(fi + 1) / CGFloat(count)
+                let alpha = 0.08 + 0.55 * age * age
+                let accent = NSColor.controlAccentColor.withAlphaComponent(alpha)
+                ctx.setFillColor(accent.cgColor)
+                for i in 0..<min(n, frame.count) {
+                    let x = CGFloat(i) * (barWidth + gapFinal)
+                    let height = CGFloat(VizScale.normFloat(frame[i])) * h
+                    if height > 0.5 {
+                        ctx.fill(CGRect(x: x, y: 0, width: barWidth, height: height))
+                    }
+                }
+            }
+            // Bright live outline caps.
+            ctx.setFillColor(NSColor.labelColor.withAlphaComponent(0.9).cgColor)
             for i in 0..<min(n, peaks.count) {
                 let x = CGFloat(i) * (barWidth + gapFinal)
                 let capY = CGFloat(VizScale.normFloat(peaks[i])) * h
                 ctx.fill(CGRect(x: x, y: max(0, capY - 2), width: barWidth, height: 2))
             }
+        }
+    }
+
+    private func drawPolar(size: CGSize) -> CGImage? {
+        guard levels.count > 1 else { return nil }
+        return withContext(size: size) { ctx, w, h in
+            let cx = w * 0.5
+            let cy = h * 0.5
+            let maxR = min(w, h) * 0.42
+            let n = levels.count
+            // Guide rings.
+            ctx.setStrokeColor(NSColor.secondaryLabelColor.withAlphaComponent(0.2).cgColor)
+            ctx.setLineWidth(1)
+            for frac in [0.33, 0.66, 1.0] as [CGFloat] {
+                let r = maxR * frac
+                ctx.strokeEllipse(in: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2))
+            }
+            let path = CGMutablePath()
+            for i in 0..<n {
+                let t = CGFloat(i) / CGFloat(n) * .pi * 2 - .pi / 2
+                let amp = CGFloat(VizScale.normFloat(levels[i]))
+                let r = maxR * (0.12 + 0.88 * amp)
+                let p = CGPoint(x: cx + cos(t) * r, y: cy + sin(t) * r)
+                if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+            }
+            path.closeSubpath()
+            ctx.addPath(path)
+            ctx.setFillColor(NSColor.controlAccentColor.withAlphaComponent(0.25).cgColor)
+            ctx.fillPath()
+            ctx.addPath(path)
+            ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+            ctx.setLineWidth(max(1.5, min(w, h) / 280))
+            ctx.strokePath()
+            // Radial ticks for a few bins.
+            ctx.setStrokeColor(NSColor.controlAccentColor.withAlphaComponent(0.35).cgColor)
+            ctx.setLineWidth(1)
+            for i in stride(from: 0, to: n, by: max(1, n / 16)) {
+                let t = CGFloat(i) / CGFloat(n) * .pi * 2 - .pi / 2
+                let amp = CGFloat(VizScale.normFloat(levels[i]))
+                let r = maxR * (0.12 + 0.88 * amp)
+                ctx.move(to: CGPoint(x: cx, y: cy))
+                ctx.addLine(to: CGPoint(x: cx + cos(t) * r, y: cy + sin(t) * r))
+            }
+            ctx.strokePath()
+        }
+    }
+
+    private func drawParticles(size: CGSize, spectrumChanged: Bool) -> CGImage? {
+        let w = Float(size.width)
+        let h = Float(size.height)
+        guard w > 2, h > 2, levels.count > 1 else { return nil }
+
+        if spectrumChanged {
+            let n = levels.count
+            for i in 0..<n {
+                let energy = VizScale.normFloat(levels[i])
+                guard energy > 0.08 else { continue }
+                // Spawn count proportional to energy (capped).
+                let spawns = Int(energy * 3)
+                let x = (Float(i) + 0.5) / Float(n) * w
+                for _ in 0..<spawns where particles.count < Self.maxParticles {
+                    particles.append(Particle(
+                        x: x + Float.random(in: -4...4),
+                        y: energy * h * 0.85,
+                        vx: Float.random(in: -12...12),
+                        vy: Float.random(in: 20...90) * energy,
+                        life: Float.random(in: 0.45...1.0),
+                        hue: Float(i) / Float(n)
+                    ))
+                }
+            }
+        }
+
+        // Integrate.
+        let dt = Float(Self.minFrameInterval)
+        var next: [Particle] = []
+        next.reserveCapacity(particles.count)
+        for var p in particles {
+            p.x += p.vx * dt
+            p.y += p.vy * dt
+            p.vy += -40 * dt   // gravity down in bottom-origin coords? y up from bottom
+            p.life -= dt * 0.55
+            if p.life > 0, p.y > -10, p.x > -20, p.x < w + 20 {
+                next.append(p)
+            }
+        }
+        particles = next
+
+        return withContext(size: size) { ctx, width, height in
+            for p in particles {
+                let alpha = CGFloat(max(0, min(1, p.life)))
+                let color = NSColor(calibratedHue: CGFloat(p.hue) * 0.75 + 0.05,
+                                    saturation: 0.85,
+                                    brightness: 1,
+                                    alpha: alpha * 0.9)
+                ctx.setFillColor(color.cgColor)
+                let r = CGFloat(1.5 + p.life * 2.5)
+                ctx.fillEllipse(in: CGRect(x: CGFloat(p.x) - r,
+                                           y: CGFloat(p.y) - r,
+                                           width: r * 2, height: r * 2))
+            }
+        }
+    }
+
+    private func drawCRT(size: CGSize) -> CGImage? {
+        let w = Int(size.width.rounded(.down))
+        let h = Int(size.height.rounded(.down))
+        guard w > 2, h > 2 else { return nil }
+
+        if phosphorW != w || phosphorH != h || phosphorPixels.count != w * h {
+            phosphorW = w
+            phosphorH = h
+            phosphorPixels = [UInt32](repeating: 0, count: w * h)
+        }
+
+        // Decay phosphor.
+        for i in phosphorPixels.indices {
+            let px = phosphorPixels[i]
+            let b = Int((px >> 0) & 0xFF)
+            let g = Int((px >> 8) & 0xFF)
+            let r = Int((px >> 16) & 0xFF)
+            let a = Int((px >> 24) & 0xFF)
+            let nb = b * 88 / 100
+            let ng = g * 90 / 100
+            let nr = r * 85 / 100
+            let na = a * 90 / 100
+            phosphorPixels[i] = UInt32(nb) | (UInt32(ng) << 8) | (UInt32(nr) << 16) | (UInt32(na) << 24)
+        }
+
+        // Draw scope into phosphor.
+        if waveSamples.count > 1 {
+            var peak: Float = 0.05
+            for s in waveSamples { peak = max(peak, abs(s)) }
+            let n = waveSamples.count
+            var prevX = 0
+            var prevY = h / 2
+            for i in 0..<n {
+                let x = Int(CGFloat(i) / CGFloat(n - 1) * CGFloat(w - 1))
+                let y = Int(CGFloat(h) * 0.5 - CGFloat(waveSamples[i] / peak) * CGFloat(h) * 0.4)
+                plotLinePhosphor(x0: prevX, y0: prevY, x1: x, y1: max(0, min(h - 1, y)))
+                prevX = x
+                prevY = max(0, min(h - 1, y))
+            }
+        }
+
+        // Scanlines + vignette on top via context.
+        guard let base = makeBGRAImage(pixels: phosphorPixels, width: w, height: h) else { return nil }
+        return withContext(size: size) { ctx, cw, ch in
+            ctx.setFillColor(NSColor.black.cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: cw, height: ch))
+            ctx.interpolationQuality = .none
+            ctx.draw(base, in: CGRect(x: 0, y: 0, width: cw, height: ch))
+            // Scanlines.
+            ctx.setFillColor(NSColor.black.withAlphaComponent(0.18).cgColor)
+            var y: CGFloat = 0
+            while y < ch {
+                ctx.fill(CGRect(x: 0, y: y, width: cw, height: 1))
+                y += 3
+            }
+        }
+    }
+
+    private func plotLinePhosphor(x0: Int, y0: Int, x1: Int, y1: Int) {
+        var x = x0, y = y0
+        let dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1
+        let dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1
+        var err = dx + dy
+        while true {
+            stampPhosphor(x: x, y: y)
+            if x == x1 && y == y1 { break }
+            let e2 = 2 * err
+            if e2 >= dy { err += dy; x += sx }
+            if e2 <= dx { err += dx; y += sy }
+        }
+    }
+
+    private func stampPhosphor(x: Int, y: Int) {
+        guard x >= 0, y >= 0, x < phosphorW, y < phosphorH else { return }
+        // Soft green glow: center + neighbors.
+        let glow: [(Int, Int, Int)] = [
+            (0, 0, 255), (1, 0, 120), (-1, 0, 120), (0, 1, 120), (0, -1, 120),
+            (1, 1, 50), (1, -1, 50), (-1, 1, 50), (-1, -1, 50),
+        ]
+        for (dx, dy, gAdd) in glow {
+            let px = x + dx, py = y + dy
+            guard px >= 0, py >= 0, px < phosphorW, py < phosphorH else { continue }
+            let idx = py * phosphorW + px
+            let cur = phosphorPixels[idx]
+            let b = min(255, Int(cur & 0xFF) + gAdd / 6)
+            let g = min(255, Int((cur >> 8) & 0xFF) + gAdd)
+            let r = min(255, Int((cur >> 16) & 0xFF) + gAdd / 8)
+            let a = 255
+            phosphorPixels[idx] = UInt32(b) | (UInt32(g) << 8) | (UInt32(r) << 16) | (UInt32(a) << 24)
         }
     }
 

@@ -31,9 +31,19 @@ struct MenuBarContent: View {
             ))
             .disabled(!appModel.isProcessing)
 
-            Button("Open Main Window") {
-                openWindow(id: "main")   // reopens if the user closed it
-                NSApp.activate(ignoringOtherApps: true)
+            // Live post-EQ spectrum strip (enables analysis while the panel is open).
+            MenuBarMiniMeter()
+                .padding(.vertical, 2)
+
+            HStack(spacing: 8) {
+                Button("Open Main Window") {
+                    openWindow(id: "main")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+                Button("Visualizer") {
+                    openWindow(id: "visualizer")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
             }
 
             Divider()

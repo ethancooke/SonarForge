@@ -80,9 +80,13 @@ final class AppModel {
     var visualizerPopoutVisible: Bool = false {
         didSet { updateSpectrumEnabled() }
     }
+    /// Menu-bar extra panel is open (mini meter needs spectrum bins).
+    var menuBarVisualizerVisible: Bool = false {
+        didSet { updateSpectrumEnabled() }
+    }
 
     private func updateSpectrumEnabled() {
-        let enabled = spectrumViewVisible || visualizerPopoutVisible
+        let enabled = spectrumViewVisible || visualizerPopoutVisible || menuBarVisualizerVisible
         audioEngine.setSpectrumEnabled(enabled)
         if !enabled {
             spectrumFeed.clear()
