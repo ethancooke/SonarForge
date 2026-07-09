@@ -79,4 +79,44 @@ final class SampleRing {
         head.store(currentHead + count, ordering: .releasing)
         return count
     }
+
+    /// Realtime-safe: writes interleaved stereo frames as L,R,L,R… (capacity is
+    /// in *floats*, so one frame = 2 slots). Always writes an even number of
+    /// samples so L/R pairs never tear. Prefer this for stereo meters over two
+    /// independent mono rings (those can desync when either drops).
+    @inline(__always)
+    func writeInterleavedStereoFrames(_ samples: UnsafePointer<Float32>, frames: Int) {
+        let currentTail = tail.load(ordering: .relaxed)
+        let currentHead = head.load(ordering: .acquiring)
+        let free = capacity - (currentTail - currentHead)
+        // Even free count so pairs stay intact.
+        let freeEven = free & ~1
+        let want = frames * 2
+        let count = min(want, freeEven)
+        guard count > 0 else { return }
+        for i in 0..<count {
+            buffer[(currentTail + i) & mask] = samples[i]
+        }
+        tail.store(currentTail + count, ordering: .releasing)
+    }
+
+    /// Reads up to `maxFrames` L/R pairs into separate channel buffers.
+    /// Returns the number of *frames* read (always lockstep).
+    func readStereoFrames(left: UnsafeMutablePointer<Float>,
+                          right: UnsafeMutablePointer<Float>,
+                          maxFrames: Int) -> Int {
+        let currentHead = head.load(ordering: .relaxed)
+        let currentTail = tail.load(ordering: .acquiring)
+        let availableFloats = currentTail - currentHead
+        let availableFrames = availableFloats / 2
+        let count = min(maxFrames, availableFrames)
+        guard count > 0 else { return 0 }
+        for i in 0..<count {
+            let base = currentHead + i * 2
+            left[i] = buffer[base & mask]
+            right[i] = buffer[(base + 1) & mask]
+        }
+        head.store(currentHead + count * 2, ordering: .releasing)
+        return count
+    }
 }

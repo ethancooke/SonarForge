@@ -4,9 +4,9 @@ import Foundation
 /// and correlation. Published from the analysis queue; display-link renderers
 /// poll without going through SwiftUI observation.
 public struct WaveformSnapshot: Sendable {
-    /// Mono mix ((L+R)/2), scope-aligned window.
+    /// Mono mix ((L+R)/2) over the same window as L/R.
     public var mono: [Float]
-    /// Matched L/R windows (same length as each other; used for vectorscope).
+    /// Matched L/R windows (always the same length / time base).
     public var left: [Float]
     public var right: [Float]
     /// Linear peak (0…∞, typically ≤1) over the analysis window.
@@ -15,19 +15,25 @@ public struct WaveformSnapshot: Sendable {
     /// Linear RMS over the analysis window.
     public var leftRMS: Float
     public var rightRMS: Float
-    /// Pearson-style correlation of L vs R in [-1, 1]. +1 = mono/in-phase,
-    /// 0 = uncorrelated, −1 = inverted.
+    /// Pearson correlation of L vs R in [-1, 1]. +1 = same shape/polarity
+    /// (mono-compatible), 0 = uncorrelated, −1 = inverted. Note: a *hard pan*
+    /// of mono content can read near 0 because one channel is silent — use
+    /// `balance` for left↔right position.
     public var correlation: Float
+    /// Stereo balance from RMS energy in [-1, 1]: −1 = hard left, 0 = center,
+    /// +1 = hard right. This is what tracks ear-to-ear pans.
+    public var balance: Float
 
     public static let empty = WaveformSnapshot(
         mono: [], left: [], right: [],
-        leftPeak: 0, rightPeak: 0, leftRMS: 0, rightRMS: 0, correlation: 0
+        leftPeak: 0, rightPeak: 0, leftRMS: 0, rightRMS: 0,
+        correlation: 0, balance: 0
     )
 
     public init(mono: [Float] = [], left: [Float] = [], right: [Float] = [],
                 leftPeak: Float = 0, rightPeak: Float = 0,
                 leftRMS: Float = 0, rightRMS: Float = 0,
-                correlation: Float = 0) {
+                correlation: Float = 0, balance: Float = 0) {
         self.mono = mono
         self.left = left
         self.right = right
@@ -36,6 +42,7 @@ public struct WaveformSnapshot: Sendable {
         self.leftRMS = leftRMS
         self.rightRMS = rightRMS
         self.correlation = correlation
+        self.balance = balance
     }
 }
 

@@ -6,8 +6,9 @@ import os.log
 /// PCM (mono + stereo) for time-domain visuals.
 ///
 /// Realtime side (`capturePre`/`capturePost`): lock-free ring writes only —
-/// no allocations, no locks. Gated by `enabled`. Post writes separate FFT and
-/// waveform rings so drains never starve each other.
+/// no allocations, no locks. Gated by `enabled`. Post writes a mono FFT ring
+/// and a **single interleaved stereo ring** so L/R samples never desync
+/// (independent mono rings can drop at different times and destroy correlation).
 ///
 /// Analysis side: timer on a utility queue → spectrum bins via `onSnapshot`
 /// and a `WaveformSnapshot` via `onWaveform`.
@@ -16,7 +17,10 @@ final class SpectrumAnalyzer {
     static let updateRate = 20.0
     /// Samples published each tick (~21 ms @ 48 kHz).
     static let waveformDisplayCount = 1024
+    /// Mono float capacity for the FFT post path.
     static let waveformRingCapacity = 8192
+    /// Stereo ring holds L,R pairs as floats (2 × frames).
+    static let stereoRingFloatCapacity = waveformRingCapacity * 2
 
     static let targetHzPerBin = 2.93
     static let minFFTSize = 4096
@@ -34,26 +38,26 @@ final class SpectrumAnalyzer {
     let enabled = ManagedAtomic<Bool>(false)
 
     var onSnapshot: (([Float], [Float]) -> Void)?
-    /// Post-EQ mono + stereo PCM + levels + correlation. Analysis queue.
+    /// Post-EQ mono + stereo PCM + levels + correlation + balance. Analysis queue.
     var onWaveform: ((WaveformSnapshot) -> Void)?
 
     private let logger = Logger(subsystem: "com.sonarforge.audio", category: "Spectrum")
     private let preRing = SampleRing(capacity: maxFFTSize)
     private let postRing = SampleRing(capacity: maxFFTSize)
-    private let waveMonoRing = SampleRing(capacity: waveformRingCapacity)
-    private let waveLeftRing = SampleRing(capacity: waveformRingCapacity)
-    private let waveRightRing = SampleRing(capacity: waveformRingCapacity)
+    /// Interleaved L,R float pairs — single producer timeline for stereo meters.
+    private let stereoRing = SampleRing(capacity: stereoRingFloatCapacity)
     private let queue = DispatchQueue(label: "com.sonarforge.audio.spectrum", qos: .utility)
 
     private var timer: DispatchSourceTimer?
     private var processor: SpectrumProcessor?
     private var preWindow = [Float]()
     private var postWindow = [Float]()
-    private var monoWindow = [Float]()
+    /// Rolling stereo history (newest at end), always equal length.
     private var leftWindow = [Float]()
     private var rightWindow = [Float]()
     private var scratch = [Float](repeating: 0, count: maxFFTSize)
-    private var waveScratch = [Float](repeating: 0, count: waveformRingCapacity)
+    private var leftScratch = [Float](repeating: 0, count: waveformRingCapacity)
+    private var rightScratch = [Float](repeating: 0, count: waveformRingCapacity)
     private var currentFFTSize = minFFTSize
 
     // MARK: - Realtime side
@@ -66,9 +70,7 @@ final class SpectrumAnalyzer {
     @inline(__always)
     func capturePost(_ samples: UnsafePointer<Float32>, frames: Int) {
         postRing.writeMonoFromInterleavedStereo(samples, frames: frames)
-        waveMonoRing.writeMonoFromInterleavedStereo(samples, frames: frames)
-        waveLeftRing.writeChannelFromInterleavedStereo(samples, frames: frames, channel: 0)
-        waveRightRing.writeChannelFromInterleavedStereo(samples, frames: frames, channel: 1)
+        stereoRing.writeInterleavedStereoFrames(samples, frames: frames)
     }
 
     // MARK: - Lifecycle
@@ -80,7 +82,6 @@ final class SpectrumAnalyzer {
             self.processor = SpectrumProcessor(fftSize: size, sampleRate: sampleRate)
             self.preWindow.removeAll(keepingCapacity: true)
             self.postWindow.removeAll(keepingCapacity: true)
-            self.monoWindow.removeAll(keepingCapacity: true)
             self.leftWindow.removeAll(keepingCapacity: true)
             self.rightWindow.removeAll(keepingCapacity: true)
 
@@ -111,9 +112,7 @@ final class SpectrumAnalyzer {
 
         drainFFT(ring: preRing, into: &preWindow)
         drainFFT(ring: postRing, into: &postWindow)
-        drainWave(ring: waveMonoRing, into: &monoWindow)
-        drainWave(ring: waveLeftRing, into: &leftWindow)
-        drainWave(ring: waveRightRing, into: &rightWindow)
+        drainStereo()
 
         let size = currentFFTSize
         if preWindow.count >= size || postWindow.count >= size {
@@ -141,30 +140,32 @@ final class SpectrumAnalyzer {
         }
     }
 
-    private func drainWave(ring: SampleRing, into window: inout [Float]) {
+    private func drainStereo() {
         let maxKeep = Self.waveformDisplayCount * 2
-        let read = waveScratch.withUnsafeMutableBufferPointer { ptr in
-            ring.read(into: ptr.baseAddress!, maxCount: min(maxKeep, ptr.count))
+        let frames = leftScratch.withUnsafeMutableBufferPointer { lp in
+            rightScratch.withUnsafeMutableBufferPointer { rp in
+                stereoRing.readStereoFrames(
+                    left: lp.baseAddress!,
+                    right: rp.baseAddress!,
+                    maxFrames: min(maxKeep, lp.count)
+                )
+            }
         }
-        guard read > 0 else { return }
-        window.append(contentsOf: waveScratch[0..<read])
-        if window.count > maxKeep {
-            window.removeFirst(window.count - maxKeep)
+        guard frames > 0 else { return }
+        leftWindow.append(contentsOf: leftScratch[0..<frames])
+        rightWindow.append(contentsOf: rightScratch[0..<frames])
+        if leftWindow.count > maxKeep {
+            leftWindow.removeFirst(leftWindow.count - maxKeep)
+            rightWindow.removeFirst(rightWindow.count - maxKeep)
         }
     }
 
     private func publishWaveform() {
         let n = Self.waveformDisplayCount
-        guard monoWindow.count >= n, leftWindow.count >= n, rightWindow.count >= n else { return }
+        guard leftWindow.count >= n, rightWindow.count == leftWindow.count else { return }
 
-        // Align mono (and L/R with same offset) to a rising zero-crossing.
-        let start = Self.triggerIndex(in: monoWindow, length: n)
-        // Keep L/R in time with mono: use the same relative offset from the end.
-        let monoEndOffset = monoWindow.count - start - n
-        let leftStart = max(0, leftWindow.count - n - monoEndOffset)
-        let rightStart = max(0, rightWindow.count - n - monoEndOffset)
-        guard leftStart + n <= leftWindow.count, rightStart + n <= rightWindow.count else { return }
-
+        // Newest N frames — lockstep L/R (no cross-ring realignment).
+        let start = leftWindow.count - n
         var mono = [Float](repeating: 0, count: n)
         var left = [Float](repeating: 0, count: n)
         var right = [Float](repeating: 0, count: n)
@@ -175,12 +176,11 @@ final class SpectrumAnalyzer {
         var cross: Float = 0
 
         for i in 0..<n {
-            let m = monoWindow[start + i]
-            let l = leftWindow[leftStart + i]
-            let r = rightWindow[rightStart + i]
-            mono[i] = m
+            let l = leftWindow[start + i]
+            let r = rightWindow[start + i]
             left[i] = l
             right[i] = r
+            mono[i] = (l + r) * 0.5
             leftPeak = max(leftPeak, abs(l))
             rightPeak = max(rightPeak, abs(r))
             leftSq += l * l
@@ -192,30 +192,18 @@ final class SpectrumAnalyzer {
         let leftRMS = sqrt(leftSq * invN)
         let rightRMS = sqrt(rightSq * invN)
         let denom = sqrt(leftSq * rightSq)
+        // Pearson correlation; silent-channel pans → 0 (use balance for position).
         let correlation: Float = denom > 1e-12 ? max(-1, min(1, cross / denom)) : 0
+        // Balance: −1 left … 0 center … +1 right (RMS energy).
+        let sum = leftRMS + rightRMS
+        let balance: Float = sum > 1e-9 ? max(-1, min(1, (rightRMS - leftRMS) / sum)) : 0
 
         onWaveform?(WaveformSnapshot(
             mono: mono, left: left, right: right,
             leftPeak: leftPeak, rightPeak: rightPeak,
             leftRMS: leftRMS, rightRMS: rightRMS,
-            correlation: correlation
+            correlation: correlation,
+            balance: balance
         ))
-    }
-
-    private static func triggerIndex(in samples: [Float], length: Int) -> Int {
-        let end = samples.count
-        let searchStart = max(0, end - length * 2)
-        let searchEnd = end - length
-        guard searchEnd > searchStart + 1 else {
-            return max(0, end - length)
-        }
-        var i = searchEnd - 1
-        while i > searchStart {
-            if samples[i - 1] <= 0 && samples[i] > 0 {
-                return i
-            }
-            i -= 1
-        }
-        return max(0, end - length)
     }
 }
