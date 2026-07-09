@@ -372,18 +372,14 @@ struct FrequencyPane: View {
         let vizOn = model.visualizationsEnabled
 
         VStack(spacing: 12) {
-            HStack {
-                Text(vizOn ? style.displayName : "Visualizations Off")
-                    .font(.headline)
-                Spacer()
+            // Mode title lives only in the picker; no duplicate headline.
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
                 Toggle(isOn: $model.visualizationsEnabled) {
-                    Label(
-                        vizOn ? "Visualizations On" : "Visualizations Off",
-                        systemImage: vizOn ? "eye" : "eye.slash"
-                    )
+                    Image(systemName: vizOn ? "eye" : "eye.slash")
                 }
                 .toggleStyle(.button)
-                .labelsHidden()
+                .accessibilityLabel(vizOn ? "Visualizations on" : "Visualizations off")
                 .help(vizOn
                       ? "Turn off spectrum analysis and all visualizers to save CPU and battery. EQ audio is unaffected."
                       : "Turn on spectrum analysis and visualizers.")
@@ -402,9 +398,10 @@ struct FrequencyPane: View {
                 Button {
                     openWindow(id: "visualizer")
                 } label: {
-                    Label("Pop Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
                 }
                 .disabled(!vizOn)
+                .accessibilityLabel("Pop out visualizer")
                 .help("Open a detached visualizer window (supports fullscreen)")
             }
             .padding(.horizontal)

@@ -23,15 +23,13 @@ struct VisualizerPopoutView: View {
         let vizOn = model.visualizationsEnabled
 
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Text(vizOn ? displayStyle.displayName : "Visualizations Off")
-                    .font(.headline)
-                Spacer()
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
                 Toggle(isOn: $model.visualizationsEnabled) {
-                    Label(vizOn ? "On" : "Off", systemImage: vizOn ? "eye" : "eye.slash")
+                    Image(systemName: vizOn ? "eye" : "eye.slash")
                 }
                 .toggleStyle(.button)
-                .labelsHidden()
+                .accessibilityLabel(vizOn ? "Visualizations on" : "Visualizations off")
                 .help("Master switch for spectrum analysis and visualizers (saves CPU/battery when off)")
 
                 Picker("Visualization", selection: $styleRaw) {
@@ -49,13 +47,11 @@ struct VisualizerPopoutView: View {
                 Button {
                     toggleFullScreen()
                 } label: {
-                    Label(
-                        isFullScreen ? "Exit Full Screen" : "Full Screen",
-                        systemImage: isFullScreen
-                            ? "arrow.down.right.and.arrow.up.left"
-                            : "arrow.up.left.and.arrow.down.right"
-                    )
+                    Image(systemName: isFullScreen
+                          ? "arrow.down.right.and.arrow.up.left"
+                          : "arrow.up.left.and.arrow.down.right")
                 }
+                .accessibilityLabel(isFullScreen ? "Exit full screen" : "Full screen")
                 .help(isFullScreen
                       ? "Exit fullscreen"
                       : "Enter fullscreen for this visualizer window")
@@ -63,11 +59,11 @@ struct VisualizerPopoutView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Label("Close", systemImage: "xmark.circle")
+                    Image(systemName: "xmark.circle")
                 }
+                .accessibilityLabel("Close")
                 .help("Close the visualizer window")
             }
-            .labelStyle(.iconOnly)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
