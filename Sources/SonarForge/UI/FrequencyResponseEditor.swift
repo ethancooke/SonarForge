@@ -13,7 +13,8 @@ import SwiftUI
 /// - Right-click a handle: delete the band.
 /// - Click a handle: select (highlights; numeric editing in the sidebar).
 ///
-/// Deferred: snapping, zoom.
+/// Zone strip + handle tooltips teach which instruments sit in which band
+/// (see `FrequencyGuide.swift`). Deferred: snapping, zoom.
 ///
 /// Performance note: this view observes only the current profile and selection
 /// (it re-renders on edits, not at the spectrum's 20 Hz — see AUDIO_PATH.md on
@@ -24,6 +25,8 @@ struct FrequencyResponseEditor: View {
 
     /// Band values at drag start — Q drags are relative to these.
     @State private var dragStartBand: EQBand?
+    /// Handle under the pointer (for guide badge when nothing is selected).
+    @State private var hoveredBandID: UUID?
 
     private static let minFrequency = 20.0
     private static let maxFrequency = 20000.0
@@ -53,30 +56,52 @@ struct FrequencyResponseEditor: View {
              EQResponseCurve.responseDB(bands: [band], sampleRate: Self.displaySampleRate, frequencies: Self.curveFrequencies),
              band.id == selectedBandID)
         }
+        let guideBand = bands.first(where: { $0.id == selectedBandID })
+            ?? bands.first(where: { $0.id == hoveredBandID })
 
-        GeometryReader { geometry in
-            let size = geometry.size
+        VStack(spacing: 4) {
+            GeometryReader { geometry in
+                let size = geometry.size
 
-            ZStack {
-                Canvas { context, size in
-                    drawGrid(in: &context, size: size)
-                    for bandCurve in bandCurves {
-                        drawBandFootprint(bandCurve.response, color: bandCurve.color,
-                                          emphasized: bandCurve.selected, in: &context, size: size)
+                ZStack {
+                    Canvas { context, size in
+                        drawGrid(in: &context, size: size)
+                        for bandCurve in bandCurves {
+                            drawBandFootprint(bandCurve.response, color: bandCurve.color,
+                                              emphasized: bandCurve.selected, in: &context, size: size)
+                        }
+                        drawTotalCurve(response: response, in: &context, size: size)
                     }
-                    drawTotalCurve(response: response, in: &context, size: size)
-                }
 
-                ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
-                    handle(for: band, at: index, in: size)
+                    ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
+                        handle(for: band, at: index, in: size)
+                    }
+
+                    // Live teaching badge for the focused handle (select or hover).
+                    if let band = guideBand {
+                        FrequencyGuideBadge(
+                            frequency: band.frequency,
+                            gainDB: (band.type == .lowPass || band.type == .highPass || band.type == .notch)
+                                ? nil : band.gain
+                        )
+                        .position(
+                            x: min(max(x(forFrequency: band.frequency, width: size.width), 90),
+                                   size.width - 90),
+                            y: max(y(forDB: band.gain, height: size.height) - 44, 36)
+                        )
+                        .allowsHitTesting(false)
+                    }
                 }
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture(count: 2).onEnded { value in
+                        addBand(at: value.location, in: size)
+                    }
+                )
             }
-            .contentShape(Rectangle())
-            .gesture(
-                SpatialTapGesture(count: 2).onEnded { value in
-                    addBand(at: value.location, in: size)
-                }
-            )
+
+            FrequencyZoneStrip(activeFrequency: guideBand?.frequency)
+                .padding(.horizontal, 2)
         }
         .focusable()
         .focusEffectDisabled()
@@ -225,11 +250,25 @@ struct FrequencyResponseEditor: View {
         let position = CGPoint(x: x(forFrequency: band.frequency, width: size.width),
                                y: y(forDB: band.gain, height: size.height))
 
+        let zone = FrequencyZone.zone(forHz: band.frequency)
+        let helpText = """
+            \(band.type.displayName) — \(FrequencyZone.formatHz(band.frequency))Hz, \
+            \(String(format: "%+.1f", band.gain)) dB, Q \(String(format: "%.2f", band.q))
+            \(zone.tooltip)
+            """
+
         Circle()
             .fill(isSelected ? color : Color(nsColor: .controlBackgroundColor))
             .stroke(color, lineWidth: 2)
             .frame(width: isSelected ? 16 : 12, height: isSelected ? 16 : 12)
             .position(position)
+            .onHover { inside in
+                if inside {
+                    hoveredBandID = band.id
+                } else if hoveredBandID == band.id {
+                    hoveredBandID = nil
+                }
+            }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
@@ -266,11 +305,13 @@ struct FrequencyResponseEditor: View {
                     appModel.removeBand(at: index)
                 }
             }
-            .help("\(band.type.displayName) — \(Int(band.frequency)) Hz, "
-                + "\(String(format: "%+.1f", band.gain)) dB, Q \(String(format: "%.2f", band.q))")
+            .help(helpText)
             .accessibilityElement()
-            .accessibilityLabel("Band \(index + 1), \(band.type.displayName)")
-            .accessibilityValue("\(Int(band.frequency)) hertz, \(String(format: "%+.1f", band.gain)) decibels, Q \(String(format: "%.2f", band.q))")
+            .accessibilityLabel("Band \(index + 1), \(band.type.displayName), \(zone.name)")
+            .accessibilityValue(
+                "\(Int(band.frequency)) hertz, \(String(format: "%+.1f", band.gain)) decibels, "
+                    + "Q \(String(format: "%.2f", band.q)). \(zone.sounds). Too much: \(zone.tooMuch)"
+            )
             .accessibilityHint("Adjust to change gain in half-decibel steps")
             .accessibilityAdjustableAction { direction in
                 selectedBandID = band.id

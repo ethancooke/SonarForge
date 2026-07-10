@@ -33,6 +33,7 @@
 		63A90C4D61CE82AE8AE352E5 /* AutoEQImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C30D0B7632518843FE771F /* AutoEQImporter.swift */; };
 		64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */; };
 		6B79F6459E8CB9BFF78EA72D /* AutoEQImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */; };
+		7B70D31CFC5B92080CAD7187 /* FrequencyGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B21A93B117F8060BD3A8D6B /* FrequencyGuide.swift */; };
 		7C5F870E46187BCE3DB74D4E /* SpectrumFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9CEDD8364B645DF7E47423 /* SpectrumFeed.swift */; };
 		800332210111BA6688FA66F2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08443F9720725E1952FAFE9 /* AppModel.swift */; };
 		95193F89824C78BA2BD7EDF3 /* WaveformFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CC945EF6EC8DF11E6152FE /* WaveformFeed.swift */; };
@@ -78,6 +79,7 @@
 		1441D6DF5158ACE2A52BED31 /* AutoEQImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoEQImporterTests.swift; sourceTree = "<group>"; };
 		18E3D5436A0A3FA2C126268F /* AudioEngineProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineProtocol.swift; sourceTree = "<group>"; };
 		2A46C8CBAB54E14A2A8DA6FF /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
+		2B21A93B117F8060BD3A8D6B /* FrequencyGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyGuide.swift; sourceTree = "<group>"; };
 		2C89B08963690F527B3A3874 /* ReactorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReactorView.swift; sourceTree = "<group>"; };
 		2E3CC9FB2C142B415C61E85D /* GainMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GainMath.swift; sourceTree = "<group>"; };
 		440B9F844019AB37A0946FB3 /* CrossfeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossfeedTests.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 				0DE01553BA6996EEEE69BB69 /* AutoEQImportView.swift */,
 				F4D93BD8BDDAADD313218127 /* BandPalette.swift */,
 				63C4EC3B766CAA38B91E0159 /* ContentView.swift */,
+				2B21A93B117F8060BD3A8D6B /* FrequencyGuide.swift */,
 				80DB05206431EB8490B85801 /* FrequencyResponseEditor.swift */,
 				6234E6C6D35DC54B28975A84 /* MenuBarContent.swift */,
 				6C893909FEC488B484EAE4A6 /* ProfileLibraryView.swift */,
@@ -428,6 +431,7 @@
 				CF8EA1D601F146C7C193B81B /* Crossfeed.swift in Sources */,
 				2D9DA676A2C01D959384162C /* EQProfile.swift in Sources */,
 				1E3D4E73C2289640DC028248 /* EQResponseCurve.swift in Sources */,
+				7B70D31CFC5B92080CAD7187 /* FrequencyGuide.swift in Sources */,
 				AA68CE110F00675C49392FDD /* FrequencyResponseEditor.swift in Sources */,
 				BFD3F05F1BA8ADBCF20491D5 /* GainMath.swift in Sources */,
 				64477D7F455F652815777F85 /* MenuBarContent.swift in Sources */,
