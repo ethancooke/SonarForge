@@ -431,18 +431,12 @@ struct FrequencyPane: View {
     private func content(for style: VisualizationStyle, visualizationsEnabled: Bool) -> some View {
         if !visualizationsEnabled {
             // EQ editor only — no spectrum overlay, no display-link visualizers.
+            // No on-graph caption: it collided with the frequency zone strip.
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color(nsColor: .controlBackgroundColor))
                 FrequencyResponseEditor(selectedBandID: $selectedBandID)
                     .padding(6)
-                VStack {
-                    Spacer()
-                    Text("Visualizations off · EQ still active")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 10)
-                }
             }
         } else if style == .curve {
             // Live pre + post spectrum traces behind the graphical EQ editor.
