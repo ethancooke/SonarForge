@@ -60,7 +60,7 @@ This document describes the high-level architecture, key technical decisions, mo
 
 ### Capture
 - Use `CATapDescription` (global tap excluding the SonarForge process itself to avoid feedback).
-- Request appropriate privacy permissions (`CGRequestScreenCaptureAccess` style + system audio recording TCC).
+- Handle System Audio Recording TCC (`NSAudioCaptureUsageDescription`); do not gate on Screen Capture preflight APIs (wrong TCC class).
 - The tap can be configured with `muteBehavior = .muted` (or `.mutedWhenTapped`) so the original audio does not reach the speakers directly.
 - Tap provides a mix (stereo recommended) at the source device's sample rate and format.
 

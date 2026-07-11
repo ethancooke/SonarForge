@@ -36,6 +36,8 @@ final class SpectrumVisualizerNSView: NSView {
 
     // Render-queue state.
     private var levels: [Float] = []
+    /// Pre-EQ bins for `.curveTraces` (Frequency Response overlay).
+    private var preLevels: [Float] = []
     private var peaks: [Float] = []
     private var lastSpectrumGeneration: UInt64 = 0
     private var peakFallPerFrame: Float = 2.0
@@ -159,6 +161,7 @@ final class SpectrumVisualizerNSView: NSView {
             self.matrixFrame = 0
             self.peaks.removeAll(keepingCapacity: true)
             self.levels.removeAll(keepingCapacity: true)
+            self.preLevels.removeAll(keepingCapacity: true)
             self.lastSpectrumGeneration = 0
             self.waveSamples.removeAll(keepingCapacity: true)
             self.waveLeft.removeAll(keepingCapacity: true)
@@ -429,6 +432,13 @@ final class SpectrumVisualizerNSView: NSView {
         guard size.width > 2, size.height > 2 else { return nil }
 
         switch mode {
+        case .curveTraces:
+            // Pre + post polylines; poll feed off the main thread so gain-slider
+            // tracking does not freeze the Frequency Response spectrum.
+            let gen = spectrum?.copyPost(into: &levels) ?? 0
+            _ = spectrum?.copyPre(into: &preLevels)
+            lastSpectrumGeneration = gen
+            return drawCurveTraces(size: size)
         case .oscilloscope:
             _ = waveform?.copySamples(into: &waveSamples)
             return drawOscilloscope(size: size)
@@ -545,6 +555,60 @@ final class SpectrumVisualizerNSView: NSView {
         for i in levels.indices {
             let fallen = peaks[i] - fall
             peaks[i] = spectrumChanged ? max(levels[i], fallen) : fallen
+        }
+    }
+
+    // MARK: Frequency Response spectrum (pre + post traces)
+
+    /// Matches the old SwiftUI `SpectrumView` look (faint dB grid, secondary pre,
+    /// accent post) but rasterized off-main via SpectrumFeed.
+    private func drawCurveTraces(size: CGSize) -> CGImage? {
+        // Need at least one of the two traces to draw something useful.
+        guard preLevels.count > 1 || levels.count > 1 else { return nil }
+        return withContext(size: size) { ctx, w, h in
+            // Faint dB gridlines every 20 dB (−80…−20), same as SpectrumView.
+            // withContext is bottom-left origin: 0 dB (norm 1) → y = h (top).
+            ctx.setStrokeColor(NSColor.secondaryLabelColor.withAlphaComponent(0.15).cgColor)
+            ctx.setLineWidth(1)
+            for db in stride(from: Float(-80), through: -20, by: 20) {
+                let y = CGFloat(VizScale.normFloat(db)) * h
+                ctx.move(to: CGPoint(x: 0, y: y))
+                ctx.addLine(to: CGPoint(x: w, y: y))
+            }
+            ctx.strokePath()
+
+            if preLevels.count > 1 {
+                ctx.setStrokeColor(NSColor.secondaryLabelColor.withAlphaComponent(0.6).cgColor)
+                ctx.setLineWidth(1)
+                ctx.setLineJoin(.round)
+                ctx.setLineCap(.round)
+                addSpectrumPolyline(ctx: ctx, levels: preLevels, w: w, h: h)
+                ctx.strokePath()
+            }
+            if levels.count > 1 {
+                ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+                ctx.setLineWidth(1.5)
+                ctx.setLineJoin(.round)
+                ctx.setLineCap(.round)
+                addSpectrumPolyline(ctx: ctx, levels: levels, w: w, h: h)
+                ctx.strokePath()
+            }
+        }
+    }
+
+    /// Bottom-left-origin polyline (CG): silent at bottom, 0 dBFS at top.
+    private func addSpectrumPolyline(ctx: CGContext, levels: [Float], w: CGFloat, h: CGFloat) {
+        let n = levels.count
+        guard n > 1 else { return }
+        let stepX = w / CGFloat(n - 1)
+        for i in 0..<n {
+            let x = CGFloat(i) * stepX
+            let y = CGFloat(VizScale.normFloat(levels[i])) * h
+            if i == 0 {
+                ctx.move(to: CGPoint(x: x, y: y))
+            } else {
+                ctx.addLine(to: CGPoint(x: x, y: y))
+            }
         }
     }
 

@@ -55,6 +55,22 @@ final class SpectrumFeed: @unchecked Sendable {
         return generation
     }
 
+    /// Copies pre-EQ bins into `buffer`, reusing storage when the count matches.
+    /// Returns the current generation.
+    @discardableResult
+    func copyPre(into buffer: inout [Float]) -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        if buffer.count != preLevels.count {
+            buffer = preLevels
+        } else {
+            for i in preLevels.indices {
+                buffer[i] = preLevels[i]
+            }
+        }
+        return generation
+    }
+
     var currentGeneration: UInt64 {
         lock.lock()
         defer { lock.unlock() }

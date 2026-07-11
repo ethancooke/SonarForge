@@ -229,6 +229,10 @@ struct ContentView: View {
             Text(appModel.profileSaveError
                   ?? "Your last edit could not be written to disk.")
         }
+        .onAppear {
+            // Docs/marketing: in-process capture (no Screen Recording TCC).
+            WindowSnapshot.scheduleExportIfRequested()
+        }
     }
 
     private func handleDroppedFiles(_ urls: [URL]) {
@@ -253,15 +257,18 @@ struct ContentView: View {
 
 /// Gain sliders in their own observation leaf so dragging preamp/output does
 /// not re-evaluate ContentView (profile chrome, visualizer host, band list).
-/// Preamp uses local `@State` while dragging (same pattern as crossfeed): live
-/// DSP only during the gesture, profile JSON commit once on release.
+/// Both sliders use local `@State` while dragging (same pattern as crossfeed):
+/// live DSP only during the gesture; preamp profile JSON commit once on release.
+/// Binding output gain directly to `AppModel.outputGainDB` used to publish an
+/// observation change every 0.1 dB tick and starve MainActor spectrum work.
 struct GainStagingPanel: View {
     @Environment(AppModel.self) private var appModel
     @State private var preamp: Double = 0
+    @State private var outputGain: Double = 0
     @State private var isDraggingPreamp = false
+    @State private var isDraggingOutput = false
 
     var body: some View {
-        @Bindable var model = appModel
         GroupBox("Gain Staging") {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
                 GridRow {
@@ -288,6 +295,7 @@ struct GainStagingPanel: View {
                         + "AutoEQ profiles typically use a negative preamp to offset boosted bands. "
                         + "Saved with the active profile.")
                     .onChange(of: preamp) { _, newValue in
+                        // Engine-only during drag (no Observable write).
                         appModel.setPreamp(newValue, persist: false)
                     }
                     Text(String(format: "%+.1f dB", preamp))
@@ -298,16 +306,30 @@ struct GainStagingPanel: View {
                 GridRow {
                     Text("Output Gain (master)")
                         .gridColumnAlignment(.trailing)
-                    Slider(value: $model.outputGainDB, in: -12...12, step: 0.1) {
+                    Slider(
+                        value: $outputGain,
+                        in: -12...12,
+                        step: 0.1,
+                        onEditingChanged: { editing in
+                            isDraggingOutput = editing
+                            if !editing {
+                                appModel.setOutputGain(outputGain, publish: true)
+                            }
+                        }
+                    ) {
                         Text("Output Gain")
                     }
                     .labelsHidden()
                     .frame(minWidth: 160, maxWidth: 280)
                     .accessibilityLabel("Output gain")
-                    .accessibilityValue(String(format: "%+.1f decibels", model.outputGainDB))
+                    .accessibilityValue(String(format: "%+.1f decibels", outputGain))
                     .help("Master volume trim applied after the EQ, before the output device. "
                         + "Session-only — not stored in the profile.")
-                    Text(String(format: "%+.1f dB", model.outputGainDB))
+                    .onChange(of: outputGain) { _, newValue in
+                        // Engine-only during drag (publish on release above).
+                        appModel.setOutputGain(newValue, publish: false)
+                    }
+                    Text(String(format: "%+.1f dB", outputGain))
                         .monospacedDigit()
                         .frame(width: 64, alignment: .trailing)
                         .accessibilityHidden(true)
@@ -325,12 +347,18 @@ struct GainStagingPanel: View {
             }
             .padding(4)
         }
-        .onAppear { preamp = appModel.preampDB }
+        .onAppear {
+            preamp = appModel.preampDB
+            outputGain = appModel.outputGainDB
+        }
         .onChange(of: appModel.currentProfile.id) { _, _ in
             preamp = appModel.preampDB
         }
         .onChange(of: appModel.preampDB) { _, newValue in
             if !isDraggingPreamp { preamp = newValue }
+        }
+        .onChange(of: appModel.outputGainDB) { _, newValue in
+            if !isDraggingOutput { outputGain = newValue }
         }
     }
 }
@@ -672,18 +700,30 @@ struct BandListEditor: View {
             .frame(width: 110)
             .accessibilityLabel("Band \(index + 1) filter type")
 
-            TextField("Hz", value: binding(index, \.frequency), format: .number.precision(.fractionLength(0)))
-                .frame(width: 60)
-                .accessibilityLabel("Band \(index + 1) frequency in hertz")
+            bandNumericField(
+                "Hz",
+                value: binding(index, \.frequency),
+                format: .number.precision(.fractionLength(0)),
+                width: 60,
+                accessibilityLabel: "Band \(index + 1) frequency in hertz"
+            )
 
-            TextField("dB", value: binding(index, \.gain), format: .number.precision(.fractionLength(1)))
-                .frame(width: 48)
-                .disabled(band.type == .lowPass || band.type == .highPass || band.type == .notch)
-                .accessibilityLabel("Band \(index + 1) gain in decibels")
+            bandNumericField(
+                "dB",
+                value: binding(index, \.gain),
+                format: .number.precision(.fractionLength(1)),
+                width: 48,
+                accessibilityLabel: "Band \(index + 1) gain in decibels"
+            )
+            .disabled(band.type == .lowPass || band.type == .highPass || band.type == .notch)
 
-            TextField("Q", value: binding(index, \.q), format: .number.precision(.fractionLength(2)))
-                .frame(width: 48)
-                .accessibilityLabel("Band \(index + 1) Q factor")
+            bandNumericField(
+                "Q",
+                value: binding(index, \.q),
+                format: .number.precision(.fractionLength(2)),
+                width: 48,
+                accessibilityLabel: "Band \(index + 1) Q factor"
+            )
 
             Spacer()
 
@@ -697,8 +737,34 @@ struct BandListEditor: View {
             .help("Remove band")
             .accessibilityLabel("Remove band \(index + 1)")
         }
-        .textFieldStyle(.roundedBorder)
         .font(.callout)
+    }
+
+    /// Compact numeric field for the band sidebar.
+    /// Avoids system `.roundedBorder` chrome (bright silver outlines in dark mode
+    /// that also rasterize poorly in marketing snapshots).
+    private func bandNumericField<F: ParseableFormatStyle>(
+        _ title: String,
+        value: Binding<F.FormatInput>,
+        format: F,
+        width: CGFloat,
+        accessibilityLabel: String
+    ) -> some View where F.FormatOutput == String {
+        TextField(title, value: value, format: format)
+            .textFieldStyle(.plain)
+            .multilineTextAlignment(.trailing)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .frame(width: width)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+            )
+            .accessibilityLabel(accessibilityLabel)
     }
 
     /// Field binding that routes edits through AppModel (engine + persistence).
@@ -720,8 +786,9 @@ struct BandListEditor: View {
     }
 }
 
-/// Observation-scoped container for the spectrum traces: only this view
-/// re-evaluates when the ~20 Hz level arrays update.
+/// Host for the pre/post spectrum behind the EQ curve.
+/// Traces are feed-driven (CVDisplayLink); this view only observes engine
+/// run-state for the idle caption — not the 20 Hz level arrays.
 struct SpectrumSection: View {
     @Environment(AppModel.self) private var appModel
 
@@ -729,11 +796,8 @@ struct SpectrumSection: View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(nsColor: .controlBackgroundColor))
-            SpectrumView(
-                preLevels: appModel.preEQLevels,
-                postLevels: appModel.postEQLevels
-            )
-            .padding(6)
+            SpectrumView()
+                .padding(6)
             if !appModel.isProcessing {
                 Text("Start the engine to see the spectrum")
                     .foregroundStyle(.secondary)

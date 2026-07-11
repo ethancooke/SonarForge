@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-07-11 — **[v0.2.1](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.1)** cut (signed + notarized `.dmg` via CI). Stability/safety follow-up to v0.2.0: preamp persistence, digital clip meter, permission preflight, Help menu fix, viz polish (zones, master toggle, Matrix Rain), MainActor isolation. Repo still **private**; remaining: private→public flip, residual 6.5 (AirPlay / FairPlay / non‑M4), optional deferred extras (limiter, hotkeys, Sparkle, …).
+**Last Updated**: 2026-07-11 — **[v0.2.1](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.1)** re-cut (build 7). Includes permission start-gate fix, Frequency Response spectrum slider lag fix, refreshed README hero, plus original 0.2.1 stability work (preamp persistence, clip meter, Help menu, viz polish, MainActor isolation). Repo still **private**; remaining: private→public flip, residual 6.5 (AirPlay / FairPlay / non‑M4), optional deferred extras (limiter, hotkeys, Sparkle, …).
 
 ---
 
@@ -65,7 +65,8 @@ Validated by project owner on real hardware (not synthetic-only):
 - **Public launch**: repo still private; flip private→public, then branch protection on `main`.
 - Deferred extras: global hotkeys (other app frontmost), curve snapping/zoom, A/B crossfade, optional limiter (D-009), Sparkle auto-update, **Reduce Motion** for Reactor/particles/heavy viz (a11y; owner deferred).
 - Digital **output clip indicator** (post-gain sample-peak meter + CLIP badge) shipped; no limiter yet.
-- Audit follow-ups shipped: **M1** permission preflight + clearer start/timeout UI; **L6** debug spectrum file write is Debug-only; **L8** spectrum FFT scratch reuse (no per-tick alloc thrash); **I10** `@MainActor` on `AppModel` + `ProfileManager`.
+- Audit follow-ups shipped: clearer start/timeout UI; **L6** debug spectrum file write is Debug-only; **L8** spectrum FFT scratch reuse (no per-tick alloc thrash); **I10** `@MainActor` on `AppModel` + `ProfileManager`.
+- **Permission preflight regression (v0.2.1) fixed**: do not gate on `CGPreflightScreenCaptureAccess` — System Audio Recording has no public preflight API; false negatives blocked start with permission already granted.
 
 ---
 

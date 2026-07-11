@@ -162,7 +162,13 @@ includes gain as required by the Chunk 1.2 deliverables.
     that main-thread body work starved bars/LED presents. Crossfeed amount
     uses local `@State` + engine-only updates during drag; profile commit on
     gesture end. Gain/crossfeed live in leaf panels (`GainStagingPanel` /
-    `CrossfeedPanel`).
+    `CrossfeedPanel`). Preamp/output also avoid publishing `@Observable`
+    during drag (`setPreamp(persist: false)` / `setOutputGain(publish: false)`).
+  - **Frequency Response spectrum**: the pre/post traces behind the EQ curve
+    must use `SpectrumFeed` + CVDisplayLink (`.curveTraces`), **not** a
+    SwiftUI `Canvas` bound to `preEQLevels`/`postEQLevels`. Canvas redraws
+    stall for the whole gesture when the main run loop is in slider tracking
+    — the same failure mode bars/LED already fixed.
   - **Reactor**: `CAMetalLayer` + off-main CVDisplayLink (not `MTKView`);
     feedback targets capped at a 720 px long edge; ~30 fps pacing. Present
     still fills the full layer.
@@ -214,6 +220,14 @@ first tap IO (the `NSAudioCaptureUsageDescription` string is in Info.plist).
 There is no public preflight API for this TCC class; if the user denies, the
 tap may deliver silence rather than fail, so the app tells users to check
 Privacy & Security if they hear nothing.
+
+**Do not** gate engine start on `CGPreflightScreenCaptureAccess` /
+`CGRequestScreenCaptureAccess`. Those cover Screen Recording, not System
+Audio Recording. On macOS 15+ Settings splits the two ("Screen & System Audio
+Recording" vs "System Audio Recording Only"). v0.2.1 briefly used Screen
+Capture preflight as a start gate; false negatives blocked start for users
+who already had the correct audio toggle on. Fixed: start Core Audio directly
+and rely on the watchdog below for hangs.
 
 **Dev gotcha (observed 2026-06-10)**: after a rebuild, the ad-hoc signature can
 stop matching the stored TCC entry. The symptom is the engine hanging forever

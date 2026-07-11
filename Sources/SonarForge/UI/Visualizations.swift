@@ -186,8 +186,8 @@ struct VisualizerStage: View {
             ReactorContainer()
                 .id("reactor")
         case .curve:
-            SpectrumView(preLevels: appModel.preEQLevels, postLevels: appModel.postEQLevels)
-                .padding(6)
+            // Feed-driven (not MainActor Canvas) — see SpectrumVisualizerMode.curveTraces.
+            SpectrumModeView(mode: .curveTraces, label: "Spectrum analyzer")
                 .id("curve-spectrum")
         default:
             if let mode = style.visualizerMode {
@@ -231,6 +231,9 @@ enum SpectrumVisualizerMode {
     case particles
     case matrix
     case miniBars
+    /// Pre + post polylines behind the EQ response curve (Frequency Response mode).
+    /// Uses SpectrumFeed + CVDisplayLink so slider tracking does not freeze the traces.
+    case curveTraces
 }
 
 struct SpectrumVisualizerRepresentable: NSViewRepresentable {

@@ -248,10 +248,26 @@ final class AppModel {
             startEngine()
         }
 
+        // Marketing/docs: `--export-window-snapshot <path>` selects Sonar Wave,
+        // starts the engine (live spectrum), and ContentView schedules a PNG export.
+        if WindowSnapshot.isExportRequested {
+            // Use `self.` — the init parameter is optional and shadows the property.
+            if let wave = self.profileManager.profiles.first(where: { $0.name == "Sonar Wave" }) {
+                selectProfile(id: wave.id)
+            }
+            // Sonar Wave peaks at ±8.7 dB — a little preamp headroom keeps the
+            // digital CLIP badge off in the hero shot with typical program material.
+            setPreamp(-6, persist: false)
+            if !CommandLine.arguments.contains("--autostart-engine") {
+                startEngine()
+            }
+        }
+
         // First run: show the welcome/permission explainer (Chunk 6.3). Skipped
         // for automation launches so scripts stay headless.
         if !UserDefaults.standard.bool(forKey: Self.welcomeSeenKey),
-           !CommandLine.arguments.contains("--autostart-engine") {
+           !CommandLine.arguments.contains("--autostart-engine"),
+           !WindowSnapshot.isExportRequested {
             showingWelcome = true
         }
     }
@@ -377,29 +393,21 @@ final class AppModel {
 
     // MARK: - Engine control (UI → Model → Engine)
 
-    /// User-facing copy when System Audio Recording is denied before we even
-    /// call into Core Audio (avoids a wedged start on a denied permission).
-    static let permissionDeniedMessage =
-        "System Audio Recording permission is required. Enable SonarForge under "
-        + "System Settings → Privacy & Security → Screen & System Audio Recording, "
-        + "then Retry."
-
-    /// Starts the engine after a permission preflight. If the user has not
-    /// granted System Audio Recording, we request it (or fail with a clear
-    /// message) instead of hanging inside coreaudiod.
+    /// Starts the audio engine.
+    ///
+    /// Do **not** preflight with `CGPreflightScreenCaptureAccess` /
+    /// `CGRequestScreenCaptureAccess`. Those APIs cover Screen Recording, not
+    /// the System Audio Recording TCC that Core Audio taps use
+    /// (`NSAudioCaptureUsageDescription`). On macOS 15+ the services are
+    /// distinct ("Screen & System Audio Recording" vs "System Audio Recording
+    /// Only"); a false-negative preflight blocked start even when the user had
+    /// already granted the correct toggle (regression in v0.2.1).
+    ///
+    /// There is no public preflight for System Audio Recording. Denied /
+    /// stale TCC is handled by the engine start watchdog + UI recovery copy
+    /// (see `Documentation/AUDIO_PATH.md` § Permission).
     func startEngine() {
-        Task { @MainActor in
-            if !PermissionHelper.hasScreenCapturePermission() {
-                let granted = await PermissionHelper.requestScreenCapturePermission()
-                if !granted {
-                    // Don't call into Core Audio — a denied/stale TCC entry can
-                    // block forever on AudioDeviceCreateIOProcIDWithBlock.
-                    engineState = .failed(Self.permissionDeniedMessage)
-                    return
-                }
-            }
-            audioEngine.start()
-        }
+        audioEngine.start()
     }
 
     func stopEngine() {
@@ -499,16 +507,28 @@ final class AppModel {
     }
 
     /// Applies preamp to the engine. Pass `persist: false` during continuous
-    /// slider drags (live audio only); pass `true` on gesture end so the value
-    /// is written into the active profile JSON.
+    /// slider drags (live audio only, **no** `@Observable` write — avoids
+    /// MainActor re-renders that freeze the Frequency Response spectrum);
+    /// pass `true` on gesture end so the published value + profile JSON update.
     func setPreamp(_ db: Double, persist: Bool = true) {
-        preampDB = db   // didSet forwards to the engine
-        guard persist else { return }
-        commitProfileEdit()
+        if persist {
+            preampDB = db   // didSet → engine
+            commitProfileEdit()
+        } else {
+            // Engine only; keep `preampDB` stable until release so observation
+            // does not invalidate unrelated UI every 0.1 dB.
+            audioEngine.setPreamp(db)
+        }
     }
 
-    func setOutputGain(_ db: Double) {
-        outputGainDB = db   // didSet forwards to the engine
+    /// Master output gain. Pass `publish: false` during continuous slider drags
+    /// so only the engine is updated (same isolation as preamp / crossfeed).
+    func setOutputGain(_ db: Double, publish: Bool = true) {
+        if publish {
+            outputGainDB = db   // didSet → engine
+        } else {
+            audioEngine.setOutputGain(db)
+        }
     }
 
     /// Toggles crossfeed for the current profile: updates the model, applies it

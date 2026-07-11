@@ -15,10 +15,10 @@ struct TroubleshootingView: View {
 
     private let items: [Item] = [
         Item(symptom: "Engine stuck on “Starting…” or times out",
-             advice: "macOS is usually blocking System Audio Recording. SonarForge checks permission "
-                + "before starting and shows a clear error if access is denied. If a start still hangs, "
-                + "a stale permission after a rebuild is the usual cause: open Privacy Settings → "
-                + "Screen & System Audio Recording, toggle SonarForge off/on, or run "
+             advice: "macOS is usually blocking System Audio Recording (a separate toggle from "
+                + "Screen Recording on recent macOS). A stale permission after a rebuild is the "
+                + "usual cause: open Privacy Settings → Screen & System Audio Recording (and "
+                + "System Audio Recording Only if shown), toggle SonarForge off/on, or run "
                 + "`tccutil reset All com.sonarforge.SonarForge`, relaunch, and re-grant. "
                 + "The engine reports a timeout after about 10 seconds."),
         Item(symptom: "Engine runs but you hear silence",

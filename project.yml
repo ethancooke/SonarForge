@@ -58,7 +58,7 @@ targets:
       properties:
         CFBundleDisplayName: SonarForge
         CFBundleShortVersionString: "0.2.1"
-        CFBundleVersion: "6"
+        CFBundleVersion: "7"
         LSApplicationCategoryType: public.app-category.music
         NSAudioCaptureUsageDescription: >-
           SonarForge captures system audio with a Core Audio tap so it can
