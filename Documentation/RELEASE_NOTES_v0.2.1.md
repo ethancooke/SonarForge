@@ -53,8 +53,8 @@ notarized — opens with a single confirmation, no Gatekeeper workaround. A
 
 ## Checksums
 
-- `SonarForge-0.2.1.dmg` — `shasum -a 256`: *(filled after CI)*
-- `SonarForge-0.2.1.zip` — `shasum -a 256`: *(filled after CI)*
+- `SonarForge-0.2.1.dmg` — `shasum -a 256`: `d87251a246800f15bee3c1db2a046b72fe7bc9af5bada343c83316382ae91550`
+- `SonarForge-0.2.1.zip` — `shasum -a 256`: `3ba400b368396691f928874a8b0bccbf28f1ae713c914d5d316441f16bcb647f`
 
 ## Attribution
 
