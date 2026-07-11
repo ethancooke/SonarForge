@@ -2,7 +2,7 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-07-09 — **[v0.2.0 shipped](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.0)** (signed + notarized `.dmg`). Since v0.1.2: per-profile headphone **crossfeed**, spectrum FFT sized per sample rate (low-frequency fix), full **visualization suite** (spectrum modes, PCM scope/meters, Reactor Metal visual), **pop-out visualizer** with fullscreen, menu-bar mini spectrum, and visualizer performance/mode-switch fixes. Signed + notarized `.dmg` via CI (`push vX.Y.Z` → draft release). Repo still **private**; remaining: private→public flip, residual 6.5 gaps (AirPlay / FairPlay / non‑M4 machines), optional deferred extras.
+**Last Updated**: 2026-07-11 — **[v0.2.1](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.1)** cut (signed + notarized `.dmg` via CI). Stability/safety follow-up to v0.2.0: preamp persistence, digital clip meter, permission preflight, Help menu fix, viz polish (zones, master toggle, Matrix Rain), MainActor isolation. Repo still **private**; remaining: private→public flip, residual 6.5 (AirPlay / FairPlay / non‑M4), optional deferred extras (limiter, hotkeys, Sparkle, …).
 
 ---
 
