@@ -162,8 +162,8 @@ includes gain as required by the Chunk 1.2 deliverables.
     that main-thread body work starved bars/LED presents. Crossfeed amount
     uses local `@State` + engine-only updates during drag; profile commit on
     gesture end. Gain/crossfeed live in leaf panels (`GainStagingPanel` /
-    `CrossfeedPanel`). Preamp/output also avoid publishing `@Observable`
-    during drag (`setPreamp(persist: false)` / `setOutputGain(publish: false)`).
+    `CrossfeedPanel`). Preamp updates `preampDB` live but only persists JSON
+    on gesture end (`setPreamp(persist:)`).
   - **Frequency Response spectrum**: the pre/post traces behind the EQ curve
     must use `SpectrumFeed` + CVDisplayLink (`.curveTraces`), **not** a
     SwiftUI `Canvas` bound to `preEQLevels`/`postEQLevels`. Canvas redraws

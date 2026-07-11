@@ -507,28 +507,19 @@ final class AppModel {
     }
 
     /// Applies preamp to the engine. Pass `persist: false` during continuous
-    /// slider drags (live audio only, **no** `@Observable` write — avoids
-    /// MainActor re-renders that freeze the Frequency Response spectrum);
-    /// pass `true` on gesture end so the published value + profile JSON update.
+    /// slider drags (live audio + model only — no profile JSON write yet);
+    /// pass `true` on gesture end so the value is committed to the active profile.
+    /// Always updates `preampDB` so band commits / reloads see the live value.
+    /// Spectrum UI stays smooth via SpectrumFeed (not via skipping this write).
     func setPreamp(_ db: Double, persist: Bool = true) {
-        if persist {
-            preampDB = db   // didSet → engine
-            commitProfileEdit()
-        } else {
-            // Engine only; keep `preampDB` stable until release so observation
-            // does not invalidate unrelated UI every 0.1 dB.
-            audioEngine.setPreamp(db)
-        }
+        preampDB = db   // didSet forwards to the engine
+        guard persist else { return }
+        commitProfileEdit()
     }
 
-    /// Master output gain. Pass `publish: false` during continuous slider drags
-    /// so only the engine is updated (same isolation as preamp / crossfeed).
-    func setOutputGain(_ db: Double, publish: Bool = true) {
-        if publish {
-            outputGainDB = db   // didSet → engine
-        } else {
-            audioEngine.setOutputGain(db)
-        }
+    /// Master output gain (session-only; not stored in the profile).
+    func setOutputGain(_ db: Double) {
+        outputGainDB = db   // didSet forwards to the engine
     }
 
     /// Toggles crossfeed for the current profile: updates the model, applies it

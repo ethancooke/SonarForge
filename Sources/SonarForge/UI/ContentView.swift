@@ -258,9 +258,8 @@ struct ContentView: View {
 /// Gain sliders in their own observation leaf so dragging preamp/output does
 /// not re-evaluate ContentView (profile chrome, visualizer host, band list).
 /// Both sliders use local `@State` while dragging (same pattern as crossfeed):
-/// live DSP only during the gesture; preamp profile JSON commit once on release.
-/// Binding output gain directly to `AppModel.outputGainDB` used to publish an
-/// observation change every 0.1 dB tick and starve MainActor spectrum work.
+/// live DSP + model during the gesture; preamp profile JSON commit once on release.
+/// Frequency Response spectrum stays fluid via SpectrumFeed (not MainActor Canvas).
 struct GainStagingPanel: View {
     @Environment(AppModel.self) private var appModel
     @State private var preamp: Double = 0
@@ -295,7 +294,6 @@ struct GainStagingPanel: View {
                         + "AutoEQ profiles typically use a negative preamp to offset boosted bands. "
                         + "Saved with the active profile.")
                     .onChange(of: preamp) { _, newValue in
-                        // Engine-only during drag (no Observable write).
                         appModel.setPreamp(newValue, persist: false)
                     }
                     Text(String(format: "%+.1f dB", preamp))
@@ -313,7 +311,7 @@ struct GainStagingPanel: View {
                         onEditingChanged: { editing in
                             isDraggingOutput = editing
                             if !editing {
-                                appModel.setOutputGain(outputGain, publish: true)
+                                appModel.setOutputGain(outputGain)
                             }
                         }
                     ) {
@@ -326,8 +324,7 @@ struct GainStagingPanel: View {
                     .help("Master volume trim applied after the EQ, before the output device. "
                         + "Session-only — not stored in the profile.")
                     .onChange(of: outputGain) { _, newValue in
-                        // Engine-only during drag (publish on release above).
-                        appModel.setOutputGain(newValue, publish: false)
+                        appModel.setOutputGain(newValue)
                     }
                     Text(String(format: "%+.1f dB", outputGain))
                         .monospacedDigit()

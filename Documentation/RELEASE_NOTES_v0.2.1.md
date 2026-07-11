@@ -22,7 +22,7 @@
 - **Bypass** help text matches real behavior (no EQ, crossfeed, or gain trim).
 - Clearer **Starting… / timeout / denied** recovery (Privacy Settings, Troubleshooting, `tccutil` tip when relevant). System Audio Recording has no public preflight API — the app does **not** gate start on Screen Capture APIs.
 - **Permission start gate regression** — removed a false Screen Capture preflight that could block engine start even when System Audio Recording was already granted (especially after install vs debug identity).
-- **Frequency Response spectrum no longer freezes** while dragging preamp/output gain — pre/post traces use `SpectrumFeed` + display-link (same approach as bars/LED); gain sliders update the engine without MainActor observation churn during the gesture.
+- **Frequency Response spectrum no longer freezes** while dragging preamp/output gain — pre/post traces use `SpectrumFeed` + display-link (same approach as bars/LED) instead of a main-thread SwiftUI Canvas.
 - **Help → SonarForge Help** opens in-app Welcome (no more “Help isn’t available”).
 - Stereo meters: lockstep L/R PCM and pan-aware balance; vectorscope / correlation label cleanup.
 - Spectrum analysis reuses FFT scratch buffers (less alloc thrash with visualizers on).
