@@ -17,7 +17,9 @@ import os.log
 ///
 /// Threading: main thread only (it backs SwiftUI). Applying the active profile
 /// to the audio engine is the caller's job (AppModel), keeping this type free
-/// of engine dependencies.
+/// of engine dependencies. Isolated to the main actor so Observation updates
+/// and library mutations stay compiler-enforced on the UI thread.
+@MainActor
 @Observable
 final class ProfileManager {
 
@@ -29,6 +31,15 @@ final class ProfileManager {
     /// Sorted by name (case-insensitive) for stable presentation.
     private(set) var profiles: [EQProfile] = []
     private(set) var activeProfileID: UUID?
+
+    /// Last failed disk write, if any. Cleared on the next successful save or
+    /// via `clearSaveError()`. Surfaced in the main UI so silent data loss is
+    /// never the only outcome of a full disk / permission failure.
+    private(set) var lastSaveError: String?
+
+    func clearSaveError() {
+        lastSaveError = nil
+    }
 
     var activeProfile: EQProfile? {
         profiles.first { $0.id == activeProfileID }
@@ -68,7 +79,12 @@ final class ProfileManager {
         }
 
         store.syncFactoryPresets(EQProfile.factoryPresets, obsoleteNames: EQProfile.obsoleteFactoryNames)
-        profiles = store.loadAll().sorted(by: Self.nameOrder)
+        profiles = store.loadAll().map { original in
+            let (sanitized, _) = Self.sanitize(original)
+            // Re-write if band cap / isFactory derivation changed the file shape.
+            if sanitized != original { persist(sanitized) }
+            return sanitized
+        }.sorted(by: Self.nameOrder)
 
         // The library is never empty: restore the factory Flat if everything was removed.
         if profiles.isEmpty, let flat = EQProfile.canonicalFactory(id: FactoryPresetID.flat) {
@@ -170,9 +186,10 @@ final class ProfileManager {
     /// import/edit flows (4.1.3+).
     func update(_ profile: EQProfile) {
         guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
-        profiles[index] = profile
+        let (sanitized, _) = Self.sanitize(profile)
+        profiles[index] = sanitized
         profiles.sort(by: Self.nameOrder)
-        persist(profile)
+        persist(sanitized)
     }
 
     // MARK: - Import / Export (4.1.3)
@@ -180,13 +197,14 @@ final class ProfileManager {
     /// Adds an externally sourced profile under a fresh identity: new UUID (so
     /// importing the same file twice duplicates rather than colliding with an
     /// existing profile) and a deduplicated name. Attribution and content are
-    /// preserved verbatim.
+    /// preserved verbatim. Band count is capped at the live EQ maximum.
     @discardableResult
     func importProfile(_ incoming: EQProfile) -> EQProfile {
         var profile = incoming
         profile.id = UUID()
         profile.name = uniqueName(basedOn: incoming.name)
         profile.isFactory = false
+        profile = Self.sanitize(profile).profile
         profiles.append(profile)
         profiles.sort(by: Self.nameOrder)
         persist(profile)
@@ -205,7 +223,24 @@ final class ProfileManager {
     }
 
     static func decodeProfile(from data: Data) throws -> EQProfile {
-        try JSONDecoder().decode(EQProfile.self, from: data)
+        let decoded = try JSONDecoder().decode(EQProfile.self, from: data)
+        return sanitize(decoded).profile
+    }
+
+    /// Caps bands at the realtime EQ maximum, clamps crossfeed amount, and
+    /// derives `isFactory` from the canonical factory catalog (so hand-edited
+    /// JSON cannot spoof factory protection or leave dead bands on disk).
+    static func sanitize(_ profile: EQProfile) -> (profile: EQProfile, truncatedBands: Bool) {
+        var sanitized = profile
+        var truncated = false
+        if sanitized.bands.count > RealtimeParametricEQ.maxBands {
+            sanitized.bands = Array(sanitized.bands.prefix(RealtimeParametricEQ.maxBands))
+            truncated = true
+        }
+        sanitized.crossfeedAmount = min(max(sanitized.crossfeedAmount, 0), 1)
+        // Factory identity is defined by stable catalog UUID, not a free-form flag.
+        sanitized.isFactory = EQProfile.canonicalFactory(id: sanitized.id) != nil
+        return (sanitized, truncated)
     }
 
     // MARK: - Factory presets
@@ -242,9 +277,15 @@ final class ProfileManager {
     }
 
     private func persist(_ profile: EQProfile) {
+        guard store != nil else {
+            lastSaveError = "Profile storage is unavailable — changes will not persist."
+            return
+        }
         do {
             try store?.save(profile)
+            lastSaveError = nil
         } catch {
+            lastSaveError = "Couldn’t save “\(profile.name)”: \(error.localizedDescription)"
             logger.error("Failed to save profile \(profile.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }

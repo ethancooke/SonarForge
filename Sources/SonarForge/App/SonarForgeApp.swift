@@ -39,7 +39,16 @@ struct SonarForgeApp: App {
                 }
             }
 
-            CommandGroup(after: .help) {
+            // Replace the system Help book item ("SonarForge Help") — we don't
+            // ship an Apple Help Book, so the default path only shows
+            // "Help isn't available for SonarForge." Wire ⌘? and the Help menu
+            // to our in-app welcome / shortcuts / troubleshooting sheets.
+            CommandGroup(replacing: .help) {
+                Button("SonarForge Help…") {
+                    appModel.showingWelcome = true
+                }
+                .keyboardShortcut("?", modifiers: .command)
+
                 Button("Welcome to SonarForge…") {
                     appModel.showingWelcome = true
                 }

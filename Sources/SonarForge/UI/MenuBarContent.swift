@@ -29,7 +29,8 @@ struct MenuBarContent: View {
                 get: { appModel.isBypassed },
                 set: { _ in appModel.toggleBypass() }
             ))
-            .disabled(!appModel.isProcessing)
+            // Enabled even when the engine is off (matches main window): the
+            // flag applies as soon as audio starts.
 
             Toggle("Visualizations", isOn: $model.visualizationsEnabled)
                 .help("Spectrum analysis and visualizers. Off saves CPU and battery; EQ is unchanged.")

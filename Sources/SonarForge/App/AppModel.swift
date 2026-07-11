@@ -6,6 +6,10 @@ import os.log
 /// Central observable application state.
 /// Keeps the audio engine at arm's length from SwiftUI while exposing
 /// the minimal surface the UI needs (see DECISIONS.md D-004).
+///
+/// Main-actor isolated: all UI-bound state and profile mutations must happen
+/// on the main thread. Engine callbacks hop here via `Task { @MainActor in … }`.
+@MainActor
 @Observable
 final class AppModel {
     // MARK: - High-level state
@@ -46,6 +50,24 @@ final class AppModel {
             audioEngine.setOutputGain(outputGainDB)
         }
     }
+
+    // MARK: - Output digital level (post-gain sample peak)
+
+    /// Instantaneous sample-peak of the latest output buffer, in dBFS (0 = full scale).
+    var outputPeakDBFS: Float = -120
+    /// Decaying peak-hold for the meter bar.
+    var outputPeakHoldDBFS: Float = -120
+    /// UI clip light: sticky after a buffer hit |sample| ≥ 1.0.
+    var outputClipActive: Bool = false
+
+    /// Floor used when the buffer is silent / engine is off.
+    static let outputMeterFloorDBFS: Float = -60
+    private static let clipHoldSeconds: TimeInterval = 2.0
+    /// Peak-hold decay per poll (~20 Hz → roughly 15 dB/s).
+    private static let peakHoldDecayDB: Float = 0.75
+
+    @ObservationIgnored private var outputLevelTimer: Timer?
+    @ObservationIgnored private var clipHoldUntil: Date?
 
     // MARK: - Output device selection
 
@@ -134,18 +156,26 @@ final class AppModel {
         self.audioEngine.onStateChange = { [weak self] newState in
             // Engine callbacks arrive on a background queue; hop to the main actor.
             Task { @MainActor in
-                self?.engineState = newState
+                guard let self else { return }
+                self.engineState = newState
+                self.syncOutputLevelPolling(for: newState)
             }
         }
         // Debug/automation hook: `--debug-log-spectrum` logs the loudest bin's
         // pre/post levels ~1 Hz so external tooling can verify the EQ acoustically
         // (post − pre at a tone's bin == the EQ gain applied there).
+        // File write (`--debug-log-spectrum-file`) is Debug-only (audit L6):
+        // Release builds never open an arbitrary path from argv.
         let probeLogging = CommandLine.arguments.contains("--debug-log-spectrum")
+        #if DEBUG
         let probeFilePath: String? = {
             guard let i = CommandLine.arguments.firstIndex(of: "--debug-log-spectrum-file"),
                   CommandLine.arguments.indices.contains(i + 1) else { return nil }
             return CommandLine.arguments[i + 1]
         }()
+        #else
+        let probeFilePath: String? = nil
+        #endif
         let probeLogger = Logger(subsystem: "com.sonarforge.app", category: "SpectrumProbe")
         var lastProbe = Date.distantPast
 
@@ -159,6 +189,7 @@ final class AppModel {
                 if probeLogging {
                     probeLogger.info("probe bin=\(peak) pre=\(preDB, privacy: .public) post=\(postDB, privacy: .public)")
                 }
+                #if DEBUG
                 if let path = probeFilePath {
                     let line = "probe bin=\(peak) pre=\(preDB) post=\(postDB)\n"
                     if let data = line.data(using: .utf8) {
@@ -173,6 +204,7 @@ final class AppModel {
                         }
                     }
                 }
+                #endif
             }
             // Publish to the feed immediately (any thread) so display-link
             // visualizers never wait on the main actor / SwiftUI body cycle.
@@ -305,8 +337,20 @@ final class AppModel {
 
     /// Persists the current profile's content into the library (no-op for
     /// transient profiles that are not in the library).
+    /// Always stamps the live preamp onto the profile first so band/crossfeed
+    /// commits never re-save a stale preamp after the user moved the slider.
     func commitProfileEdit() {
+        if currentProfile.preamp != preampDB {
+            currentProfile.preamp = preampDB
+        }
         profileManager.update(currentProfile)
+    }
+
+    /// Last profile disk-write error, if any (surfaced in the main UI).
+    var profileSaveError: String? { profileManager.lastSaveError }
+
+    func clearProfileSaveError() {
+        profileManager.clearSaveError()
     }
 
     /// Creates a profile from parsed AutoEQ data with mandatory attribution
@@ -333,12 +377,98 @@ final class AppModel {
 
     // MARK: - Engine control (UI → Model → Engine)
 
+    /// User-facing copy when System Audio Recording is denied before we even
+    /// call into Core Audio (avoids a wedged start on a denied permission).
+    static let permissionDeniedMessage =
+        "System Audio Recording permission is required. Enable SonarForge under "
+        + "System Settings → Privacy & Security → Screen & System Audio Recording, "
+        + "then Retry."
+
+    /// Starts the engine after a permission preflight. If the user has not
+    /// granted System Audio Recording, we request it (or fail with a clear
+    /// message) instead of hanging inside coreaudiod.
     func startEngine() {
-        audioEngine.start()
+        Task { @MainActor in
+            if !PermissionHelper.hasScreenCapturePermission() {
+                let granted = await PermissionHelper.requestScreenCapturePermission()
+                if !granted {
+                    // Don't call into Core Audio — a denied/stale TCC entry can
+                    // block forever on AudioDeviceCreateIOProcIDWithBlock.
+                    engineState = .failed(Self.permissionDeniedMessage)
+                    return
+                }
+            }
+            audioEngine.start()
+        }
     }
 
     func stopEngine() {
         audioEngine.stop()
+    }
+
+    /// Clears the clip LED early (also auto-clears after a short hold).
+    func clearOutputClipIndicator() {
+        outputClipActive = false
+        clipHoldUntil = nil
+        audioEngine.clearOutputClipLatch()
+    }
+
+    // MARK: - Output level polling
+
+    private func syncOutputLevelPolling(for state: AudioEngineState) {
+        switch state {
+        case .running:
+            startOutputLevelPolling()
+        case .idle, .failed, .starting:
+            stopOutputLevelPolling()
+            if state != .starting {
+                outputPeakDBFS = Self.outputMeterFloorDBFS
+                outputPeakHoldDBFS = Self.outputMeterFloorDBFS
+                outputClipActive = false
+                clipHoldUntil = nil
+            }
+        }
+    }
+
+    private func startOutputLevelPolling() {
+        guard outputLevelTimer == nil else { return }
+        // ~20 Hz is enough for a meter; RT already measured every buffer.
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            self?.pollOutputLevels()
+        }
+        // CommonModes so the meter keeps updating during menu/slider tracking.
+        RunLoop.main.add(timer, forMode: .common)
+        outputLevelTimer = timer
+        pollOutputLevels()
+    }
+
+    private func stopOutputLevelPolling() {
+        outputLevelTimer?.invalidate()
+        outputLevelTimer = nil
+    }
+
+    private func pollOutputLevels() {
+        let linear = audioEngine.latestOutputPeakLinear()
+        let db: Float
+        if linear > 1e-9 {
+            db = 20 * log10(linear)
+        } else {
+            db = Self.outputMeterFloorDBFS
+        }
+        // Clamp display range for the bar; true overs still light the clip LED.
+        outputPeakDBFS = max(db, Self.outputMeterFloorDBFS)
+        outputPeakHoldDBFS = max(outputPeakHoldDBFS - Self.peakHoldDecayDB, outputPeakDBFS)
+
+        if audioEngine.outputClipLatched() {
+            outputClipActive = true
+            clipHoldUntil = Date().addingTimeInterval(Self.clipHoldSeconds)
+            // Clear the RT latch so a later clip can re-trigger after the hold.
+            audioEngine.clearOutputClipLatch()
+        }
+        if let until = clipHoldUntil, Date() >= until {
+            outputClipActive = false
+            clipHoldUntil = nil
+        }
     }
 
     func toggleEngine() {
@@ -368,8 +498,13 @@ final class AppModel {
         audioEngine.setBypass(isBypassed)
     }
 
-    func setPreamp(_ db: Double) {
+    /// Applies preamp to the engine. Pass `persist: false` during continuous
+    /// slider drags (live audio only); pass `true` on gesture end so the value
+    /// is written into the active profile JSON.
+    func setPreamp(_ db: Double, persist: Bool = true) {
         preampDB = db   // didSet forwards to the engine
+        guard persist else { return }
+        commitProfileEdit()
     }
 
     func setOutputGain(_ db: Double) {
@@ -399,15 +534,22 @@ final class AppModel {
     }
 
     func loadProfile(_ profile: EQProfile) {
-        currentProfile = profile
+        let sanitized = ProfileManager.sanitize(profile).profile
+        currentProfile = sanitized
         // Remember which profile is loaded in the showing slot (by id).
-        if showingB { bProfileID = profile.id } else { aProfileID = profile.id }
+        if showingB { bProfileID = sanitized.id } else { aProfileID = sanitized.id }
         // The profile's preamp is part of A/B state (Chunk 1.2).
-        preampDB = profile.preamp
-        audioEngine.loadProfile(profile)
+        preampDB = sanitized.preamp
+        audioEngine.loadProfile(sanitized)
     }
 
     func swapAB() {
+        // Commit live preamp into the library before leaving the slot so A/B
+        // round-trips keep the gain staging the user just set.
+        if currentProfile.preamp != preampDB {
+            currentProfile.preamp = preampDB
+            profileManager.update(currentProfile)
+        }
         showingB.toggle()
         let slotID = showingB ? bProfileID : aProfileID
         // Reload the slot's profile fresh from the library so edits on either
@@ -415,9 +557,7 @@ final class AppModel {
         // profile so the Profile menu reflects the slot that's showing.
         if let id = slotID, let profile = profileManager.profiles.first(where: { $0.id == id }) {
             profileManager.setActive(id)
-            currentProfile = profile
-            preampDB = profile.preamp
-            audioEngine.loadProfile(profile)
+            loadProfile(profile)
         } else if showingB {
             // First switch to B with nothing assigned yet: adopt the current
             // profile as B's starting point (pick a different one to compare).

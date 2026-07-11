@@ -74,9 +74,10 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     private static let startWatchdogTimeout: TimeInterval = 10
 
     private static let startTimeoutMessage =
-        "Engine start timed out. macOS is likely blocking the System Audio Recording " +
-        "permission (a stale entry stops matching the app after a rebuild). Run " +
-        "`tccutil reset All com.sonarforge.SonarForge`, then relaunch and re-grant."
+        "Engine start timed out after 10 seconds. macOS is likely blocking System Audio " +
+        "Recording (a stale privacy entry often stops matching the app after a Debug rebuild). " +
+        "Open Privacy Settings → Screen & System Audio Recording and toggle SonarForge, " +
+        "or run `tccutil reset All com.sonarforge.SonarForge`, relaunch, re-grant, then Retry."
 
     // Property listeners (kept so they can be removed on stop)
     private var defaultOutputListener: AudioObjectPropertyListenerBlock?
@@ -100,6 +101,10 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         var smoothingCoeff: Float = 0.001
         /// RT-local: tracks bypass transitions so EQ state resets when re-engaging.
         var wasBypassed: Bool = true
+        /// Latest post-gain absolute sample peak (linear). 1.0 = digital full scale.
+        let outputPeakBits = ManagedAtomic<UInt32>(Float(0).bitPattern)
+        /// Sticky: any sample |x| ≥ 1.0 since last UI clear.
+        let outputClipLatched = ManagedAtomic<Bool>(false)
     }
     private let renderContext = RenderContext()
 
@@ -135,6 +140,18 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
     func setSpectrumEnabled(_ enabled: Bool) {
         analyzer.enabled.store(enabled, ordering: .relaxed)
         logger.info("Spectrum analysis \(enabled ? "enabled" : "disabled", privacy: .public)")
+    }
+
+    func latestOutputPeakLinear() -> Float {
+        Float(bitPattern: renderContext.outputPeakBits.load(ordering: .relaxed))
+    }
+
+    func outputClipLatched() -> Bool {
+        renderContext.outputClipLatched.load(ordering: .relaxed)
+    }
+
+    func clearOutputClipLatch() {
+        renderContext.outputClipLatched.store(false, ordering: .relaxed)
     }
 
     /// Gain controls are clamped to a sane range; the UI exposes ±12 dB (see D-009).
@@ -398,6 +415,8 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
         currentOutputDeviceID = kAudioObjectUnknown
         analyzer.stop()
         renderContext.fadeOut.store(false, ordering: .relaxed)
+        renderContext.outputPeakBits.store(Float(0).bitPattern, ordering: .relaxed)
+        renderContext.outputClipLatched.store(false, ordering: .relaxed)
         logger.info("Engine stopped and Core Audio objects released")
 
         // Reset state here (not in the public stop()) so internal stop→start sequences
@@ -540,6 +559,36 @@ final class SonarForgeAudioEngine: AudioEngineProtocol {
             if analyzeThisCycle, let stereo = stereoData {
                 analyzer.capturePost(stereo, frames: stereoFrames)
             }
+
+            // Digital sample-peak of the buffer we hand to Core Audio (always on,
+            // independent of spectrum). 1.0 linear = 0 dBFS full scale.
+            Self.publishOutputPeak(context: context, outABL: outABL, bytesPerSample: bytesPerSample)
+        }
+    }
+
+    /// Scans every output sample after gain. RT-safe: no allocations.
+    private static func publishOutputPeak(
+        context: RenderContext,
+        outABL: UnsafeMutableAudioBufferListPointer,
+        bytesPerSample: Int
+    ) {
+        var peak: Float = 0
+        var clipped = false
+        for i in 0..<outABL.count {
+            guard let data = outABL[i].mData else { continue }
+            let channels = max(Int(outABL[i].mNumberChannels), 1)
+            let frames = Int(outABL[i].mDataByteSize) / (bytesPerSample * channels)
+            let floats = data.assumingMemoryBound(to: Float32.self)
+            let count = frames * channels
+            for s in 0..<count {
+                let a = abs(floats[s])
+                if a > peak { peak = a }
+                if a >= 1.0 { clipped = true }
+            }
+        }
+        context.outputPeakBits.store(peak.bitPattern, ordering: .relaxed)
+        if clipped {
+            context.outputClipLatched.store(true, ordering: .relaxed)
         }
     }
 

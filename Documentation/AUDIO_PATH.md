@@ -62,6 +62,12 @@ After the copy pass, the render block applies one smoothed gain:
   bypass provably does not touch samples.
 - **Headroom**: no always-on limiter (see DECISIONS.md D-009); negative preamp
   is the headroom mechanism, per AutoEQ convention.
+- **Digital clip indicator** (post-gain sample peak): after the gain pass the
+  IO block scans every output sample, publishes the absolute peak (linear,
+  1.0 = 0 dBFS) via atomics, and latches a sticky clip flag when any sample
+  has `|x| ≥ 1.0`. The UI polls ~20 Hz for a peak/hold meter and CLIP badge.
+  This measures **SonarForge’s float output** toward Core Audio only — not
+  amp, Bluetooth codec, or speaker clipping. Independent of spectrum/visualizers.
 - The EQ will sit between the preamp and output gain stages from Chunk 2.2;
   the two targets are kept separate for exactly that reason even though they
   currently collapse into one multiply.
@@ -148,6 +154,9 @@ includes gain as required by the Chunk 1.2 deliverables.
     pause only when hidden / miniaturized / fully occluded. Bars/LED also run
     a 30 Hz fallback timer because `CVDisplayLink` is often throttled for
     non-frontmost apps (Metal/Reactor is less affected).
+  - **FFT scratch reuse**: `SpectrumProcessor` keeps window/DFT/power buffers for
+    the life of the processor; `SpectrumAnalyzer` copies ring tails into fixed
+    input arrays instead of `Array(suffix:)` each 20 Hz tick (audit L8).
   - **Slider-drag isolation**: continuous controls (crossfeed amount, gain)
     must not rewrite `currentProfile` / re-render ContentView every tick —
     that main-thread body work starved bars/LED presents. Crossfeed amount

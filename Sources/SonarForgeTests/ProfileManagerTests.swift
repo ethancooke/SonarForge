@@ -255,6 +255,37 @@ final class ProfileManagerTests: XCTestCase {
         XCTAssertThrowsError(try ProfileManager.decodeProfile(from: Data("not json".utf8)))
     }
 
+    func testSanitizeCapsBandsAtRealtimeMaximum() {
+        var oversized = EQProfile(name: "Too Many", bands: (0..<24).map { i in
+            EQBand(type: .peaking, frequency: 100 + Double(i) * 100, gain: 1, q: 1)
+        })
+        oversized.isFactory = true // spoof — random UUID must not stay factory
+        let (sanitized, truncated) = ProfileManager.sanitize(oversized)
+        XCTAssertTrue(truncated)
+        XCTAssertEqual(sanitized.bands.count, RealtimeParametricEQ.maxBands)
+        XCTAssertFalse(sanitized.isFactory, "isFactory is derived from catalog UUID only")
+    }
+
+    func testImportCapsOversizedBandList() throws {
+        let manager = try makeManager()
+        let oversized = EQProfile(name: "Huge", bands: (0..<20).map { i in
+            EQBand(type: .peaking, frequency: 200 + Double(i) * 50, gain: 0.5, q: 1)
+        })
+        let imported = manager.importProfile(oversized)
+        XCTAssertEqual(imported.bands.count, RealtimeParametricEQ.maxBands)
+        XCTAssertFalse(imported.isFactory)
+    }
+
+    func testSanitizeDerivesFactoryFromCatalogID() {
+        var spoofed = EQProfile(id: FactoryPresetID.flat, name: "Flat", isFactory: false)
+        let (asFactory, _) = ProfileManager.sanitize(spoofed)
+        XCTAssertTrue(asFactory.isFactory)
+
+        spoofed = EQProfile(id: UUID(), name: "User", isFactory: true)
+        let (asUser, _) = ProfileManager.sanitize(spoofed)
+        XCTAssertFalse(asUser.isFactory)
+    }
+
     func testExportUnknownProfileThrows() throws {
         let manager = try makeManager()
         XCTAssertThrowsError(try manager.exportData(for: UUID()))

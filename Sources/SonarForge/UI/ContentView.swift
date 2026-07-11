@@ -80,7 +80,7 @@ struct ContentView: View {
                             appModel.toggleBypass()
                         }
                         .tint(appModel.isBypassed ? .orange : .accentColor)
-                        .help("Compare against unprocessed audio. Excludes preamp, output gain, and (later) the EQ.")
+                        .help("Plays unprocessed system audio — no EQ, crossfeed, or gain trim.")
 
                         Picker("A/B compare", selection: Binding(
                             get: { appModel.showingB },
@@ -101,8 +101,8 @@ struct ContentView: View {
                             .help("Import a headphone correction from the AutoEQ project")
                         Button("Reset to Flat") {
                             selectedBandID = nil
-                            if let flat = appModel.profileManager.profiles.first(where: { $0.name == "Flat" }) {
-                                appModel.selectProfile(id: flat.id)
+                            if appModel.profileManager.profiles.contains(where: { $0.id == FactoryPresetID.flat }) {
+                                appModel.selectProfile(id: FactoryPresetID.flat)
                             } else {
                                 appModel.loadProfile(.flat)
                             }
@@ -220,6 +220,15 @@ struct ContentView: View {
         } message: {
             Text(dropErrorMessage ?? "")
         }
+        .alert("Couldn’t Save Profile", isPresented: Binding(
+            get: { appModel.profileSaveError != nil },
+            set: { if !$0 { appModel.clearProfileSaveError() } }
+        )) {
+            Button("OK", role: .cancel) { appModel.clearProfileSaveError() }
+        } message: {
+            Text(appModel.profileSaveError
+                  ?? "Your last edit could not be written to disk.")
+        }
     }
 
     private func handleDroppedFiles(_ urls: [URL]) {
@@ -244,8 +253,12 @@ struct ContentView: View {
 
 /// Gain sliders in their own observation leaf so dragging preamp/output does
 /// not re-evaluate ContentView (profile chrome, visualizer host, band list).
+/// Preamp uses local `@State` while dragging (same pattern as crossfeed): live
+/// DSP only during the gesture, profile JSON commit once on release.
 struct GainStagingPanel: View {
     @Environment(AppModel.self) private var appModel
+    @State private var preamp: Double = 0
+    @State private var isDraggingPreamp = false
 
     var body: some View {
         @Bindable var model = appModel
@@ -254,14 +267,30 @@ struct GainStagingPanel: View {
                 GridRow {
                     Text("Preamp (pre-EQ)")
                         .gridColumnAlignment(.trailing)
-                    Slider(value: $model.preampDB, in: -12...12, step: 0.1) {
+                    Slider(
+                        value: $preamp,
+                        in: -12...12,
+                        step: 0.1,
+                        onEditingChanged: { editing in
+                            isDraggingPreamp = editing
+                            if !editing {
+                                appModel.setPreamp(preamp, persist: true)
+                            }
+                        }
+                    ) {
                         Text("Preamp")
                     }
                     .labelsHidden()
                     .frame(minWidth: 160, maxWidth: 280)
+                    .accessibilityLabel("Preamp")
+                    .accessibilityValue(String(format: "%+.1f decibels", preamp))
                     .help("Gain applied before the EQ. Lower this to create headroom — "
-                        + "AutoEQ profiles typically use a negative preamp to offset boosted bands.")
-                    Text(String(format: "%+.1f dB", model.preampDB))
+                        + "AutoEQ profiles typically use a negative preamp to offset boosted bands. "
+                        + "Saved with the active profile.")
+                    .onChange(of: preamp) { _, newValue in
+                        appModel.setPreamp(newValue, persist: false)
+                    }
+                    Text(String(format: "%+.1f dB", preamp))
                         .monospacedDigit()
                         .frame(width: 64, alignment: .trailing)
                         .accessibilityHidden(true)
@@ -274,15 +303,139 @@ struct GainStagingPanel: View {
                     }
                     .labelsHidden()
                     .frame(minWidth: 160, maxWidth: 280)
-                    .help("Master volume trim applied after the EQ, before the output device.")
+                    .accessibilityLabel("Output gain")
+                    .accessibilityValue(String(format: "%+.1f decibels", model.outputGainDB))
+                    .help("Master volume trim applied after the EQ, before the output device. "
+                        + "Session-only — not stored in the profile.")
                     Text(String(format: "%+.1f dB", model.outputGainDB))
                         .monospacedDigit()
                         .frame(width: 64, alignment: .trailing)
                         .accessibilityHidden(true)
                 }
+                GridRow {
+                    Text("Output level")
+                        .gridColumnAlignment(.trailing)
+                        .font(.caption)
+                    OutputLevelMeter()
+                        .frame(minWidth: 160, maxWidth: 280)
+                        .frame(height: 9)
+                    OutputClipBadge()
+                        .frame(width: 64, alignment: .trailing)
+                }
             }
             .padding(4)
         }
+        .onAppear { preamp = appModel.preampDB }
+        .onChange(of: appModel.currentProfile.id) { _, _ in
+            preamp = appModel.preampDB
+        }
+        .onChange(of: appModel.preampDB) { _, newValue in
+            if !isDraggingPreamp { preamp = newValue }
+        }
+    }
+}
+
+/// Post-gain sample-peak bar (−60…0 dBFS) with peak-hold. Digital full scale only.
+struct OutputLevelMeter: View {
+    @Environment(AppModel.self) private var appModel
+
+    private var floor: Float { AppModel.outputMeterFloorDBFS }
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let height = geo.size.height
+            let instant = levelFraction(appModel.outputPeakDBFS)
+            let hold = levelFraction(appModel.outputPeakHoldDBFS)
+            let fillWidth = max(2, width * CGFloat(instant))
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                // Gradient is fixed to the *full* track (−60…0 dBFS), then masked
+                // to the fill width. If we filled a short bar with the same
+                // gradient, mid levels would show red at the tip (wrong).
+                Capsule()
+                    .fill(meterGradient)
+                    .frame(width: width)
+                    .mask(alignment: .leading) {
+                        Rectangle()
+                            .frame(width: fillWidth, height: height)
+                    }
+                // Peak-hold tick
+                Capsule()
+                    .fill(appModel.outputClipActive ? Color.red : Color.primary.opacity(0.85))
+                    .frame(width: 1.5, height: height)
+                    .offset(x: max(0, width * CGFloat(hold) - 0.75))
+            }
+        }
+        // GeometryReader expands greedily; parent sets a fixed short height.
+        .frame(maxHeight: 9)
+        .help("Sample-peak of SonarForge’s output after EQ and gain (0 dBFS = digital full scale). "
+            + "Does not measure amp, Bluetooth, or speaker clipping. Brief overs often sound subtle.")
+        .accessibilityElement()
+        .accessibilityLabel("Output level")
+        .accessibilityValue(accessibilityValue)
+    }
+
+    /// Full-track colors: green through most of the range, yellow near −6 dBFS, red at 0.
+    private var meterGradient: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .green, location: 0),
+                .init(color: .green, location: 0.75),   // up to ~−15 dBFS
+                .init(color: .yellow, location: 0.90),  // ~−6 dBFS
+                .init(color: .red, location: 1.0),      // 0 dBFS
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private func levelFraction(_ db: Float) -> Float {
+        let clamped = min(max(db, floor), 0)
+        return (clamped - floor) / (0 - floor)
+    }
+
+    private var accessibilityValue: String {
+        if appModel.outputClipActive {
+            return "clipping, peak \(String(format: "%.1f", appModel.outputPeakHoldDBFS)) dBFS"
+        }
+        if !appModel.isProcessing {
+            return "engine off"
+        }
+        return "\(String(format: "%.1f", appModel.outputPeakDBFS)) dBFS, hold \(String(format: "%.1f", appModel.outputPeakHoldDBFS))"
+    }
+}
+
+/// Sticky CLIP badge when any output sample reached digital full scale.
+struct OutputClipBadge: View {
+    @Environment(AppModel.self) private var appModel
+
+    var body: some View {
+        Button {
+            appModel.clearOutputClipIndicator()
+        } label: {
+            Text(appModel.outputClipActive ? "CLIP" : "—")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(appModel.outputClipActive ? Color.white : Color.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 1)
+                .background(
+                    Capsule()
+                        .fill(appModel.outputClipActive ? Color.red : Color.clear)
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(appModel.outputClipActive ? Color.red : Color.secondary.opacity(0.35))
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!appModel.outputClipActive)
+        .help(appModel.outputClipActive
+              ? "Output hit digital full scale (0 dBFS). Lower preamp or band gains. Click to clear."
+              : "Digital clip indicator — lights when SonarForge’s output reaches 0 dBFS.")
+        .accessibilityLabel(appModel.outputClipActive ? "Output clipping" : "No digital clip")
+        .accessibilityHint(appModel.outputClipActive ? "Click to clear the clip indicator" : "")
     }
 }
 
@@ -327,6 +480,7 @@ struct CrossfeedPanel: View {
                         .frame(minWidth: 160, maxWidth: 280)
                         .disabled(!enabled)
                         .accessibilityLabel("Crossfeed amount")
+                        .accessibilityValue("\(Int((amount * 100).rounded())) percent")
                         .help("Wider = more blend (more speaker-like). "
                             + "The default sits at a natural, moderate position.")
                         .onChange(of: amount) { _, newValue in
@@ -541,6 +695,7 @@ struct BandListEditor: View {
             }
             .buttonStyle(.plain)
             .help("Remove band")
+            .accessibilityLabel("Remove band \(index + 1)")
         }
         .textFieldStyle(.roundedBorder)
         .font(.callout)
@@ -611,6 +766,7 @@ struct AudioEnginePanel: View {
                     Image(systemName: "speaker.wave.2")
                         .foregroundStyle(.secondary)
                         .help("Output device")
+                        .accessibilityHidden(true)
                     Picker("Output Device", selection: $model.selectedOutputUID) {
                         Text("System Default").tag(String?.none)
                         ForEach(appModel.outputDevices) { device in
@@ -618,6 +774,7 @@ struct AudioEnginePanel: View {
                         }
                     }
                     .labelsHidden()
+                    .accessibilityLabel("Output device")
                     // Value only (the inline "Output Device" label ate the width and
                     // collapsed the value); the speaker icon conveys the purpose. Sizes
                     // to the device name and compresses gracefully on a narrow window.
@@ -625,11 +782,12 @@ struct AudioEnginePanel: View {
 
                     Spacer()
 
-                    Button(appModel.isProcessing ? "Stop Engine" : "Start Engine") {
+                    Button(startStopTitle) {
                         appModel.toggleEngine()
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
                     .fixedSize()   // never truncate the primary action; the picker absorbs compression
+                    .disabled(isStarting)
                     Button {
                         appModel.resetAudioEngine()
                     } label: {
@@ -640,18 +798,40 @@ struct AudioEnginePanel: View {
                     .disabled(!appModel.isProcessing)
                 }
 
-                if case .failed = appModel.engineState {
+                if case .starting = appModel.engineState {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("The engine could not start. If this is a permission problem, "
-                            + "grant SonarForge access under System Audio Recording and retry.")
+                        Text("Starting… If this hangs, macOS is often waiting on or blocking "
+                            + "System Audio Recording permission (especially after a rebuild). "
+                            + "A timeout is reported after about 10 seconds.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Open Privacy Settings") {
+                            appModel.openPrivacySettings()
+                        }
+                    }
+                } else if case .failed(let reason) = appModel.engineState {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(reason)
                             .font(.caption)
                             .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if looksLikePermissionFailure(reason) {
+                            Text("Tip: after a Debug rebuild the system sometimes keeps a stale "
+                                + "permission entry. Open Privacy Settings, toggle SonarForge off/on, "
+                                + "or run: tccutil reset All com.sonarforge.SonarForge — then relaunch.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         HStack {
                             Button("Open Privacy Settings") {
                                 appModel.openPrivacySettings()
                             }
                             Button("Retry") {
                                 appModel.startEngine()
+                            }
+                            Button("Troubleshooting…") {
+                                appModel.showingTroubleshooting = true
                             }
                         }
                     }
@@ -667,6 +847,26 @@ struct AudioEnginePanel: View {
         } label: {
             Label("Audio Engine", systemImage: "waveform.badge.mic")
         }
+    }
+
+    private var isStarting: Bool {
+        if case .starting = appModel.engineState { return true }
+        return false
+    }
+
+    private var startStopTitle: String {
+        if appModel.isProcessing { return "Stop Engine" }
+        if isStarting { return "Starting…" }
+        return "Start Engine"
+    }
+
+    private func looksLikePermissionFailure(_ reason: String) -> Bool {
+        let lower = reason.lowercased()
+        return lower.contains("permission")
+            || lower.contains("timed out")
+            || lower.contains("tccutil")
+            || lower.contains("screen")
+            || lower.contains("recording")
     }
 
     private var stateColor: Color {

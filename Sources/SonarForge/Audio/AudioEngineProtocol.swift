@@ -56,4 +56,14 @@ public protocol AudioEngineProtocol: AnyObject {
     /// Selects the output device by UID. Pass nil to follow the system default output.
     /// Takes effect immediately if the engine is running (brief reconfiguration).
     func selectOutputDevice(uid: String?)
+
+    // MARK: - Output level / digital clip (post-gain sample peak)
+
+    /// Absolute sample peak of the most recent output buffer (linear, 1.0 = 0 dBFS).
+    /// Measured after EQ, crossfeed, and gain — what we hand to Core Audio.
+    func latestOutputPeakLinear() -> Float
+    /// Sticky flag: any sample with |x| ≥ 1.0 since the last `clearOutputClipLatch()`.
+    func outputClipLatched() -> Bool
+    /// Clears the sticky digital-clip latch (UI calls after acknowledging / holding).
+    func clearOutputClipLatch()
 }

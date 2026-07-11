@@ -67,7 +67,7 @@ public struct EQProfile: Codable, Identifiable, Hashable, Sendable {
     /// Legacy starter names removed when the factory catalog was expanded.
     static let obsoleteFactoryNames = ["Mid Cut"]
 
-    /// Ten industry-recognizable factory presets shipped with the app.
+    /// Built-in factory presets shipped with the app (count = `factoryPresets.count`).
     /// Preamp is 0 dB on all boost presets — users hear the lift directly.
     public static let factoryPresets: [EQProfile] = [
         factory(id: FactoryPresetID.flat, name: "Flat", bands: [],

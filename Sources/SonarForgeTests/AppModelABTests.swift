@@ -68,6 +68,47 @@ final class AppModelABTests: XCTestCase {
         XCTAssertEqual(pm.activeProfileID, y.id, "active id must follow the B slot")
         XCTAssertEqual(model.currentProfile.id, y.id)
     }
+
+    /// Bug: preamp slider only pushed the engine; profile JSON kept the old
+    /// value, so band commits / profile reload / A/B restored the stale preamp.
+    func testPreampPersistSurvivesReloadAndBandCommit() throws {
+        let (model, pm) = try makeModel()
+        let x = pm.create(name: "X")
+        model.selectProfile(id: x.id)
+
+        model.setPreamp(-7.5, persist: true)
+        XCTAssertEqual(model.currentProfile.preamp, -7.5, accuracy: 0.001)
+        let saved = try XCTUnwrap(pm.profiles.first(where: { $0.id == x.id })?.preamp)
+        XCTAssertEqual(saved, -7.5, accuracy: 0.001)
+
+        // Band commit must not clobber the live preamp with a stale field.
+        model.setPreamp(-9.0, persist: false)
+        _ = model.addBand(EQBand(type: .peaking, frequency: 500, gain: 2, q: 1))
+        XCTAssertEqual(model.currentProfile.preamp, -9.0, accuracy: 0.001)
+        let afterBand = try XCTUnwrap(pm.profiles.first(where: { $0.id == x.id })?.preamp)
+        XCTAssertEqual(afterBand, -9.0, accuracy: 0.001)
+
+        model.selectProfile(id: x.id)
+        XCTAssertEqual(model.preampDB, -9.0, accuracy: 0.001)
+        XCTAssertEqual(model.currentProfile.preamp, -9.0, accuracy: 0.001)
+    }
+
+    func testPreampSurvivesABRoundTrip() throws {
+        let (model, _) = try makeModel()
+        let x = model.profileManager.create(name: "X")
+        let y = model.profileManager.create(name: "Y")
+        model.selectProfile(id: x.id)
+        model.setPreamp(-4.0, persist: true)
+
+        model.swapAB()
+        model.selectProfile(id: y.id)
+        model.setPreamp(-1.0, persist: true)
+
+        model.swapAB() // back to X
+        XCTAssertEqual(model.currentProfile.id, x.id)
+        XCTAssertEqual(model.preampDB, -4.0, accuracy: 0.001)
+        XCTAssertEqual(model.currentProfile.preamp, -4.0, accuracy: 0.001)
+    }
 }
 
 /// Minimal no-op engine so AppModel can be exercised without Core Audio.
@@ -89,4 +130,9 @@ private final class MockAudioEngine: AudioEngineProtocol {
     func setCrossfeedAmount(_ amount: Double) { crossfeedAmount = amount }
     func loadProfile(_ profile: EQProfile) { loadedProfile = profile }
     func selectOutputDevice(uid: String?) {}
+    private(set) var mockPeak: Float = 0
+    private(set) var mockClip = false
+    func latestOutputPeakLinear() -> Float { mockPeak }
+    func outputClipLatched() -> Bool { mockClip }
+    func clearOutputClipLatch() { mockClip = false }
 }

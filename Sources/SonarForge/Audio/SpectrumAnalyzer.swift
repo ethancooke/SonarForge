@@ -58,6 +58,16 @@ final class SpectrumAnalyzer {
     private var scratch = [Float](repeating: 0, count: maxFFTSize)
     private var leftScratch = [Float](repeating: 0, count: waveformRingCapacity)
     private var rightScratch = [Float](repeating: 0, count: waveformRingCapacity)
+    /// Contiguous FFT input windows (copied from ring tails; no `Array(suffix:)`).
+    private var preFFTInput = [Float](repeating: 0, count: maxFFTSize)
+    private var postFFTInput = [Float](repeating: 0, count: maxFFTSize)
+    private var preBins = [Float]()
+    private var postBins = [Float]()
+    private var floorBins = [Float]()
+    /// Reused PCM arrays for waveform publish (avoids 3×1024 allocs per tick).
+    private var waveMono = [Float](repeating: 0, count: waveformDisplayCount)
+    private var waveLeft = [Float](repeating: 0, count: waveformDisplayCount)
+    private var waveRight = [Float](repeating: 0, count: waveformDisplayCount)
     private var currentFFTSize = minFFTSize
 
     // MARK: - Realtime side
@@ -79,11 +89,17 @@ final class SpectrumAnalyzer {
         queue.async {
             let size = Self.fftSize(forSampleRate: sampleRate)
             self.currentFFTSize = size
-            self.processor = SpectrumProcessor(fftSize: size, sampleRate: sampleRate)
+            let processor = SpectrumProcessor(fftSize: size, sampleRate: sampleRate)
+            self.processor = processor
             self.preWindow.removeAll(keepingCapacity: true)
             self.postWindow.removeAll(keepingCapacity: true)
             self.leftWindow.removeAll(keepingCapacity: true)
             self.rightWindow.removeAll(keepingCapacity: true)
+            if let processor {
+                self.preBins = [Float](repeating: SpectrumProcessor.floorDB, count: processor.binCount)
+                self.postBins = self.preBins
+                self.floorBins = self.preBins
+            }
 
             let timer = DispatchSource.makeTimerSource(queue: self.queue)
             timer.schedule(deadline: .now(), repeating: 1.0 / Self.updateRate)
@@ -116,16 +132,50 @@ final class SpectrumAnalyzer {
 
         let size = currentFFTSize
         if preWindow.count >= size || postWindow.count >= size {
-            let pre = preWindow.count >= size
-                ? processor.process(Array(preWindow.suffix(size)))
-                : [Float](repeating: SpectrumProcessor.floorDB, count: processor.binCount)
-            let post = postWindow.count >= size
-                ? processor.process(Array(postWindow.suffix(size)))
-                : [Float](repeating: SpectrumProcessor.floorDB, count: processor.binCount)
-            onSnapshot?(pre, post)
+            let pre: [Float]
+            if preWindow.count >= size {
+                copyLast(size, from: preWindow, into: &preFFTInput)
+                preFFTInput.withUnsafeBufferPointer { ptr in
+                    _ = processor.process(
+                        UnsafeBufferPointer(start: ptr.baseAddress!, count: size),
+                        into: &preBins
+                    )
+                }
+                pre = preBins
+            } else {
+                pre = floorBins
+            }
+            let post: [Float]
+            if postWindow.count >= size {
+                copyLast(size, from: postWindow, into: &postFFTInput)
+                postFFTInput.withUnsafeBufferPointer { ptr in
+                    _ = processor.process(
+                        UnsafeBufferPointer(start: ptr.baseAddress!, count: size),
+                        into: &postBins
+                    )
+                }
+                post = postBins
+            } else {
+                post = floorBins
+            }
+            // Copy on publish so listeners can retain snapshots without racing
+            // the next tick’s in-place bin buffers.
+            onSnapshot?(Array(pre), Array(post))
         }
 
         publishWaveform()
+    }
+
+    /// Copies the last `count` samples of `source` into `dest[0..<count]`.
+    private func copyLast(_ count: Int, from source: [Float], into dest: inout [Float]) {
+        precondition(source.count >= count)
+        if dest.count < count {
+            dest = [Float](repeating: 0, count: count)
+        }
+        let start = source.count - count
+        for i in 0..<count {
+            dest[i] = source[start + i]
+        }
     }
 
     private func drainFFT(ring: SampleRing, into window: inout [Float]) {
@@ -166,9 +216,6 @@ final class SpectrumAnalyzer {
 
         // Newest N frames — lockstep L/R (no cross-ring realignment).
         let start = leftWindow.count - n
-        var mono = [Float](repeating: 0, count: n)
-        var left = [Float](repeating: 0, count: n)
-        var right = [Float](repeating: 0, count: n)
         var leftPeak: Float = 0
         var rightPeak: Float = 0
         var leftSq: Float = 0
@@ -178,9 +225,9 @@ final class SpectrumAnalyzer {
         for i in 0..<n {
             let l = leftWindow[start + i]
             let r = rightWindow[start + i]
-            left[i] = l
-            right[i] = r
-            mono[i] = (l + r) * 0.5
+            waveLeft[i] = l
+            waveRight[i] = r
+            waveMono[i] = (l + r) * 0.5
             leftPeak = max(leftPeak, abs(l))
             rightPeak = max(rightPeak, abs(r))
             leftSq += l * l
@@ -198,8 +245,10 @@ final class SpectrumAnalyzer {
         let sum = leftRMS + rightRMS
         let balance: Float = sum > 1e-9 ? max(-1, min(1, (rightRMS - leftRMS) / sum)) : 0
 
+        // Copy into the snapshot so consumers own stable arrays while we reuse
+        // waveMono/Left/Right on the next tick.
         onWaveform?(WaveformSnapshot(
-            mono: mono, left: left, right: right,
+            mono: Array(waveMono), left: Array(waveLeft), right: Array(waveRight),
             leftPeak: leftPeak, rightPeak: rightPeak,
             leftRMS: leftRMS, rightRMS: rightRMS,
             correlation: correlation,

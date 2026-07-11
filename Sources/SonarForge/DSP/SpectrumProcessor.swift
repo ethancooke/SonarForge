@@ -7,6 +7,9 @@ import Accelerate
 /// Pipeline: Hann window → real DFT (vDSP) → power spectrum → calibration to
 /// dBFS (a full-scale sine reads ~0 dB) → max-power reduction into log-spaced
 /// display bins over 20 Hz–20 kHz.
+///
+/// Scratch storage is allocated once in `init` and reused every `process` call
+/// so the 20 Hz analysis tick does not thrash the allocator.
 final class SpectrumProcessor {
 
     let fftSize: Int
@@ -22,6 +25,14 @@ final class SpectrumProcessor {
     private let dbCalibration: Float
     /// Inclusive FFT-bin range feeding each display bin.
     private let binRanges: [ClosedRange<Int>]
+
+    // Reused every process() — never reallocated on the analysis tick.
+    private var windowed: [Float]
+    private var inReal: [Float]
+    private var inImag: [Float]
+    private var outReal: [Float]
+    private var outImag: [Float]
+    private var power: [Float]
 
     /// Display floor; bins clamp here (and silence reads here).
     static let floorDB: Float = -100
@@ -59,6 +70,14 @@ final class SpectrumProcessor {
         }
         self.binRanges = ranges
         self.binCenterFrequencies = centers
+
+        let half = fftSize / 2
+        self.windowed = [Float](repeating: 0, count: fftSize)
+        self.inReal = [Float](repeating: 0, count: half)
+        self.inImag = [Float](repeating: 0, count: half)
+        self.outReal = [Float](repeating: 0, count: half)
+        self.outImag = [Float](repeating: 0, count: half)
+        self.power = [Float](repeating: 0, count: half)
     }
 
     deinit {
@@ -66,22 +85,24 @@ final class SpectrumProcessor {
     }
 
     /// Computes display bins (dBFS, clamped to `floorDB`) from exactly
-    /// `fftSize` time-domain samples.
+    /// `fftSize` time-domain samples. Convenience for tests — returns a fresh
+    /// array so consecutive calls don't share storage.
     func process(_ samples: [Float]) -> [Float] {
+        precondition(samples.count == fftSize, "needs exactly fftSize samples")
+        var out = [Float](repeating: Self.floorDB, count: binCount)
+        samples.withUnsafeBufferPointer { process($0, into: &out) }
+        return out
+    }
+
+    /// Writes `binCount` dBFS bins into `output` (resized if needed). Reuses
+    /// internal FFT scratch; no per-call DFT buffer allocation.
+    @discardableResult
+    func process(_ samples: UnsafeBufferPointer<Float>, into output: inout [Float]) -> Int {
         precondition(samples.count == fftSize, "needs exactly fftSize samples")
         let half = fftSize / 2
 
-        var windowed = [Float](repeating: 0, count: fftSize)
-        vDSP_vmul(samples, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
+        vDSP_vmul(samples.baseAddress!, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
 
-        var inReal = [Float](repeating: 0, count: half)
-        var inImag = [Float](repeating: 0, count: half)
-        var outReal = [Float](repeating: 0, count: half)
-        var outImag = [Float](repeating: 0, count: half)
-        var power = [Float](repeating: 0, count: half)
-
-        // Pack even/odd samples into split-complex form, run the real DFT,
-        // then take squared magnitudes.
         windowed.withUnsafeBufferPointer { samplesPtr in
             inReal.withUnsafeMutableBufferPointer { realPtr in
                 inImag.withUnsafeMutableBufferPointer { imagPtr in
@@ -101,8 +122,11 @@ final class SpectrumProcessor {
         }
         power[0] = 0   // DC & Nyquist are packed into bin 0 — not displayed.
 
-        // Reduce to display bins: max power in each bin's FFT range, in dBFS.
-        var bins = [Float](repeating: Self.floorDB, count: binCount)
+        if output.count != binCount {
+            output = [Float](repeating: Self.floorDB, count: binCount)
+        }
+        for i in output.indices { output[i] = Self.floorDB }
+
         for (i, range) in binRanges.enumerated() {
             var maxPower: Float = 0
             for k in range where power[k] > maxPower {
@@ -110,8 +134,8 @@ final class SpectrumProcessor {
             }
             guard maxPower > 0 else { continue }
             let db = 10 * log10(maxPower) - dbCalibration
-            bins[i] = max(db, Self.floorDB)
+            output[i] = max(db, Self.floorDB)
         }
-        return bins
+        return binCount
     }
 }

@@ -63,7 +63,9 @@ Validated by project owner on real hardware (not synthetic-only):
 
 - **Phase 6.5 residual**: AirPlay, FairPlay/Apple Music edge cases, non‑M4 community hardware after public launch.
 - **Public launch**: repo still private; flip private→public, then branch protection on `main`.
-- Deferred extras: global hotkeys (other app frontmost), curve snapping/zoom, A/B crossfade, optional limiter (D-009), Sparkle auto-update.
+- Deferred extras: global hotkeys (other app frontmost), curve snapping/zoom, A/B crossfade, optional limiter (D-009), Sparkle auto-update, **Reduce Motion** for Reactor/particles/heavy viz (a11y; owner deferred).
+- Digital **output clip indicator** (post-gain sample-peak meter + CLIP badge) shipped; no limiter yet.
+- Audit follow-ups shipped: **M1** permission preflight + clearer start/timeout UI; **L6** debug spectrum file write is Debug-only; **L8** spectrum FFT scratch reuse (no per-tick alloc thrash); **I10** `@MainActor` on `AppModel` + `ProfileManager`.
 
 ---
 
@@ -71,7 +73,7 @@ Validated by project owner on real hardware (not synthetic-only):
 
 1. **Private→public** repo flip when ready.
 2. Residual 6.5 as opportunity allows (AirPlay, FairPlay); broader machines via community.
-3. Deferred extras by demand: limiter, global hotkeys, A/B crossfade, Sparkle.
+3. Deferred extras by demand: limiter, global hotkeys, A/B crossfade, Sparkle (not Reduce Motion unless requested).
 
 ---
 

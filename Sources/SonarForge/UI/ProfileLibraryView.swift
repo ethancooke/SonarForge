@@ -91,7 +91,7 @@ struct ProfileLibraryView: View {
                     .padding(.bottom, 6)
             }
 
-            Text("Tap a profile to activate. Built-ins can be reset but not deleted.")
+            Text("Click a profile to activate. Built-ins can be reset but not deleted.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, 16)
@@ -110,7 +110,7 @@ struct ProfileLibraryView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Restores the 10 factory EQ presets to their shipped defaults. Your custom profiles are not affected.")
+            Text("Restores the \(EQProfile.factoryPresets.count) factory EQ presets to their shipped defaults. Your custom profiles are not affected.")
         }
         .confirmationDialog(
             "Delete “\(deleteCandidate?.name ?? "")”?",
