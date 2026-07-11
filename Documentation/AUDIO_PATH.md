@@ -228,7 +228,8 @@ recovers automatically.
 - Some DRM-protected content and exclusive-mode apps may not be captured.
   Confirmed working: Netflix in the browser (2026-06-10). Untested: Apple
   Music / FairPlay-protected playback.
-- AirPlay output behavior is untested.
+- AirPlay output behavior is untested. USB DACs and Bluetooth have been
+  owner-validated on M4 Pro (14" + 16"); see `STATE.md` § Hardware QA.
 - **Voice/video calls on speakers**: the engine mutes each app's direct output
   and re-renders an EQ'd, ~10 ms-delayed copy, which defeats the acoustic echo
   cancellation in conferencing apps (Discord, Zoom, Teams, …) — the far end can
@@ -273,7 +274,7 @@ NSXPCConnection), none in audio code, and not growing. Raw data:
 | Output device switch while running | ✅ in-app picker, system-default change, and rapid back-to-back switches: ~60–100 ms rebuild each, brief gap only, no clicks/garbage (2026-06-10) |
 | DRM content behavior documented | ✅ Netflix (browser DRM) **is captured** and passes through cleanly — the device-switch session ran on Netflix audio (2026-06-10). Apple Music / FairPlay still untested. |
 | No memory growth over 30+ min | ✅ 35-min soak passed (2026-06-10): RSS flat/declining, CPU ~0 %, no audio-code leaks |
-| USB DAC / external interface / Bluetooth | ⏳ deferred until hardware is at hand (low risk: speakers↔headphones already exercises device/rate changes); fold into Chunk 6.1 hardening |
+| USB DAC / external interface / Bluetooth | ✅ owner-validated on MBP M4 Pro 14" + 16" (USB DACs + Bluetooth OK); AirPlay still open — see `STATE.md` § Hardware QA |
 
 **Phase 6.2 soak (2026-06-11, ended early at user request)**: 10 min with the
 4-band Rock profile + spectrum + real music playing: RSS 149 → 141 MB (−8.4 MB,

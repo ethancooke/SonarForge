@@ -2,13 +2,13 @@
 
 This is the living "where are we right now" document. Update it whenever significant progress is made.
 
-**Last Updated**: 2026-07-09 — **[v0.2.0 shipped](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.0)** (signed + notarized `.dmg`). Since v0.1.2: per-profile headphone **crossfeed**, spectrum FFT sized per sample rate (low-frequency fix), full **visualization suite** (spectrum modes, PCM scope/meters, Reactor Metal visual), **pop-out visualizer** with fullscreen, menu-bar mini spectrum, and visualizer performance/mode-switch fixes. Signed + notarized `.dmg` via CI (`push vX.Y.Z` → draft release). Repo still **private**; remaining: private→public flip, ongoing beta + hardware QA (6.5), optional deferred extras.
+**Last Updated**: 2026-07-09 — **[v0.2.0 shipped](https://github.com/ethancooke/SonarForge/releases/tag/v0.2.0)** (signed + notarized `.dmg`). Since v0.1.2: per-profile headphone **crossfeed**, spectrum FFT sized per sample rate (low-frequency fix), full **visualization suite** (spectrum modes, PCM scope/meters, Reactor Metal visual), **pop-out visualizer** with fullscreen, menu-bar mini spectrum, and visualizer performance/mode-switch fixes. Signed + notarized `.dmg` via CI (`push vX.Y.Z` → draft release). Repo still **private**; remaining: private→public flip, residual 6.5 gaps (AirPlay / FairPlay / non‑M4 machines), optional deferred extras.
 
 ---
 
 ## High-Level Status
 
-The MVP feature set is **functionally complete**. Visualizers and crossfeed shipped in v0.2.0. Listening validation by project owner for core audio; broader hardware QA still open.
+The MVP feature set is **functionally complete**. Visualizers and crossfeed shipped in v0.2.0. Owner hardware QA covers dual M4 Pro MBPs, USB DACs, and Bluetooth (see § Hardware QA below); residual gaps are AirPlay, FairPlay/Apple Music edge cases, and non‑M4 machines.
 
 | Phase | Status |
 |---|---|
@@ -18,7 +18,7 @@ The MVP feature set is **functionally complete**. Visualizers and crossfeed ship
 | 3 — Spectrum analyzer (3.1) | ✅ Complete (pre/post taps → 20 Hz FFT → live traces; adaptive FFT size D-013) |
 | 4 — Profiles + AutoEQ (4.1 persistence/CRUD, 4.2 importer + attribution, 4.3 quick switch, A/B compare) | ✅ Complete + validated |
 | 5 — UI (shell, graphical editor, band list, spectrum overlay, visualizers, pop-out) | ✅ Complete for MVP + v0.2.0 visualizer suite |
-| 6 — Hardening & release | ✅ 6.1–6.4 complete — CI signed-release pipeline. 🔶 6.5 ongoing (broader beta + hardware QA) |
+| 6 — Hardening & release | ✅ 6.1–6.4 complete — CI signed-release pipeline. 🔶 6.5 mostly done for owner machines (USB + BT + M4 Pro); residual: AirPlay, FairPlay, community hardware |
 
 **Headline facts**
 - Audio: tap → private aggregate → HAL IOProc; optional per-profile **crossfeed** after EQ (D-012); gain staging + bypass.
@@ -42,9 +42,26 @@ The MVP feature set is **functionally complete**. Visualizers and crossfeed ship
 
 ---
 
+## Hardware QA (owner-validated)
+
+Validated by project owner on real hardware (not synthetic-only):
+
+| Surface | Status | Notes |
+|---|---|---|
+| MacBook Pro **M4 Pro 14"** | ✅ | Primary daily driver |
+| MacBook Pro **M4 Pro 16"** | ✅ | Second machine |
+| **USB DACs** | ✅ | External DAC path functions correctly |
+| **Bluetooth** output | ✅ | Wireless headphones/speakers path OK |
+| Built-in speakers / wired headphones | ✅ | Baseline from earlier audio-path validation |
+| **AirPlay** | ⏳ untested | Known CATap risk area historically |
+| Apple Music / **FairPlay** DRM edge cases | ⏳ partial / open | Netflix browser DRM was fine earlier; full Apple Music matrix not signed off |
+| M1 / M2 / M3 / base M4 | ⏳ untested by owner | Low risk (arm64 + same stack); community beta after public flip |
+
+---
+
 ## Not Done Yet
 
-- **Phase 6.5 (ongoing)**: hardware-QA matrix (USB DAC / Bluetooth / AirPlay), Apple Music/FairPlay, broader M-series CPU spread.
+- **Phase 6.5 residual**: AirPlay, FairPlay/Apple Music edge cases, non‑M4 community hardware after public launch.
 - **Public launch**: repo still private; flip private→public, then branch protection on `main`.
 - Deferred extras: global hotkeys (other app frontmost), curve snapping/zoom, A/B crossfade, optional limiter (D-009), Sparkle auto-update.
 
@@ -52,10 +69,9 @@ The MVP feature set is **functionally complete**. Visualizers and crossfeed ship
 
 ## Immediate Next Steps (Prioritized)
 
-1. Publish/verify **v0.2.0** GitHub Release after CI notarizes the draft.
-2. **Private→public** repo flip when ready.
-3. Hardware QA matrix.
-4. Deferred extras by demand: limiter, global hotkeys, A/B crossfade, Sparkle.
+1. **Private→public** repo flip when ready.
+2. Residual 6.5 as opportunity allows (AirPlay, FairPlay); broader machines via community.
+3. Deferred extras by demand: limiter, global hotkeys, A/B crossfade, Sparkle.
 
 ---
 
